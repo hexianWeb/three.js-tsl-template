@@ -1,11 +1,12 @@
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { Inspector } from 'three/addons/inspector/Inspector.js'
-// import { sobel } from 'three/addons/tsl/display/SobelOperatorNode.js'
-import { pass, renderOutput } from 'three/tsl'
+import { texture as tslTexture, uv, pass, renderOutput } from 'three/tsl'
 import * as THREE from 'three/webgpu'
 import { setupInspector } from './gui.js'
 import { startLoop } from './loop.js'
-import { createInstancedGridMaterial } from './material.js'
+import { createHexGridMaterial } from './hexGrid.js'
+
+import texture1Url from './UI/texture1.png'
+import texture2Url from './UI/texture2.png'
 
 const canvas = document.querySelector('canvas.webgl')
 
@@ -16,12 +17,19 @@ const sizes = {
   height: window.innerHeight,
 }
 
-const camera = new THREE.PerspectiveCamera(25, sizes.width / sizes.height, 0.1, 100)
-camera.position.set(6, 3, 10)
+// Orthographic camera for fullscreen display
+const aspect = sizes.width / sizes.height
+const frustumSize = 2
+const camera = new THREE.OrthographicCamera(
+  -frustumSize * aspect / 2,
+  frustumSize * aspect / 2,
+  frustumSize / 2,
+  -frustumSize / 2,
+  0.1,
+  100
+)
+camera.position.set(0, 0, 1)
 scene.add(camera)
-
-const controls = new OrbitControls(camera, canvas)
-controls.enableDamping = true
 
 const renderer = new THREE.WebGPURenderer({
   canvas,
@@ -40,44 +48,80 @@ postProcessing.outputColorTransform = false
 const scenePass = pass(scene, camera)
 const outputPass = renderOutput(scenePass)
 postProcessing.outputNode = outputPass
-// postProcessing.outputNode = sobel(outputPass)
 
-const { material } = createInstancedGridMaterial()
+// Load textures with proper async handling
+const textureLoader = new THREE.TextureLoader()
+const textures = {}
 
-const rows = 50
-const columns = 50
-const count = rows * columns
-const cellSize = 0.1
+const textureUrls = { texture1: texture1Url, texture2: texture2Url }
 
-const gridGeometry = new THREE.PlaneGeometry(cellSize, cellSize, 1, 1)
-const instancedMesh = new THREE.InstancedMesh(gridGeometry, material, count)
-
-const matrix = new THREE.Matrix4()
-const position = new THREE.Vector3()
-
-for (let i = 0; i < rows; i++) {
-  for (let j = 0; j < columns; j++) {
-    const index = i * columns + j
-    position.set(i * cellSize, j * cellSize, 0)
-    matrix.identity()
-    matrix.setPosition(position)
-    instancedMesh.setMatrixAt(index, matrix)
-  }
+function loadTexture(name) {
+  return new Promise((resolve) => {
+    textures[name] = textureLoader.load(textureUrls[name], (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace
+      resolve(tex)
+    })
+  })
 }
 
-instancedMesh.instanceMatrix.needsUpdate = true
-scene.add(instancedMesh)
+// Hex grid material
+const hexGrid = createHexGridMaterial()
+hexGrid.aspect.value = aspect
 
-scene.add(new THREE.AxesHelper(3))
-setupInspector(inspector)
-startLoop({ renderer, postProcessing, controls })
+// Base material for image textures
+const imageMaterial = new THREE.MeshBasicNodeMaterial()
+
+// Fullscreen quad
+const geometry = new THREE.PlaneGeometry(frustumSize * aspect, frustumSize)
+const quad = new THREE.Mesh(geometry, imageMaterial)
+scene.add(quad)
+
+function switchToImageTexture(tex) {
+  quad.material = imageMaterial
+  imageMaterial.colorNode = tslTexture(tex).rgb
+  imageMaterial.needsUpdate = true
+}
+
+function switchToHexGrid() {
+  quad.material = hexGrid.material
+  hexGrid.material.needsUpdate = true
+}
+
+// Load first texture and start
+let currentMode = 'texture1'
+loadTexture('texture1').then((tex) => {
+  switchToImageTexture(tex)
+})
+
+// GUI setup
+setupInspector(inspector, (mode) => {
+  currentMode = mode
+  if (mode === 'hexGrid') {
+    switchToHexGrid()
+  } else if (textures[mode]) {
+    switchToImageTexture(textures[mode])
+  } else {
+    loadTexture(mode).then(switchToImageTexture)
+  }
+}, hexGrid)
+
+startLoop({ renderer, postProcessing })
 
 window.addEventListener('resize', () => {
   sizes.width = window.innerWidth
   sizes.height = window.innerHeight
 
-  camera.aspect = sizes.width / sizes.height
+  const newAspect = sizes.width / sizes.height
+  camera.left = -frustumSize * newAspect / 2
+  camera.right = frustumSize * newAspect / 2
   camera.updateProjectionMatrix()
+
+  // Update hex grid aspect ratio
+  hexGrid.aspect.value = newAspect
+
+  // Resize quad to fill screen
+  quad.geometry.dispose()
+  quad.geometry = new THREE.PlaneGeometry(frustumSize * newAspect, frustumSize)
 
   renderer.setSize(sizes.width, sizes.height)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
