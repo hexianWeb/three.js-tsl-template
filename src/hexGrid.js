@@ -1,14 +1,14 @@
-import { Fn, vec2,vec3, vec4, max, dot,sin,abs, floor, float, uniform, uv, length, pow ,mx_noise_float,smoothstep,remap,time} from 'three/tsl'
+import { Fn, vec2,vec3,oscSine, step, vec4, max, dot,sin,abs, floor, float, uniform, uv, length, pow ,mx_noise_float,smoothstep,remap,time, texture as tslTexture, mix as tslMix} from 'three/tsl'
 import * as THREE from 'three/webgpu'
 
 /**
  * Procedural hexagonal grid texture using TSL.
  * Produces a black-and-white hex grid pattern with barrel distortion.
  */
-export function createHexGridMaterial() {
+export function createHexGridMaterial(tex1, tex2) {
   const material = new THREE.MeshBasicNodeMaterial()
 
-  const hexScale = uniform(0.08)
+  const hexScale = uniform(0.03)
   const lineWidth = uniform(0.038)
   const aspect = uniform(1.0)
   const distortionStrength = uniform(-0.3)
@@ -73,52 +73,68 @@ export function createHexGridMaterial() {
     return centered.mul(scale)
   })
 
+
   material.colorNode = Fn(() => {
-    // Start with UV centered at (0, 0)
     const centered = uv().xy.sub(0.5)
-
-    // Apply barrel distortion
     const distorted = barrelDistort(centered, distortionStrength, distortionPower)
-
-    // Correct aspect and scale
     const uvCorrected = vec2(distorted.x.mul(aspect), distorted.y)
     const p = uvCorrected.div(hexScale)
-
-    const h = getHex(p)
-    const d = hex(h.xy).mul(hexScale)
-
-    // Distance field mode: normalized distance (0 at edge, 1 at center)
-    // Max distance at hex center ≈ 0.5 * hexScale for unit hex
+    const hexagons = getHex(p)
+    const d = hex(hexagons.xy).mul(hexScale)
+  
+    // --- 基础距离场（保持）---
     const maxDist = float(0.5).mul(hexScale)
     const normalizedDist = d.div(maxDist).clamp(0.0, 1.0)
-
-    // Apply pow curve: >1 pushes white toward center (more black), <1 pushes black toward edges
     const curvedDist = pow(normalizedDist, distancePow)
-
-    // Outside hex (negative d) = black
-    const distField = d.greaterThan(float(0.0)).select(curvedDist, float(0.0))
-
-    const z = mx_noise_float(abs(h.zw.mul(0.6)))
-
-    const offset = float(0.2)
-
-
-    const bounceTransition = smoothstep(0., 0.5, abs(transition.sub(0.5))).oneMinus();
-
-    const blendCut = smoothstep(
-      uv().y.sub(offset),
-      uv().y.add(offset),
-      remap(transition.add(z.mul(0.08).mul(bounceTransition)), 0., 1., offset.mul(-1), float(1).add(offset))
-    );
-
-    const merge = smoothstep(0,0.5,abs(blendCut.sub(0.5))).oneMinus()
-
-    const textureUV = uvCorrected.add(
-      curvedDist.mul(sin(uv().y.mul(15).sub(time))).mul(merge).mul(0.025)
+  
+    // --- 动态噪声层 ---
+    // 低频大波浪 + 高频细节，制造有机边缘
+    const timeSlow = time.mul(0.3)
+    const timeFast = time.mul(1.2)
+    
+    // 空间扰动：让切割线本身弯曲
+    const warpUV = uv().mul(vec2(3.0, 2.0)).add(vec2(timeSlow, timeSlow.mul(0.5)))
+    const warpNoise = mx_noise_float(warpUV) // 低频波浪形态
+    
+    const detailUV = uv().mul(vec2(8.0, 12.0)).add(vec2(timeFast.mul(-0.3), 0))
+    const detailNoise = mx_noise_float(detailUV).mul(0.15) // 高频边缘破碎
+  
+    // 组合：基础过渡 + 波浪弯曲 + 细节粗糙
+    const edgeWarp = warpNoise.mul(0.25).add(detailNoise)
+    
+        const bounceTransition = pow(
+      sin(transition.mul(Math.PI)),
+      float(2.0)
     )
-
-    return vec4(vec3(merge),1.0)
+    // --- 改进的切割逻辑 ---
+    // 不再是直线 uv().y，而是"波浪线"
+    const baseLine = uv().y
+    const warpedLine = baseLine.add(edgeWarp.mul(bounceTransition))
+    
+    // 用 smoothstep 替代 step，并加入 hex 网格的局部变化
+    // 让切割边缘也受 hex 距离场影响，产生"格子感"的撕裂
+    const hexInfluence = curvedDist.mul(0.15).mul(bounceTransition)
+    
+    const cutThreshold = transition.add(hexInfluence).add(edgeWarp.mul(0.1))
+    
+    // 软边切割：带抗锯齿的过渡
+    const edgeSoftness = float(0.08).add(detailNoise.mul(0.05)).mul(bounceTransition)
+    const cut = smoothstep(
+      cutThreshold.sub(edgeSoftness),
+      cutThreshold.add(edgeSoftness),
+      warpedLine
+    )
+  
+    // --- 纹理扰动采样（保持你的逻辑）---
+    const disturbedUV = uv().add(
+      curvedDist.mul(sin(uv().y.mul(15).sub(time))).mul(cut.oneMinus().mul(cut).mul(4.0)).mul(0.05)
+    )
+  
+    const sample1 = tslTexture(tex1, disturbedUV)
+    const sample2 = tslTexture(tex2, disturbedUV)
+    const finalColor = tslMix(sample1, sample2, cut)
+  
+    return vec4(finalColor.rgb, 1.0)
   })()
-
   return { material, hexScale, lineWidth, aspect, distortionStrength, distortionPower, displayMode, distancePow,transition }
 }

@@ -17,6 +17,9 @@ const sizes = {
   height: window.innerHeight,
 }
 
+const timer = new THREE.Timer();
+timer.connect( document );
+
 // Orthographic camera for fullscreen display
 const aspect = sizes.width / sizes.height
 const frustumSize = 2
@@ -64,9 +67,13 @@ function loadTexture(name) {
   })
 }
 
-// Hex grid material
-const hexGrid = createHexGridMaterial()
-hexGrid.aspect.value = aspect
+// Load both textures first, then create hexGrid material
+const texturesLoaded = Promise.all([
+  loadTexture('texture1'),
+  loadTexture('texture2')
+]).then(([tex1, tex2]) => {
+  return { tex1, tex2 }
+})
 
 // Base material for image textures
 const imageMaterial = new THREE.MeshBasicNodeMaterial()
@@ -82,19 +89,17 @@ function switchToImageTexture(tex) {
   imageMaterial.needsUpdate = true
 }
 
+// GUI setup
+let currentMode = 'texture1'
+let hexGrid = null
+
 function switchToHexGrid() {
+  if (!hexGrid) return
   quad.material = hexGrid.material
   hexGrid.material.needsUpdate = true
 }
 
-// Load first texture and start
-let currentMode = 'texture1'
-loadTexture('texture1').then((tex) => {
-  switchToImageTexture(tex)
-})
-
-// GUI setup
-setupInspector(inspector, (mode) => {
+function onTextureChange(mode) {
   currentMode = mode
   if (mode === 'hexGrid') {
     switchToHexGrid()
@@ -103,9 +108,20 @@ setupInspector(inspector, (mode) => {
   } else {
     loadTexture(mode).then(switchToImageTexture)
   }
-}, hexGrid)
+}
 
-startLoop({ renderer, postProcessing })
+// Start rendering with texture1, then initialize hexGrid once textures are ready
+loadTexture('texture1').then((tex) => {
+  switchToImageTexture(tex)
+  startLoop({ renderer, postProcessing })
+})
+
+// Initialize hexGrid material and GUI once textures are loaded
+texturesLoaded.then(({ tex1, tex2 }) => {
+  hexGrid = createHexGridMaterial(tex1, tex2)
+  hexGrid.aspect.value = aspect
+  setupInspector(inspector, onTextureChange, hexGrid)
+})
 
 window.addEventListener('resize', () => {
   sizes.width = window.innerWidth
@@ -117,7 +133,9 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix()
 
   // Update hex grid aspect ratio
-  hexGrid.aspect.value = newAspect
+  if (hexGrid) {
+    hexGrid.aspect.value = newAspect
+  }
 
   // Resize quad to fill screen
   quad.geometry.dispose()
