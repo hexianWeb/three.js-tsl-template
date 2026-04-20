@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu'
 import { color, fog, rangeFogFactor, uniform } from 'three/tsl'
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 
 export default class Environment {
     /**
@@ -8,9 +9,22 @@ export default class Environment {
     constructor(scene) {
         this.scene = scene
 
+        this.loader = new RGBELoader()
+
         this.fogColor = uniform(color('#ffffff'))
         this.fogRange = { near: 10, far: 15 }
         this._rebuildFog()
+
+        this.loadHDR()
+    }
+
+    loadHDR() {
+        this.loader.load('hdr/citrus_orchard_road_puresky_1k.hdr', (texture) => {
+            texture.mapping = THREE.EquirectangularReflectionMapping
+            this.scene.environment = texture
+            this.scene.background = texture
+            this.scene.backgroundBlurriness = 0.5
+        })
     }
 
     _rebuildFog() {
