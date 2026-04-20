@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu'
-import { color, fog, rangeFogFactor, uniform } from 'three/tsl'
+import { color, uniform } from 'three/tsl'
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 
 export default class Environment {
@@ -11,9 +11,11 @@ export default class Environment {
 
         this.loader = new RGBELoader()
 
-        this.fogColor = uniform(color('#ffffff'))
-        this.fogRange = { near: 10, far: 15 }
-        this._rebuildFog()
+        this.envParams = {
+            backgroundBlurriness: 0.5,
+            backgroundIntensity: 1.0,
+            environmentIntensity: 1.0
+        }
 
         this.loadHDR()
     }
@@ -23,12 +25,11 @@ export default class Environment {
             texture.mapping = THREE.EquirectangularReflectionMapping
             this.scene.environment = texture
             this.scene.background = texture
-            this.scene.backgroundBlurriness = 0.5
-        })
-    }
 
-    _rebuildFog() {
-        this.scene.fogNode = fog(this.fogColor, rangeFogFactor(this.fogRange.near, this.fogRange.far))
+            this.scene.backgroundBlurriness = this.envParams.backgroundBlurriness
+            this.scene.backgroundIntensity = this.envParams.backgroundIntensity
+            this.scene.environmentIntensity = this.envParams.environmentIntensity
+        })
     }
 
     /**
@@ -40,16 +41,20 @@ export default class Environment {
         }
         const folder = debug.addFolder({
             title: 'Environment',
-            expanded: false
+            expanded: true
         })
         if (!folder) {
             return
         }
-        folder.addBinding(this.fogRange, 'near', { min: 0.1, max: 50, step: 0.1, label: 'fog near' }).on('change', () => {
-            this._rebuildFog()
+
+        folder.addBinding(this.envParams, 'backgroundBlurriness', { min: 0, max: 1, step: 0.01 }).on('change', () => {
+            this.scene.backgroundBlurriness = this.envParams.backgroundBlurriness
         })
-        folder.addBinding(this.fogRange, 'far', { min: 0.1, max: 80, step: 0.1, label: 'fog far' }).on('change', () => {
-            this._rebuildFog()
+        folder.addBinding(this.envParams, 'backgroundIntensity', { min: 0, max: 5, step: 0.1 }).on('change', () => {
+            this.scene.backgroundIntensity = this.envParams.backgroundIntensity
+        })
+        folder.addBinding(this.envParams, 'environmentIntensity', { min: 0, max: 5, step: 0.1 }).on('change', () => {
+            this.scene.environmentIntensity = this.envParams.environmentIntensity
         })
     }
 }
