@@ -19,21 +19,17 @@ export default class DotSphere {
       landThreshold: 0.5,
       dotSize: 0.015,
       color: "#9faeee",
-      metalness: 0.82,
-      roughness: 0.28,
       waveColor: "#ff2030",
       waveMaxRadius: 0.6,
-      waveThickness: 0.05,
+      waveThickness: 0.08,
       waveSoftness: 0.02,
-      waveIntensity: 2.5,
+      waveIntensity: 8,
       waveFadeTail: 0.2,
       waveDuration: 1.2,
       waveEase: "power2.out",
     };
 
     this._dotColorUniform = uniform(new THREE.Color(this.panelParams.color));
-    this._metalnessUniform = uniform(this.panelParams.metalness);
-    this._roughnessUniform = uniform(this.panelParams.roughness);
 
     this._wave = {
       clickPos: uniform(new THREE.Vector3(0, 0, 1)),
@@ -94,11 +90,12 @@ export default class DotSphere {
     this.material = null;
   }
 
-  async createDotSphere() {
-    const mask = await this._landMaskPromise;
-    this._dispose();
-    const n = Math.max(1, Math.round(this.panelParams.pointsNumber));
-    this.panelParams.pointsNumber = n;
+  /**
+   * @param {{ data: Uint8ClampedArray, width: number, height: number }} mask
+   * @param {number} n
+   * @returns {number[][]}
+   */
+  _getFibonacciLandPositions(mask, n) {
     const goldenRatio = (Math.sqrt(5) + 1) / 2;
     /** @type {number[][]} */
     const positions = [];
@@ -119,24 +116,21 @@ export default class DotSphere {
       }
     }
 
-    const count = positions.length;
+    return positions;
+  }
 
-    if (count === 0) return;
-
+  /**
+   * @returns {THREE.MeshLambertNodeMaterial}
+   */
+  _createDotSphereMaterial() {
     const uvCentered = uv().sub(vec2(0.5));
-
     const dist = length(uvCentered);
-
     const radius = float(0.5);
-
     const edge = float(0.015);
-
     const disk = float(1).sub(smoothstep(radius.sub(edge), radius, dist));
 
-    const material = new THREE.MeshPhysicalNodeMaterial();
-
+    const material = new THREE.MeshLambertNodeMaterial();
     material.side = THREE.DoubleSide;
-
     material.transparent = true;
 
     const baseTerm = this._dotColorUniform.mul(disk);
@@ -159,57 +153,62 @@ export default class DotSphere {
       .mul(lifeFade)
       .mul(disk);
 
-    material.colorNode = baseTerm.add(waveTerm);
+    // Wave reads mainly as additive emissive so it stays visible on unlit dot faces (Lambert dims colorNode by N·L).
+    const waveAlbedo = waveTerm.mul(float(0.35));
 
+    material.colorNode = baseTerm.add(waveAlbedo);
     material.opacityNode = disk;
-
-    material.roughnessNode = this._roughnessUniform;
-
-    material.metalnessNode = this._metalnessUniform;
-
     material.emissiveNode = baseTerm.add(waveTerm);
-    const size = Math.max(0.001, this.panelParams.dotSize);
 
-    this.panelParams.dotSize = size;
+    return material;
+  }
 
-    const geometry = new THREE.PlaneGeometry(size, size);
-
-    const dots = new THREE.InstancedMesh(geometry, material, count);
-
+  /**
+   * @param {THREE.InstancedMesh} instancedMesh
+   * @param {number[][]} positions
+   */
+  _setInstanceMatricesOnSphere(instancedMesh, positions) {
+    const count = positions.length;
     const matrix = new THREE.Matrix4();
-
     const quat = new THREE.Quaternion();
-
     const scale = new THREE.Vector3(1, 1, 1);
-
     const pos = new THREE.Vector3();
-
     const normal = new THREE.Vector3();
-
     const zAxis = new THREE.Vector3(0, 0, 1);
 
     for (let i = 0; i < count; i++) {
       const [x, y, z] = positions[i];
-
       pos.set(x, y, z);
-
       normal.copy(pos).normalize();
-
       quat.setFromUnitVectors(zAxis, normal);
-
       matrix.compose(pos, quat, scale);
-
-      dots.setMatrixAt(i, matrix);
+      instancedMesh.setMatrixAt(i, matrix);
     }
 
-    dots.instanceMatrix.needsUpdate = true;
+    instancedMesh.instanceMatrix.needsUpdate = true;
+  }
+
+  async createDotSphere() {
+    const mask = await this._landMaskPromise;
+    this._dispose();
+    const n = Math.max(1, Math.round(this.panelParams.pointsNumber));
+    this.panelParams.pointsNumber = n;
+
+    const positions = this._getFibonacciLandPositions(mask, n);
+    if (positions.length === 0) return;
+
+    const material = this._createDotSphereMaterial();
+    const size = Math.max(0.001, this.panelParams.dotSize);
+    this.panelParams.dotSize = size;
+
+    const geometry = new THREE.PlaneGeometry(size, size);
+    const dots = new THREE.InstancedMesh(geometry, material, positions.length);
+
+    this._setInstanceMatricesOnSphere(dots, positions);
 
     this.geometry = geometry;
-
     this.material = material;
-
     this.mesh = dots;
-
     this.scene.add(dots);
   }
 
@@ -236,9 +235,13 @@ export default class DotSphere {
     this._dotColorUniform.value.set(this.panelParams.color);
   }
 
-  _applyMetalRough() {
-    this._metalnessUniform.value = this.panelParams.metalness;
-    this._roughnessUniform.value = this.panelParams.roughness;
+  _applyWave() {
+    this._wave.color.value.set(this.panelParams.waveColor);
+    this._wave.maxRadius.value = this.panelParams.waveMaxRadius;
+    this._wave.thickness.value = this.panelParams.waveThickness;
+    this._wave.softness.value = this.panelParams.waveSoftness;
+    this._wave.intensity.value = this.panelParams.waveIntensity;
+    this._wave.fadeTail.value = this.panelParams.waveFadeTail;
   }
 
   /**
@@ -258,27 +261,6 @@ export default class DotSphere {
       .addBinding(this.panelParams, "color", { view: "color" })
       .on("change", () => {
         this._applyDotColor();
-      });
-
-    folder
-      .addBinding(this.panelParams, "metalness", {
-        label: "Metal",
-        min: 0,
-        max: 1,
-        step: 0.01,
-      })
-      .on("change", () => {
-        this._applyMetalRough();
-      });
-
-    folder
-      .addBinding(this.panelParams, "roughness", {
-        min: 0,
-        max: 1,
-        step: 0.01,
-      })
-      .on("change", () => {
-        this._applyMetalRough();
       });
 
     folder
@@ -316,6 +298,87 @@ export default class DotSphere {
       .on("change", () => {
         this.createDotSphere();
       });
+
+    const waveFolder = debug.addFolder({ title: "Click wave" });
+    if (!waveFolder) return;
+
+    waveFolder
+      .addBinding(this.panelParams, "waveColor", { label: "color", view: "color" })
+      .on("change", () => this._applyWave());
+
+    waveFolder
+      .addBinding(this.panelParams, "waveMaxRadius", {
+        label: "maxRadius",
+        min: 0.05,
+        max: 1.5,
+        step: 0.01,
+      })
+      .on("change", () => this._applyWave());
+
+    waveFolder
+      .addBinding(this.panelParams, "waveThickness", {
+        label: "thickness",
+        min: 0.005,
+        max: 0.5,
+        step: 0.005,
+      })
+      .on("change", () => this._applyWave());
+
+    waveFolder
+      .addBinding(this.panelParams, "waveSoftness", {
+        label: "softness",
+        min: 0,
+        max: 0.1,
+        step: 0.001,
+      })
+      .on("change", () => this._applyWave());
+
+    waveFolder
+      .addBinding(this.panelParams, "waveIntensity", {
+        label: "intensity",
+        min: 0,
+        max: 20,
+        step: 0.1,
+      })
+      .on("change", () => this._applyWave());
+
+    waveFolder
+      .addBinding(this.panelParams, "waveFadeTail", {
+        label: "fadeTail",
+        min: 0,
+        max: 0.8,
+        step: 0.01,
+      })
+      .on("change", () => this._applyWave());
+
+    waveFolder.addBinding(this.panelParams, "waveDuration", {
+      label: "duration",
+      min: 0.1,
+      max: 4,
+      step: 0.05,
+    });
+
+    waveFolder.addBinding(this.panelParams, "waveEase", {
+      label: "ease",
+      options: {
+        "power1.out": "power1.out",
+        "power2.out": "power2.out",
+        "power3.out": "power3.out",
+        "expo.out": "expo.out",
+        "sine.out": "sine.out",
+        none: "none",
+      },
+    });
+
+    waveFolder.addButton({ title: "Trigger now" }).on("click", () => {
+      this._wave.progress.value = 0;
+      this._waveTween?.kill();
+      this._waveTween = gsap.to(this._wave.progress, {
+        value: 1,
+        duration: this.panelParams.waveDuration,
+        ease: this.panelParams.waveEase,
+      });
+    });
   }
 
   dispose() {
