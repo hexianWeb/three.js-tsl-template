@@ -1,6 +1,6 @@
 import * as THREE from 'three/webgpu'
 import { color, uniform } from 'three/tsl'
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js'
 
 export default class Environment {
     /**
@@ -9,7 +9,7 @@ export default class Environment {
     constructor(scene) {
         this.scene = scene
 
-        this.loader = new RGBELoader()
+        this.loader = new HDRLoader()
 
         this.envParams = {
             backgroundBlurriness: 0.5,
@@ -21,7 +21,7 @@ export default class Environment {
     }
 
     loadHDR() {
-        this.loader.load('hdr/citrus_orchard_road_puresky_1k.hdr', (texture) => {
+        this.loader.load('./hdr/studio_small_08_1k.hdr', (texture) => {
             texture.mapping = THREE.EquirectangularReflectionMapping
             this.scene.environment = texture
             this.scene.background = texture

@@ -1,5 +1,5 @@
-import * as THREE from 'three/webgpu'
-import { sin, positionLocal, time, vec2, vec3, vec4, uv, uniform, color, float } from 'three/tsl'
+import InnerPhysicalSphere from './innerPhysicalSphere.js'
+import DotSphere from './dotSphere.js'
 
 export default class World {
     /**
@@ -9,37 +9,22 @@ export default class World {
         this.experience = experience
         this.scene = experience.scene
 
-        this.tweakParams = {
-            timeFrequency: 0.5,
-            positionFrequency: 2,
-            intensityFrequency: 0.5
-        }
-
-        this.createIcosahedron()
-    }
-
-    createIcosahedron() {
-        const geometry = new THREE.IcosahedronGeometry(1, 0)
-        const material = new THREE.MeshPhysicalNodeMaterial()
-
-        material.colorNode = color(0xffffff)
-        material.roughnessNode = float(0.1)
-        material.metalnessNode = float(1.0)
-
-        this.mesh = new THREE.Mesh(geometry, material)
-        this.scene.add(this.mesh)
+        this.dotSphere = new DotSphere(this.scene)
+        this.innerPhysicalSphere = new InnerPhysicalSphere(this.scene)
     }
 
     /**
      * @param {import('../utils/debug.js').default} debug
      */
     debuggerInit(debug) {
-
+        this.dotSphere.debuggerInit(debug)
+        this.innerPhysicalSphere.debuggerInit(debug)
     }
 
     update() {}
 
     dispose() {
-
+        this.innerPhysicalSphere.dispose()
+        this.dotSphere.dispose()
     }
 }
