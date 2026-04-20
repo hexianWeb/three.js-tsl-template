@@ -1,5 +1,6 @@
 import * as THREE from "three/webgpu";
 import { float, length, positionLocal, smoothstep, uniform, uv, vec2 } from "three/tsl";
+import gsap from "gsap";
 
 /**
  * Fibonacci-sampled point cloud on the unit sphere, filtered by a land mask texture.
@@ -45,6 +46,9 @@ export default class DotSphere {
       fadeTail: uniform(this.panelParams.waveFadeTail),
     };
 
+    this._waveTween = null;
+    this._tmpLocal = new THREE.Vector3();
+
     this._landMaskPromise = this._loadLandMask("texture/earth.jpg");
     this.createDotSphere();
   }
@@ -79,6 +83,8 @@ export default class DotSphere {
   }
 
   _dispose() {
+    this._waveTween?.kill();
+    this._waveTween = null;
     if (!this.mesh) return;
     this.scene.remove(this.mesh);
     this.geometry.dispose();
@@ -205,6 +211,25 @@ export default class DotSphere {
     this.mesh = dots;
 
     this.scene.add(dots);
+  }
+
+  /**
+   * @param {THREE.Vector3} worldPoint
+   * @param {number} [duration]
+   * @param {string} [ease]
+   */
+  triggerWave(worldPoint, duration, ease) {
+    if (!this.mesh) return;
+    this._tmpLocal.copy(worldPoint);
+    this.mesh.worldToLocal(this._tmpLocal);
+    this._wave.clickPos.value.copy(this._tmpLocal);
+    this._wave.progress.value = 0;
+    this._waveTween?.kill();
+    this._waveTween = gsap.to(this._wave.progress, {
+      value: 1,
+      duration: duration ?? this.panelParams.waveDuration,
+      ease: ease ?? this.panelParams.waveEase,
+    });
   }
 
   _applyDotColor() {
