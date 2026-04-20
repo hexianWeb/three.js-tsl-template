@@ -1,5 +1,6 @@
 import InnerPhysicalSphere from './innerPhysicalSphere.js'
 import DotSphere from './dotSphere.js'
+import ClickWave from './clickWave.js'
 
 export default class World {
     /**
@@ -11,6 +12,13 @@ export default class World {
 
         this.dotSphere = new DotSphere(this.scene)
         this.innerPhysicalSphere = new InnerPhysicalSphere(this.scene)
+
+        this.clickWave = new ClickWave({
+            canvas: experience.canvas,
+            camera: experience.worldCamera.instance,
+            scene: this.scene,
+            dotSphere: this.dotSphere,
+        })
     }
 
     /**
@@ -24,6 +32,7 @@ export default class World {
     update() {}
 
     dispose() {
+        this.clickWave.dispose()
         this.innerPhysicalSphere.dispose()
         this.dotSphere.dispose()
     }
