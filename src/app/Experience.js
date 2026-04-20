@@ -41,7 +41,6 @@ export default class Experience {
             this.resize()
         })
 
-        this.renderer.instance.setClearColor(this.environment.fogColor.value)
         this.resize()
 
         if (this.debug.active) {
