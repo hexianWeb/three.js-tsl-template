@@ -1,5 +1,5 @@
 import * as THREE from "three/webgpu";
-import { float, length, Loop, positionLocal, smoothstep, uniform, uv, vec2, vec3 } from "three/tsl";
+import { float, length, positionLocal, smoothstep, uniform, uv, vec2 } from "three/tsl";
 import gsap from "gsap";
 
 const MAX_WAVES = 8;
@@ -34,10 +34,8 @@ export default class DotSphere {
     this._dotColorUniform = uniform(new THREE.Color(this.panelParams.color));
 
     this._waves = {
-      clickPos: uniform(
-        Array.from({ length: MAX_WAVES }, () => new THREE.Vector3(0, 0, 1))
-      ),
-      progress: uniform(new Float32Array(MAX_WAVES)),
+      clickPos: Array.from({ length: MAX_WAVES }, () => uniform(new THREE.Vector3(0, 0, 1))),
+      progress: Array.from({ length: MAX_WAVES }, () => uniform(0)),
       color: uniform(new THREE.Color(this.panelParams.waveColor)),
       maxRadius: uniform(this.panelParams.waveMaxRadius),
       thickness: uniform(this.panelParams.waveThickness),
@@ -141,9 +139,9 @@ export default class DotSphere {
     const baseTerm = this._dotColorUniform.mul(disk);
 
     const ringAccum = float(0).toVar();
-    Loop(MAX_WAVES, ({ i }) => {
-      const prog = this._waves.progress.element(i);
-      const clickPos = this._waves.clickPos.element(i);
+    for (let i = 0; i < MAX_WAVES; i++) {
+      const prog = this._waves.progress[i];
+      const clickPos = this._waves.clickPos[i];
       const waveDist = clickPos.sub(positionLocal).length();
       const waveRadius = this._waves.maxRadius.mul(prog);
       const waveInner = waveRadius.sub(this._waves.thickness);
@@ -155,7 +153,7 @@ export default class DotSphere {
       );
       const alive = prog.greaterThan(0).select(float(1), float(0));
       ringAccum.addAssign(ring.mul(lifeFade).mul(alive));
-    });
+    }
 
     const waveTerm = this._waves.color
       .mul(ringAccum)
@@ -245,17 +243,15 @@ export default class DotSphere {
 
     this._slotTweens[slot]?.kill();
 
-    this._waves.clickPos.value[slot].copy(this._tmpLocal);
-    this._waves.progress.value[slot] = 0;
+    this._waves.clickPos[slot].value.copy(this._tmpLocal);
+    this._waves.progress[slot].value = 0;
 
-    const proxy = { v: 0 };
-    this._slotTweens[slot] = gsap.to(proxy, {
-      v: 1,
+    this._slotTweens[slot] = gsap.to(this._waves.progress[slot], {
+      value: 1,
       duration: duration ?? this.panelParams.waveDuration,
       ease: easeVal ?? this.panelParams.waveEase,
-      onUpdate: () => { this._waves.progress.value[slot] = proxy.v; },
       onComplete: () => {
-        this._waves.progress.value[slot] = 0;
+        this._waves.progress[slot].value = 0;
         this._slotTweens[slot] = null;
         onComplete?.();
       },
