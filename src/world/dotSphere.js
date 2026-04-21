@@ -1,6 +1,8 @@
 import * as THREE from "three/webgpu";
-import { float, length, positionLocal, smoothstep, uniform, uv, vec2 } from "three/tsl";
+import { float, length, Loop, positionLocal, smoothstep, uniform, uv, vec2, vec3 } from "three/tsl";
 import gsap from "gsap";
+
+const MAX_WAVES = 8;
 
 /**
  * Fibonacci-sampled point cloud on the unit sphere, filtered by a land mask texture.
@@ -31,9 +33,11 @@ export default class DotSphere {
 
     this._dotColorUniform = uniform(new THREE.Color(this.panelParams.color));
 
-    this._wave = {
-      clickPos: uniform(new THREE.Vector3(0, 0, 1)),
-      progress: uniform(0),
+    this._waves = {
+      clickPos: uniform(
+        Array.from({ length: MAX_WAVES }, () => new THREE.Vector3(0, 0, 1))
+      ),
+      progress: uniform(new Float32Array(MAX_WAVES)),
       color: uniform(new THREE.Color(this.panelParams.waveColor)),
       maxRadius: uniform(this.panelParams.waveMaxRadius),
       thickness: uniform(this.panelParams.waveThickness),
@@ -42,7 +46,8 @@ export default class DotSphere {
       fadeTail: uniform(this.panelParams.waveFadeTail),
     };
 
-    this._waveTween = null;
+    this._slotTweens = new Array(MAX_WAVES).fill(null);
+    this._nextSlot = 0;
     this._tmpLocal = new THREE.Vector3();
 
     this._landMaskPromise = this._loadLandMask("texture/earth.jpg");
@@ -79,8 +84,8 @@ export default class DotSphere {
   }
 
   _dispose() {
-    this._waveTween?.kill();
-    this._waveTween = null;
+    this._slotTweens.forEach(t => t?.kill());
+    this._slotTweens.fill(null);
     if (!this.mesh) return;
     this.scene.remove(this.mesh);
     this.geometry.dispose();
@@ -135,22 +140,26 @@ export default class DotSphere {
 
     const baseTerm = this._dotColorUniform.mul(disk);
 
-    const waveDist = this._wave.clickPos.sub(positionLocal).length();
-    const waveRadius = this._wave.maxRadius.mul(this._wave.progress);
-    const waveInner = waveRadius.sub(this._wave.thickness);
+    const ringAccum = float(0).toVar();
+    Loop(MAX_WAVES, ({ i }) => {
+      const prog = this._waves.progress.element(i);
+      const clickPos = this._waves.clickPos.element(i);
+      const waveDist = clickPos.sub(positionLocal).length();
+      const waveRadius = this._waves.maxRadius.mul(prog);
+      const waveInner = waveRadius.sub(this._waves.thickness);
+      const ringOuter = smoothstep(waveRadius, waveRadius.sub(this._waves.softness), waveDist);
+      const ringInner = smoothstep(waveInner.sub(this._waves.softness), waveInner, waveDist);
+      const ring = ringOuter.mul(ringInner);
+      const lifeFade = float(1).sub(
+        smoothstep(float(1).sub(this._waves.fadeTail), float(1), prog),
+      );
+      const alive = prog.greaterThan(0).select(float(1), float(0));
+      ringAccum.addAssign(ring.mul(lifeFade).mul(alive));
+    });
 
-    const ringOuter = smoothstep(waveRadius, waveRadius.sub(this._wave.softness), waveDist);
-    const ringInner = smoothstep(waveInner.sub(this._wave.softness), waveInner, waveDist);
-    const ring = ringOuter.mul(ringInner);
-
-    const lifeFade = float(1).sub(
-      smoothstep(float(1).sub(this._wave.fadeTail), float(1), this._wave.progress),
-    );
-
-    const waveTerm = this._wave.color
-      .mul(ring)
-      .mul(this._wave.intensity)
-      .mul(lifeFade)
+    const waveTerm = this._waves.color
+      .mul(ringAccum)
+      .mul(this._waves.intensity)
       .mul(disk);
 
     // Wave reads mainly as additive emissive so it stays visible on unlit dot faces (Lambert dims colorNode by N·L).
@@ -214,20 +223,42 @@ export default class DotSphere {
 
   /**
    * @param {THREE.Vector3} worldPoint
-   * @param {number} [duration]
+   * @param {number|object} [durationOrOpts]
    * @param {string} [ease]
    */
-  triggerWave(worldPoint, duration, ease) {
+  triggerWave(worldPoint, durationOrOpts, ease) {
     if (!this.mesh) return;
+
+    let duration, easeVal, onComplete;
+    if (typeof durationOrOpts === "object" && durationOrOpts !== null) {
+      ({ duration, ease: easeVal, onComplete } = durationOrOpts);
+    } else {
+      duration = durationOrOpts;
+      easeVal = ease;
+    }
+
     this._tmpLocal.copy(worldPoint);
     this.mesh.worldToLocal(this._tmpLocal);
-    this._wave.clickPos.value.copy(this._tmpLocal);
-    this._wave.progress.value = 0;
-    this._waveTween?.kill();
-    this._waveTween = gsap.to(this._wave.progress, {
-      value: 1,
+
+    const slot = this._nextSlot;
+    this._nextSlot = (this._nextSlot + 1) % MAX_WAVES;
+
+    this._slotTweens[slot]?.kill();
+
+    this._waves.clickPos.value[slot].copy(this._tmpLocal);
+    this._waves.progress.value[slot] = 0;
+
+    const proxy = { v: 0 };
+    this._slotTweens[slot] = gsap.to(proxy, {
+      v: 1,
       duration: duration ?? this.panelParams.waveDuration,
-      ease: ease ?? this.panelParams.waveEase,
+      ease: easeVal ?? this.panelParams.waveEase,
+      onUpdate: () => { this._waves.progress.value[slot] = proxy.v; },
+      onComplete: () => {
+        this._waves.progress.value[slot] = 0;
+        this._slotTweens[slot] = null;
+        onComplete?.();
+      },
     });
   }
 
@@ -236,12 +267,12 @@ export default class DotSphere {
   }
 
   _applyWave() {
-    this._wave.color.value.set(this.panelParams.waveColor);
-    this._wave.maxRadius.value = this.panelParams.waveMaxRadius;
-    this._wave.thickness.value = this.panelParams.waveThickness;
-    this._wave.softness.value = this.panelParams.waveSoftness;
-    this._wave.intensity.value = this.panelParams.waveIntensity;
-    this._wave.fadeTail.value = this.panelParams.waveFadeTail;
+    this._waves.color.value.set(this.panelParams.waveColor);
+    this._waves.maxRadius.value = this.panelParams.waveMaxRadius;
+    this._waves.thickness.value = this.panelParams.waveThickness;
+    this._waves.softness.value = this.panelParams.waveSoftness;
+    this._waves.intensity.value = this.panelParams.waveIntensity;
+    this._waves.fadeTail.value = this.panelParams.waveFadeTail;
   }
 
   /**
@@ -371,13 +402,7 @@ export default class DotSphere {
     });
 
     waveFolder.addButton({ title: "Trigger now" }).on("click", () => {
-      this._wave.progress.value = 0;
-      this._waveTween?.kill();
-      this._waveTween = gsap.to(this._wave.progress, {
-        value: 1,
-        duration: this.panelParams.waveDuration,
-        ease: this.panelParams.waveEase,
-      });
+      this.triggerWave(new THREE.Vector3(0, 0, 1));
     });
   }
 
