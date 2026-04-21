@@ -113,7 +113,7 @@ class FlyLine {
     );
 
     const flowHead = fract(this.uniforms.flowTime.mul(shared.uniforms.flowSpeed));
-    const dFlow = fract(u.sub(flowHead));
+    const dFlow = fract(flowHead.sub(u));
     const flowMask = smoothstep(shared.uniforms.flowLength, float(0), dFlow);
     const flowOn = smoothstep(0.98, 1.0, this.uniforms.progress);
 
