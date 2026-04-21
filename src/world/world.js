@@ -1,6 +1,7 @@
 import InnerPhysicalSphere from './innerPhysicalSphere.js'
 import DotSphere from './dotSphere.js'
 import ClickWave from './clickWave.js'
+import FlyLines from './flyLines.js'
 
 export default class World {
     /**
@@ -12,6 +13,7 @@ export default class World {
 
         this.dotSphere = new DotSphere(this.scene)
         this.innerPhysicalSphere = new InnerPhysicalSphere(this.scene)
+        this.flyLines = new FlyLines(this.scene)
 
         this.clickWave = new ClickWave({
             canvas: experience.canvas,
@@ -27,13 +29,17 @@ export default class World {
     debuggerInit(debug) {
         this.dotSphere.debuggerInit(debug)
         this.innerPhysicalSphere.debuggerInit(debug)
+        this.flyLines.debuggerInit(debug)
     }
 
-    update() {}
+    update(delta = 0) {
+        this.flyLines.update(delta)
+    }
 
     dispose() {
         this.clickWave.dispose()
         this.innerPhysicalSphere.dispose()
         this.dotSphere.dispose()
+        this.flyLines.dispose()
     }
 }

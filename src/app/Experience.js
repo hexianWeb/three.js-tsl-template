@@ -66,8 +66,9 @@ export default class Experience {
      */
     update(timestamp) {
         this.time.update(timestamp)
+        const delta = this.time.getDelta()
         this.worldCamera.update()
-        this.world.update()
+        this.world.update(delta)
         this.renderer.render()
     }
 
