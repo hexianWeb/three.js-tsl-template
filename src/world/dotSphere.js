@@ -138,7 +138,7 @@ export default class DotSphere {
 
     const baseTerm = this._dotColorUniform.mul(disk);
 
-    const ringAccum = float(0).toVar();
+    let ringAccum = float(0);
     for (let i = 0; i < MAX_WAVES; i++) {
       const prog = this._waves.progress[i];
       const clickPos = this._waves.clickPos[i];
@@ -152,7 +152,7 @@ export default class DotSphere {
         smoothstep(float(1).sub(this._waves.fadeTail), float(1), prog),
       );
       const alive = prog.greaterThan(0).select(float(1), float(0));
-      ringAccum.addAssign(ring.mul(lifeFade).mul(alive));
+      ringAccum = ringAccum.add(ring.mul(lifeFade).mul(alive));
     }
 
     const waveTerm = this._waves.color
