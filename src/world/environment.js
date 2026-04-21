@@ -13,7 +13,7 @@ export default class Environment {
 
         this.envParams = {
             backgroundBlurriness: 0.5,
-            backgroundIntensity: 1.0,
+            backgroundIntensity: 1.0 *0.1,
             environmentIntensity: 1.0
         }
 
@@ -21,7 +21,7 @@ export default class Environment {
     }
 
     loadHDR() {
-        this.loader.load('./hdr/studio_small_08_1k.hdr', (texture) => {
+        this.loader.load('./hdr/rogland_clear_night_1k.hdr', (texture) => {
             texture.mapping = THREE.EquirectangularReflectionMapping
             this.scene.environment = texture
             this.scene.background = texture

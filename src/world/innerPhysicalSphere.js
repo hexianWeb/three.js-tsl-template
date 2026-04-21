@@ -13,7 +13,7 @@ export default class InnerPhysicalSphere {
         this.scene = scene
 
         this.panelParams = {
-            color: '#5a8cff',
+            color: '#30426b',
             radius: 1.0
         }
 
@@ -22,8 +22,10 @@ export default class InnerPhysicalSphere {
         this.geometry = new THREE.SphereGeometry(1, 48, 32)
         const material = new THREE.MeshPhysicalNodeMaterial()
         material.colorNode = this._colorUniform
-        material.roughnessNode = float(0.28)
-        material.metalnessNode = float(0.12)
+        material.roughnessNode = float(0.2)
+        material.metalnessNode = float(0.0)
+        material.clearcoatNode = float(1.0)
+        material.clearcoatRoughnessNode = float(0.0)
 
         this.mesh = new THREE.Mesh(this.geometry, material)
         this.mesh.scale.setScalar(this.panelParams.radius)

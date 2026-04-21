@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { TrackballControls } from 'three/addons/controls/TrackballControls.js'
 
 export default class WorldCamera {
     /**
@@ -10,11 +11,17 @@ export default class WorldCamera {
         this.sizes = sizes
         this.canvas = canvas
 
-        this.instance = new THREE.PerspectiveCamera(25, sizes.width / sizes.height, 0.1, 100)
+        this.instance = new THREE.PerspectiveCamera(12, sizes.width / sizes.height, 0.1, 100)
         this.instance.position.set(6, 3, 10)
 
         this.controls = new OrbitControls(this.instance, canvas)
         this.controls.enableDamping = true
+        this.controls.enableZoom = false
+
+        this.zoomControls = new TrackballControls(this.instance, canvas)
+        this.zoomControls.target = this.controls.target
+        this.zoomControls.noRotate = true
+        this.zoomControls.noPan = true
 
         this._debugFov = { fov: this.instance.fov }
     }
@@ -22,10 +29,12 @@ export default class WorldCamera {
     resize() {
         this.instance.aspect = this.sizes.width / this.sizes.height
         this.instance.updateProjectionMatrix()
+        this.zoomControls.handleResize()
     }
 
     update() {
         this.controls.update()
+        this.zoomControls.update()
     }
 
     /**
@@ -50,5 +59,6 @@ export default class WorldCamera {
 
     dispose() {
         this.controls.dispose()
+        this.zoomControls.dispose()
     }
 }
