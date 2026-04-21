@@ -80,6 +80,7 @@ class FlyLine {
     this.shared = shared;
     this._arrived = false;
     this._tween = null;
+    this._postFadeTween = null;
 
     this.uniforms = {
       progress: uniform(0),
@@ -137,10 +138,12 @@ class FlyLine {
       ease: ease ?? this.shared.params.growthEase,
       onComplete: () => {
         this._arrived = true;
-        gsap.to(this.uniforms.postFade, {
+        this._postFadeTween?.kill();
+        this._postFadeTween = gsap.to(this.uniforms.postFade, {
           value: this.shared.params.postArriveFade,
           duration: this.shared.params.postArriveFadeDuration,
           ease: 'power1.out',
+          onComplete: () => { this._postFadeTween = null; },
         });
         onArrive?.();
       },
@@ -153,6 +156,7 @@ class FlyLine {
 
   dispose() {
     this._tween?.kill();
+    this._postFadeTween?.kill();
     this.scene.remove(this.mesh);
     this.geometry.dispose();
     this.material.dispose();
