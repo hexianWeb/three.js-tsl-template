@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu';
-import { abs, float, smoothstep, uniform, uv } from 'three/tsl';
+import { abs, float, fract, smoothstep, uniform, uv } from 'three/tsl';
 import gsap from 'gsap';
 
 const CURVE_SEGMENTS = 64;
@@ -84,6 +84,7 @@ class FlyLine {
     this.uniforms = {
       progress: uniform(0),
       flowTime: uniform(0),
+      postFade: uniform(1),
       color: uniform(new THREE.Color(color ?? shared.params.color)),
     };
 
@@ -102,6 +103,7 @@ class FlyLine {
     const v = uv().y;
 
     const cross = float(1).sub(smoothstep(0.7, 1.0, abs(v)));
+
     const grown = float(1).sub(
       smoothstep(
         this.uniforms.progress.sub(shared.uniforms.headSoftness),
@@ -109,9 +111,16 @@ class FlyLine {
         u,
       ),
     );
-    const a = grown.mul(cross);
 
-    material.colorNode = this.uniforms.color.mul(a);
+    const flowHead = fract(this.uniforms.flowTime.mul(shared.uniforms.flowSpeed));
+    const dFlow = fract(u.sub(flowHead));
+    const flowMask = smoothstep(shared.uniforms.flowLength, float(0), dFlow);
+    const flowOn = smoothstep(0.98, 1.0, this.uniforms.progress);
+
+    const base = grown.mul(this.uniforms.postFade);
+    const a = base.add(flowOn.mul(flowMask)).mul(cross);
+
+    material.colorNode = this.uniforms.color.mul(a).mul(shared.uniforms.intensity);
     material.opacityNode = a;
 
     this.material = material;
@@ -128,6 +137,11 @@ class FlyLine {
       ease: ease ?? this.shared.params.growthEase,
       onComplete: () => {
         this._arrived = true;
+        gsap.to(this.uniforms.postFade, {
+          value: this.shared.params.postArriveFade,
+          duration: this.shared.params.postArriveFadeDuration,
+          ease: 'power1.out',
+        });
         onArrive?.();
       },
     });
@@ -161,10 +175,18 @@ export default class FlyLines {
       growth: 0.6,
       growthEase: 'power2.out',
       headSoftness: 0.05,
+      flowSpeed: 0.6,
+      flowLength: 0.15,
+      intensity: 2.0,
+      postArriveFade: 0.3,
+      postArriveFadeDuration: 0.4,
     };
 
     this.uniforms = {
       headSoftness: uniform(this.params.headSoftness),
+      flowSpeed: uniform(this.params.flowSpeed),
+      flowLength: uniform(this.params.flowLength),
+      intensity: uniform(this.params.intensity),
     };
 
     this.shared = { params: this.params, uniforms: this.uniforms };
@@ -211,6 +233,14 @@ export default class FlyLines {
     f.addBinding(this.params, 'growth', { min: 0.1, max: 3, step: 0.05 });
     f.addBinding(this.params, 'headSoftness', { min: 0, max: 0.3, step: 0.005 })
       .on('change', () => { this.uniforms.headSoftness.value = this.params.headSoftness; });
+    f.addBinding(this.params, 'flowSpeed', { min: 0, max: 2, step: 0.05 })
+      .on('change', () => { this.uniforms.flowSpeed.value = this.params.flowSpeed; });
+    f.addBinding(this.params, 'flowLength', { min: 0.02, max: 0.5, step: 0.01 })
+      .on('change', () => { this.uniforms.flowLength.value = this.params.flowLength; });
+    f.addBinding(this.params, 'intensity', { min: 0, max: 6, step: 0.1 })
+      .on('change', () => { this.uniforms.intensity.value = this.params.intensity; });
+    f.addBinding(this.params, 'postArriveFade', { min: 0, max: 1, step: 0.05 });
+    f.addBinding(this.params, 'postArriveFadeDuration', { min: 0, max: 2, step: 0.05 });
     f.addButton({ title: 'Test line (Beijing -> NY)' }).on('click', () => {
       this.clear();
       const A = new THREE.Vector3(0.53, 0.64, -0.56).normalize();
