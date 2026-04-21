@@ -2,6 +2,18 @@ import InnerPhysicalSphere from './innerPhysicalSphere.js'
 import DotSphere from './dotSphere.js'
 import ClickWave from './clickWave.js'
 import FlyLines from './flyLines.js'
+import SpokeController from './spokeController.js'
+
+const SAMPLE_DATA = {
+    hub: { lng: 116.4, lat: 39.9 },
+    targets: [
+        { id: 'ny',  lng: -74.0,  lat: 40.7 },
+        { id: 'lon', lng:  -0.1,  lat: 51.5 },
+        { id: 'tok', lng: 139.7,  lat: 35.7 },
+        { id: 'sfo', lng: -122.4, lat: 37.8 },
+        { id: 'syd', lng: 151.2,  lat: -33.9 },
+    ],
+}
 
 export default class World {
     /**
@@ -21,6 +33,12 @@ export default class World {
             scene: this.scene,
             dotSphere: this.dotSphere,
         })
+
+        this.spokes = new SpokeController({
+            dotSphere: this.dotSphere,
+            flyLines: this.flyLines,
+            data: SAMPLE_DATA,
+        })
     }
 
     /**
@@ -30,6 +48,7 @@ export default class World {
         this.dotSphere.debuggerInit(debug)
         this.innerPhysicalSphere.debuggerInit(debug)
         this.flyLines.debuggerInit(debug)
+        this.spokes.debuggerInit(debug)
     }
 
     update(delta = 0) {
@@ -41,5 +60,6 @@ export default class World {
         this.innerPhysicalSphere.dispose()
         this.dotSphere.dispose()
         this.flyLines.dispose()
+        this.spokes.dispose()
     }
 }
