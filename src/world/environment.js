@@ -14,8 +14,11 @@ export default class Environment {
         this.envParams = {
             backgroundBlurriness: 0.5,
             backgroundIntensity: 1.0 *0.1,
-            environmentIntensity: 1.0
+            environmentIntensity: 1.0 *0.7
         }
+
+        this.ambientLight = new THREE.AmbientLight(0x8844ff, 0.1)
+        this.scene.add(this.ambientLight)
 
         this.loadHDR()
     }

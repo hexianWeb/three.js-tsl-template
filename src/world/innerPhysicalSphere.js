@@ -13,7 +13,7 @@ export default class InnerPhysicalSphere {
         this.scene = scene
 
         this.panelParams = {
-            color: '#30426b',
+            color: '#0f1a32',
             radius: 1.0
         }
 

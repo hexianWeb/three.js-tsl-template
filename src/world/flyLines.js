@@ -208,16 +208,16 @@ export default class FlyLines {
     this.lines = [];
 
     this.params = {
-      color: '#6bc7ff',
+      color: '#4e87df',
       arcHeight: 0.18,
-      width: 0.004,
-      growth: 0.6,
+      width: 0.005,
+      growth: 0.2,
       growthEase: 'power2.out',
       headSoftness: 0.05,
-      flowSpeed: 0.6,
+      flowSpeed: 2.0,
       flowLength: 0.15,
-      intensity: 2.0,
-      coreBoost: 1.6,
+      intensity: 0.9,
+      coreBoost: 1.35,
       postArriveFade: 0.3,
       postArriveFadeDuration: 0.4,
     };

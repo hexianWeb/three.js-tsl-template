@@ -16,11 +16,11 @@ export default class Renderer {
         this.instance.toneMapping = THREE.ACESFilmicToneMapping
 
         this.params = {
-            exposure: 1.1,
-            bloomStrength: 0.85,
-            bloomRadius: 0.6,
+            exposure: 1.27,
+            bloomStrength: 0.62,
+            bloomRadius: 0.55,
             bloomThreshold: 0.2,
-            vignetteStrength: 0.55,
+            vignetteStrength: 0.48,
             vignetteStart: 0.45,
             vignetteEnd: 0.95,
         }
