@@ -31,7 +31,7 @@ const hexCellId = /*#__PURE__*/ Fn(([p]) => {
 })
 
 /**
- * Sci-fi energy shield (TSL / WebGPU port of the reference ShieldMaterial).
+ * Sci-fi energy shield (TSL /WebGPU port of the reference ShieldMaterial).
  * Implemented features: reveal-dissolve + edge glow, life color, fresnel,
  * triplanar hex with seam fade, per-cell flash, flow noise, bottom fade.
  */
@@ -40,34 +40,34 @@ export default class EnergyShield {
         this.scene = scene
 
         this.params = {
-            color: '#26aeff',
-            noiseEdgeColor: '#26aeff',
-            radius: 1.01,
+            color: '#689ee5',
+            noiseEdgeColor: '#14a7ff',
+            radius: 1.0,
 
             life: 1.0,
-            opacity: 0.76,
+            opacity: 0.72,
 
-            fresnelPower: 1.8,
-            fresnelStrength: 1.75,
+            fresnelPower: 2.5,
+            fresnelStrength: 0.15,
 
-            hexScale: 3.0,
+            hexScale: 12.0,
             edgeWidth: 0.06,
-            hexOpacity: 0.13,
+            hexOpacity: 0.14,
 
-            flashSpeed: 0.6,
+            flashSpeed: 2.9,
             flashIntensity: 0.11,
 
-            flowScale: 2.4,
-            flowSpeed: 1.13,
+            flowScale: 4.0,
+            flowSpeed: 1.5,
             flowIntensity: 4.0,
 
             reveal: 1.0,
-            noiseScale: 1.3,
+            noiseScale: 1.65,
             noiseEdgeWidth: 0.02,
-            noiseEdgeIntensity: 10.0,
+            noiseEdgeIntensity: 9.8,
             noiseEdgeSmoothness: 0.5,
 
-            fadeStart: 0.0,
+            fadeStart: 0.17,
         }
 
         const p = this.params
