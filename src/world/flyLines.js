@@ -1,5 +1,8 @@
 import * as THREE from 'three/webgpu';
-import { abs, float, fract, smoothstep, uniform, uv } from 'three/tsl';
+import {
+  abs, attribute, cameraPosition, cross, float, fract, length, modelWorldMatrix,
+  modelWorldMatrixInverse, normalize, positionLocal, smoothstep, uniform, uv, vec3, vec4,
+} from 'three/tsl';
 import gsap from 'gsap';
 
 const CURVE_SEGMENTS = 64;
@@ -7,11 +10,14 @@ const CURVE_SEGMENTS = 64;
 /**
  * Build a ribbon BufferGeometry along the great-circle arc from aUnit to bUnit.
  * Points are lifted off the unit sphere by `arcHeight * sin(pi*t)` for a bow over the globe.
- * Each curve point produces two vertices (up/down side of the ribbon).
- * UV: u in [0,1] along arc, v in {-1,+1} across.
+ * Each sample has two vertices at the same centerline position; lateral width is applied in
+ * the vertex shader (screen-aligned / billboard).
+ * per-vertex `direction`: vector toward the next sample (object space).
+ * UV: u in [0,1] along arc, v in {-1,+1} used as side sign in the vertex shader and for soft edges.
  */
-function buildRibbonGeometry(aUnit, bUnit, arcHeight, width) {
+function buildRibbonGeometry(aUnit, bUnit, arcHeight) {
   const positions = new Float32Array(CURVE_SEGMENTS * 2 * 3);
+  const directions = new Float32Array(CURVE_SEGMENTS * 2 * 3);
   const uvs = new Float32Array(CURVE_SEGMENTS * 2 * 2);
   const indices = [];
 
@@ -22,7 +28,6 @@ function buildRibbonGeometry(aUnit, bUnit, arcHeight, width) {
   const sinOmega = Math.sin(omega) || 1;
 
   const curvePoints = [];
-  const tangents = [];
 
   for (let i = 0; i < CURVE_SEGMENTS; i++) {
     const t = i / (CURVE_SEGMENTS - 1);
@@ -35,23 +40,30 @@ function buildRibbonGeometry(aUnit, bUnit, arcHeight, width) {
     curvePoints.push(base.clone().multiplyScalar(lift));
   }
 
+  const tmpDir = new THREE.Vector3();
   for (let i = 0; i < CURVE_SEGMENTS; i++) {
-    const prev = curvePoints[Math.max(i - 1, 0)];
-    const next = curvePoints[Math.min(i + 1, CURVE_SEGMENTS - 1)];
-    tangents.push(next.clone().sub(prev).normalize());
-  }
+    if (i < CURVE_SEGMENTS - 1) {
+      tmpDir.subVectors(curvePoints[i + 1], curvePoints[i]);
+    } else {
+      tmpDir.subVectors(curvePoints[i], curvePoints[i - 1]);
+    }
+    if (tmpDir.lengthSq() < 1e-20) {
+      if (i > 0) {
+        tmpDir.subVectors(curvePoints[i], curvePoints[i - 1]);
+      } else {
+        tmpDir.subVectors(curvePoints[1], curvePoints[0]);
+      }
+    }
 
-  const tmpSide = new THREE.Vector3();
-  for (let i = 0; i < CURVE_SEGMENTS; i++) {
     const p = curvePoints[i];
-    const normal = p.clone().normalize();
-    tmpSide.crossVectors(normal, tangents[i]).normalize().multiplyScalar(width);
-    const up = p.clone().add(tmpSide);
-    const dn = p.clone().sub(tmpSide);
-
     const baseIdx = i * 2;
-    positions.set([up.x, up.y, up.z], baseIdx * 3);
-    positions.set([dn.x, dn.y, dn.z], (baseIdx + 1) * 3);
+    positions.set([p.x, p.y, p.z], baseIdx * 3);
+    positions.set([p.x, p.y, p.z], (baseIdx + 1) * 3);
+
+    for (const o of [0, 1]) {
+      const j = (baseIdx + o) * 3;
+      directions.set([tmpDir.x, tmpDir.y, tmpDir.z], j);
+    }
 
     const u = i / (CURVE_SEGMENTS - 1);
     uvs.set([u, 1], baseIdx * 2);
@@ -68,6 +80,7 @@ function buildRibbonGeometry(aUnit, bUnit, arcHeight, width) {
 
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geom.setAttribute('direction', new THREE.BufferAttribute(directions, 3));
   geom.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
   geom.setIndex(indices);
   geom.computeBoundingSphere();
@@ -92,13 +105,26 @@ class FlyLine {
     this.geometry = buildRibbonGeometry(
       aWorld, bWorld,
       shared.params.arcHeight,
-      shared.params.width,
     );
 
     const material = new THREE.MeshBasicNodeMaterial();
     material.transparent = true;
     material.depthWrite = false;
     material.side = THREE.DoubleSide;
+
+    const directionAttr = attribute('direction', 'vec3');
+    const lineDirW = directionAttr.transformDirection(modelWorldMatrix).normalize();
+    const pW = modelWorldMatrix.mul(vec4(positionLocal, 1.0)).xyz;
+    const toCam = cameraPosition.sub(pW).normalize();
+    const raw = cross(lineDirW, toCam);
+    const rawLen = length(raw);
+    const fb0 = cross(lineDirW, vec3(0, 1, 0));
+    const fb1 = cross(lineDirW, vec3(1, 0, 0));
+    const alt = length(fb0).greaterThan(float(1e-4)).select(normalize(fb0), normalize(fb1));
+    const tangentW = rawLen.greaterThan(float(1e-4)).select(normalize(raw), alt);
+    const offsetW = tangentW.mul(uv().y).mul(shared.uniforms.lineWidth);
+    const pW2 = pW.add(offsetW);
+    material.positionNode = modelWorldMatrixInverse.mul(vec4(pW2, 1.0)).xyz;
 
     const u = uv().x;
     const v = uv().y;
@@ -191,6 +217,7 @@ export default class FlyLines {
       flowSpeed: uniform(this.params.flowSpeed),
       flowLength: uniform(this.params.flowLength),
       intensity: uniform(this.params.intensity),
+      lineWidth: uniform(this.params.width),
     };
 
     this.shared = { params: this.params, uniforms: this.uniforms };
@@ -233,7 +260,8 @@ export default class FlyLines {
 
     f.addBinding(this.params, 'color', { view: 'color' });
     f.addBinding(this.params, 'arcHeight', { min: 0, max: 0.5, step: 0.01 });
-    f.addBinding(this.params, 'width', { min: 0.001, max: 0.02, step: 0.001 });
+    f.addBinding(this.params, 'width', { min: 0.001, max: 0.02, step: 0.001 })
+      .on('change', () => { this.uniforms.lineWidth.value = this.params.width; });
     f.addBinding(this.params, 'growth', { min: 0.1, max: 3, step: 0.05 });
     f.addBinding(this.params, 'headSoftness', { min: 0, max: 0.3, step: 0.005 })
       .on('change', () => { this.uniforms.headSoftness.value = this.params.headSoftness; });
