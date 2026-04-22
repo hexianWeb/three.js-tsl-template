@@ -44,7 +44,7 @@ export default class DotSphere {
       edgeFadeStart: 0.13,
       edgeFadeEnd: 0.305,
       color: "#6d96cc",
-      waveColor: "#20ecff",
+      waveColor: "#ff0000",
       waveMaxRadius: 0.11,
       waveThickness: 0.025,
       waveSoftness: 0.02,
@@ -52,7 +52,7 @@ export default class DotSphere {
       waveFadeTail: 0.2,
       waveDuration: 1.2,
       waveEase: "power2.out",
-      twinkleIntensity: 0.55,
+      twinkleIntensity: 2.0,
       twinkleSpeed: 3.2,
       twinkleSharpness: 2.6,
     };
@@ -136,25 +136,34 @@ export default class DotSphere {
    */
   _getFibonacciLandPositions(mask, n) {
     const goldenRatio = (Math.sqrt(5) + 1) / 2;
-    /** @type {number[][]} */
     const positions = [];
-
+  
     for (let i = 0; i < n; i++) {
       const prog = i / n;
       const theta = (2 * Math.PI * i) / goldenRatio;
       const phi = Math.acos(1 - 2 * prog);
-      const x = Math.sin(phi) * Math.cos(theta);
-      const y = Math.sin(phi) * Math.sin(theta);
-      const z = Math.cos(phi);
-      const lon = Math.atan2(z, x);
-      const lat = Math.asin(y);
+  
+      const sx = Math.sin(phi) * Math.cos(theta);
+      const sy = Math.sin(phi) * Math.sin(theta);
+      const sz = Math.cos(phi);
+  
+      // 正确旋转：Z-up 数学球坐标 → Y-up Three.js 地理坐标
+      // 0° 经线（格林尼治）落在 +Z（正面），90°E 落在 +X（右侧）
+      const gx = sy;
+      const gy = sz;
+      const gz = sx;
+  
+      const lon = Math.atan2(gx, gz);   // 从 +Z 起算，向 +X 为正
+      const lat = Math.asin(gy);
+  
       const u = lon / (2 * Math.PI) + 0.5;
       const v = 0.5 - lat / Math.PI;
+  
       if (this._sampleIsLand(mask, u, v)) {
-        positions.push([x, y, z]);
+        positions.push([gx, gy, gz]);
       }
     }
-
+  
     return positions;
   }
 

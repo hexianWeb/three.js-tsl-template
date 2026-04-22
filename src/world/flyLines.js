@@ -4,6 +4,7 @@ import {
   modelWorldMatrixInverse, normalize, positionLocal, smoothstep, uniform, uv, vec3, vec4,
 } from 'three/tsl';
 import gsap from 'gsap';
+import { lngLatToUnitVec3 } from '../utils/geo.js';
 
 const CURVE_SEGMENTS = 64;
 
@@ -288,8 +289,8 @@ export default class FlyLines {
     f.addBinding(this.params, 'postArriveFadeDuration', { min: 0, max: 2, step: 0.05 });
     f.addButton({ title: 'Test line (Beijing -> NY)' }).on('click', () => {
       this.clear();
-      const A = new THREE.Vector3(0.53, 0.64, -0.56).normalize();
-      const B = new THREE.Vector3(-0.21, 0.65, 0.73).normalize();
+      const A = lngLatToUnitVec3(116.4, 39.9);
+      const B = lngLatToUnitVec3(-74.0, 40.7);
       const line = this.add(A, B);
       line.play({});
     });

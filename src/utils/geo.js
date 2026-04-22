@@ -11,9 +11,9 @@ export function lngLatToUnitVec3(lng, lat, out = new THREE.Vector3()) {
   const phi = THREE.MathUtils.degToRad(90 - lat);
   const theta = THREE.MathUtils.degToRad(lng);
   out.set(
-    Math.sin(phi) * Math.cos(theta),
-    Math.cos(phi),
-    Math.sin(phi) * Math.sin(theta),
+    Math.sin(phi) * Math.sin(theta),   // x = sin(phi) * sin(lng)  → 90°E 时 x=1 (+X)
+    Math.cos(phi),                     // y = cos(phi)              → 纬度
+    Math.sin(phi) * Math.cos(theta),   // z = sin(phi) * cos(lng)   → 0° 时 z=1 (+Z)
   );
   return out;
 }
