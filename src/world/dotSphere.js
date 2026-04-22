@@ -12,6 +12,7 @@ import {
   saturate,
   sin,
   smoothstep,
+  time,
   uniform,
   uv,
   vec2,
@@ -51,6 +52,9 @@ export default class DotSphere {
       waveFadeTail: 0.2,
       waveDuration: 1.2,
       waveEase: "power2.out",
+      twinkleIntensity: 0.55,
+      twinkleSpeed: 3.2,
+      twinkleSharpness: 2.6,
     };
 
     this._dotColorUniform = uniform(new THREE.Color(this.panelParams.color));
@@ -60,6 +64,10 @@ export default class DotSphere {
     this._brightnessVariationUniform = uniform(this.panelParams.brightnessVariation);
     this._edgeFadeStartUniform = uniform(this.panelParams.edgeFadeStart);
     this._edgeFadeEndUniform = uniform(this.panelParams.edgeFadeEnd);
+
+    this._twinkleIntensityUniform = uniform(this.panelParams.twinkleIntensity);
+    this._twinkleSpeedUniform = uniform(this.panelParams.twinkleSpeed);
+    this._twinkleSharpnessUniform = uniform(this.panelParams.twinkleSharpness);
 
     this._waves = {
       clickPos: Array.from({ length: MAX_WAVES }, () => uniform(new THREE.Vector3(0, 0, 1))),
@@ -158,6 +166,7 @@ export default class DotSphere {
     const idxF = instanceIndex.toFloat();
     const hashSize = fract(sin(idxF.mul(12.9898)).mul(43758.5453));
     const hashBright = fract(sin(idxF.mul(78.233)).mul(43758.5453));
+    const hashTwinkle = fract(sin(idxF.mul(19.1919)).mul(43758.5453));
 
     // Size jitter in [1 - v, 1 + v].
     const sizeFactor = float(1).add(hashSize.sub(0.5).mul(2).mul(this._sizeVariationUniform));
@@ -193,6 +202,12 @@ export default class DotSphere {
 
     const baseTerm = this._dotColorUniform.mul(disk).mul(brightFactor);
 
+    // Per-instance phase + global time → sharp-ish sparkle on albedo/emissive; waves stay steady below.
+    const twinklePhase = hashTwinkle.mul(float(Math.PI * 2));
+    const twinkleWave = sin(time.mul(this._twinkleSpeedUniform).add(twinklePhase)).mul(0.5).add(0.5);
+    const twinkleSparkle = pow(saturate(twinkleWave), this._twinkleSharpnessUniform);
+    const twinkleMul = float(1).add(twinkleSparkle.mul(this._twinkleIntensityUniform));
+
     let ringAccum = float(0);
     for (let i = 0; i < MAX_WAVES; i++) {
       const prog = this._waves.progress[i];
@@ -218,9 +233,10 @@ export default class DotSphere {
     // Wave reads mainly as additive emissive so it stays visible on unlit dot faces (Lambert dims colorNode by N·L).
     const waveAlbedo = waveTerm.mul(float(0.35));
 
-    material.colorNode = baseTerm.add(waveAlbedo);
+    const baseTwinkled = baseTerm.mul(twinkleMul);
+    material.colorNode = baseTwinkled.add(waveAlbedo);
     material.opacityNode = disk;
-    material.emissiveNode = baseTerm.add(waveTerm);
+    material.emissiveNode = baseTwinkled.add(waveTerm);
 
     return material;
   }
@@ -335,6 +351,12 @@ export default class DotSphere {
     this._waves.fadeTail.value = this.panelParams.waveFadeTail;
   }
 
+  _applyTwinkle() {
+    this._twinkleIntensityUniform.value = this.panelParams.twinkleIntensity;
+    this._twinkleSpeedUniform.value = this.panelParams.twinkleSpeed;
+    this._twinkleSharpnessUniform.value = this.panelParams.twinkleSharpness;
+  }
+
   /**
 
      * @param {import('../utils/debug.js').default} debug
@@ -413,6 +435,29 @@ export default class DotSphere {
     folder
       .addBinding(this.panelParams, "edgeFadeEnd", { min: 0, max: 1, step: 0.005 })
       .on("change", () => this._applyDotAppearance());
+
+    const twinkleFolder = debug.addFolder({ title: "Twinkle" });
+    if (twinkleFolder) {
+      twinkleFolder
+        .addBinding(this.panelParams, "twinkleIntensity", {
+          label: "intensity",
+          min: 0,
+          max: 2,
+          step: 0.05,
+        })
+        .on("change", () => this._applyTwinkle());
+      twinkleFolder
+        .addBinding(this.panelParams, "twinkleSpeed", { label: "speed", min: 0.2, max: 12, step: 0.1 })
+        .on("change", () => this._applyTwinkle());
+      twinkleFolder
+        .addBinding(this.panelParams, "twinkleSharpness", {
+          label: "sharpness",
+          min: 1,
+          max: 8,
+          step: 0.1,
+        })
+        .on("change", () => this._applyTwinkle());
+    }
 
     const waveFolder = debug.addFolder({ title: "Click wave" });
     if (!waveFolder) return;
