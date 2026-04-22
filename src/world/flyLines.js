@@ -129,7 +129,7 @@ class FlyLine {
     const u = uv().x;
     const v = uv().y;
 
-    const cross = float(1).sub(smoothstep(0.7, 1.0, abs(v)));
+    const lateralMask = float(1).sub(smoothstep(0.7, 1.0, abs(v)));
 
     const grown = float(1).sub(
       smoothstep(
@@ -145,7 +145,7 @@ class FlyLine {
     const flowOn = smoothstep(0.98, 1.0, this.uniforms.progress);
 
     const base = grown.mul(this.uniforms.postFade);
-    const a = base.add(flowOn.mul(flowMask)).mul(cross);
+    const a = base.add(flowOn.mul(flowMask)).mul(lateralMask);
 
     material.colorNode = this.uniforms.color.mul(a).mul(shared.uniforms.intensity);
     material.opacityNode = a;
