@@ -1,5 +1,4 @@
 import * as THREE from 'three/webgpu'
-import { color, uniform } from 'three/tsl'
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js'
 
 export default class Environment {
@@ -12,8 +11,6 @@ export default class Environment {
         this.loader = new HDRLoader()
 
         this.envParams = {
-            backgroundBlurriness: 0.5,
-            backgroundIntensity: 1.0 *0.1,
             environmentIntensity: 1.0 *0.7
         }
 
@@ -27,10 +24,7 @@ export default class Environment {
         this.loader.load('./hdr/rogland_clear_night_1k.hdr', (texture) => {
             texture.mapping = THREE.EquirectangularReflectionMapping
             this.scene.environment = texture
-            this.scene.background = texture
-
-            this.scene.backgroundBlurriness = this.envParams.backgroundBlurriness
-            this.scene.backgroundIntensity = this.envParams.backgroundIntensity
+            this.scene.background = null
             this.scene.environmentIntensity = this.envParams.environmentIntensity
         })
     }
@@ -50,12 +44,6 @@ export default class Environment {
             return
         }
 
-        folder.addBinding(this.envParams, 'backgroundBlurriness', { min: 0, max: 1, step: 0.01 }).on('change', () => {
-            this.scene.backgroundBlurriness = this.envParams.backgroundBlurriness
-        })
-        folder.addBinding(this.envParams, 'backgroundIntensity', { min: 0, max: 5, step: 0.1 }).on('change', () => {
-            this.scene.backgroundIntensity = this.envParams.backgroundIntensity
-        })
         folder.addBinding(this.envParams, 'environmentIntensity', { min: 0, max: 5, step: 0.1 }).on('change', () => {
             this.scene.environmentIntensity = this.envParams.environmentIntensity
         })

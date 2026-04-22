@@ -3,7 +3,7 @@ import {
     Fn, uniform, float, vec2, vec3, vec4,
     positionLocal, normalView, positionViewDirection,
     step, smoothstep, mix, mx_noise_float, max, min,
-    sin, abs, pow, clamp, floor, fract, dot, length,color
+    sin, cos, abs, pow, clamp, floor, fract, dot, length,color
 } from 'three/tsl'
 
 // ─── Hex grid helpers (matches the reference GLSL) ────────────────────────────
@@ -45,10 +45,10 @@ export default class EnergyShield {
             radius: 1.0,
 
             life: 1.0,
-            opacity: 0.72,
+            opacity: 0.93,
 
-            fresnelPower: 2.5,
-            fresnelStrength: 0.15,
+            fresnelPower: 1.00,
+            fresnelStrength: 0.35,
 
             hexScale: 12.0,
             edgeWidth: 0.06,
@@ -61,7 +61,8 @@ export default class EnergyShield {
             flowSpeed: 1.5,
             flowIntensity: 4.0,
 
-            reveal: 1.0,
+            // 0 ≈ fully visible; toward 1 the dissolve threshold moves up (needs noise ≈ reveal)
+            reveal: 0.0,
             noiseScale: 1.65,
             noiseEdgeWidth: 0.02,
             noiseEdgeIntensity: 9.8,
@@ -136,7 +137,8 @@ export default class EnergyShield {
 
         // ── Fresnel ───────────────────────────────────────────────────────────
         const ndv = normalView.dot(positionViewDirection).saturate()
-        const fresnel = pow(ndv.oneMinus(), u.fresnelPower).mul(u.fresnelStrength)
+        const fresnelStrengthOsc = u.fresnelStrength.add(float(0.25).mul(cos(u.time.mul(2.0))))
+        const fresnel = pow(ndv.oneMinus(), u.fresnelPower).mul(fresnelStrengthOsc)
 
         // ── Flow noise (2 octaves) ────────────────────────────────────────────
         const t = u.time.mul(u.flowSpeed)
@@ -191,17 +193,19 @@ export default class EnergyShield {
         const edgeGlow  = edgeColor.mul(revealEdge).mul(u.noiseEdgeIntensity)
 
         let alpha = clamp(
-            intensity.mul(u.opacity).mul(revealMask)
+            intensity.mul(1.0).mul(revealMask)
                 .add(revealEdge.mul(u.noiseEdgeIntensity)),
             0.0, 1.0,
         )
 
         // Bottom fade: positionLocal is unit-sphere space so .y ∈ [-1, 1]
-        alpha = alpha.mul(smoothstep(float(-1.0), u.fadeStart, positionLocal.y))
+
+        alpha = alpha
+            .mul(smoothstep(float(-1.0), u.fadeStart, positionLocal.y))
+            .mul(u.opacity)
 
         material.colorNode  = shieldColor.add(edgeGlow)
-        material.opacityNode = 0.2
-        // material.colorNode =  color( 0xff0000 )
+        material.opacityNode = alpha
         return material
     }
 
