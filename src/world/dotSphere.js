@@ -1,5 +1,21 @@
 import * as THREE from "three/webgpu";
-import { float, length, positionLocal, smoothstep, uniform, uv, vec2 } from "three/tsl";
+import {
+  float,
+  fract,
+  instanceIndex,
+  length,
+  normalView,
+  positionGeometry,
+  positionLocal,
+  positionViewDirection,
+  pow,
+  saturate,
+  sin,
+  smoothstep,
+  uniform,
+  uv,
+  vec2,
+} from "three/tsl";
 import gsap from "gsap";
 
 const MAX_WAVES = 8;
@@ -19,7 +35,13 @@ export default class DotSphere {
     this.panelParams = {
       pointsNumber: 24500,
       landThreshold: 0.5,
-      dotSize: 0.015,
+      dotSize: 0.018,
+      dotFalloff: 2.2,
+      dotCoreBoost: 1.35,
+      sizeVariation: 0.25,
+      brightnessVariation: 0.15,
+      edgeFadeStart: 0.05,
+      edgeFadeEnd: 0.3,
       color: "#9faeee",
       waveColor: "#20ecff",
       waveMaxRadius: 0.11,
@@ -32,6 +54,12 @@ export default class DotSphere {
     };
 
     this._dotColorUniform = uniform(new THREE.Color(this.panelParams.color));
+    this._dotFalloffUniform = uniform(this.panelParams.dotFalloff);
+    this._dotCoreBoostUniform = uniform(this.panelParams.dotCoreBoost);
+    this._sizeVariationUniform = uniform(this.panelParams.sizeVariation);
+    this._brightnessVariationUniform = uniform(this.panelParams.brightnessVariation);
+    this._edgeFadeStartUniform = uniform(this.panelParams.edgeFadeStart);
+    this._edgeFadeEndUniform = uniform(this.panelParams.edgeFadeEnd);
 
     this._waves = {
       clickPos: Array.from({ length: MAX_WAVES }, () => uniform(new THREE.Vector3(0, 0, 1))),
@@ -126,17 +154,44 @@ export default class DotSphere {
    * @returns {THREE.MeshLambertNodeMaterial}
    */
   _createDotSphereMaterial() {
+    // Stable per-instance hash in [0,1): fract(sin(idx * k)) is a classic GPU hash.
+    const idxF = instanceIndex.toFloat();
+    const hashSize = fract(sin(idxF.mul(12.9898)).mul(43758.5453));
+    const hashBright = fract(sin(idxF.mul(78.233)).mul(43758.5453));
+
+    // Size jitter in [1 - v, 1 + v].
+    const sizeFactor = float(1).add(hashSize.sub(0.5).mul(2).mul(this._sizeVariationUniform));
+    // Brightness jitter in [1 - v, 1 + v].
+    const brightFactor = float(1).add(hashBright.sub(0.5).mul(2).mul(this._brightnessVariationUniform));
+
     const uvCentered = uv().sub(vec2(0.5));
-    const dist = length(uvCentered);
-    const radius = float(0.5);
-    const edge = float(0.015);
-    const disk = float(1).sub(smoothstep(radius.sub(edge), radius, dist));
+    // Normalize radial distance to [0, 1] at plane edge so falloff is size-independent.
+    const d = saturate(length(uvCentered).mul(2));
+
+    // Soft radial falloff: pow((1 - d), falloff). Larger falloff -> tighter core.
+    const radial = pow(float(1).sub(d), this._dotFalloffUniform);
+    // Extra bright core keeps the "glow" look without hard edges.
+    const core = pow(float(1).sub(d), this._dotFalloffUniform.mul(3));
+    const softDisk = saturate(radial.add(core.mul(this._dotCoreBoostUniform)));
+
+    // Silhouette fade: dots whose normal faces away from the camera are dimmed out,
+    // so the sphere's edge reads as a clean rim instead of a mushy halo of side-on planes.
+    // Both vectors must live in the SAME space. positionViewDirection is in view space,
+    // so we use normalView (world normal transformed by the view matrix) here.
+    // Using normalWorld instead would make the mask rotate with the camera and hide the wrong dots.
+    const facing = saturate(normalView.dot(positionViewDirection));
+    const edgeMask = smoothstep(this._edgeFadeStartUniform, this._edgeFadeEndUniform, facing);
+    const disk = softDisk.mul(edgeMask);
 
     const material = new THREE.MeshLambertNodeMaterial();
     material.side = THREE.DoubleSide;
     material.transparent = true;
+    material.depthWrite = false;
 
-    const baseTerm = this._dotColorUniform.mul(disk);
+    // Scale plane geometry per instance for size variation.
+    material.positionNode = positionGeometry.mul(sizeFactor);
+
+    const baseTerm = this._dotColorUniform.mul(disk).mul(brightFactor);
 
     let ringAccum = float(0);
     for (let i = 0; i < MAX_WAVES; i++) {
@@ -262,6 +317,15 @@ export default class DotSphere {
     this._dotColorUniform.value.set(this.panelParams.color);
   }
 
+  _applyDotAppearance() {
+    this._dotFalloffUniform.value = this.panelParams.dotFalloff;
+    this._dotCoreBoostUniform.value = this.panelParams.dotCoreBoost;
+    this._sizeVariationUniform.value = this.panelParams.sizeVariation;
+    this._brightnessVariationUniform.value = this.panelParams.brightnessVariation;
+    this._edgeFadeStartUniform.value = this.panelParams.edgeFadeStart;
+    this._edgeFadeEndUniform.value = this.panelParams.edgeFadeEnd;
+  }
+
   _applyWave() {
     this._waves.color.value.set(this.panelParams.waveColor);
     this._waves.maxRadius.value = this.panelParams.waveMaxRadius;
@@ -325,6 +389,30 @@ export default class DotSphere {
       .on("change", () => {
         this.createDotSphere();
       });
+
+    folder
+      .addBinding(this.panelParams, "dotFalloff", { min: 0.5, max: 8, step: 0.05 })
+      .on("change", () => this._applyDotAppearance());
+
+    folder
+      .addBinding(this.panelParams, "dotCoreBoost", { min: 0, max: 4, step: 0.05 })
+      .on("change", () => this._applyDotAppearance());
+
+    folder
+      .addBinding(this.panelParams, "sizeVariation", { min: 0, max: 0.8, step: 0.01 })
+      .on("change", () => this._applyDotAppearance());
+
+    folder
+      .addBinding(this.panelParams, "brightnessVariation", { min: 0, max: 0.8, step: 0.01 })
+      .on("change", () => this._applyDotAppearance());
+
+    folder
+      .addBinding(this.panelParams, "edgeFadeStart", { min: 0, max: 1, step: 0.005 })
+      .on("change", () => this._applyDotAppearance());
+
+    folder
+      .addBinding(this.panelParams, "edgeFadeEnd", { min: 0, max: 1, step: 0.005 })
+      .on("change", () => this._applyDotAppearance());
 
     const waveFolder = debug.addFolder({ title: "Click wave" });
     if (!waveFolder) return;

@@ -47,6 +47,7 @@ export default class Experience {
             this.environment.debuggerInit(this.debug)
             this.worldCamera.debuggerInit(this.debug)
             this.world.debuggerInit(this.debug)
+            this.renderer.debuggerInit(this.debug)
         }
     }
 
