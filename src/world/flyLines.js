@@ -128,8 +128,14 @@ class FlyLine {
 
     const u = uv().x;
     const v = uv().y;
+    const vAbs = abs(v);
 
-    const lateralMask = float(1).sub(smoothstep(0.7, 1.0, abs(v)));
+    const edgeInner = float(0.55);
+    const edgeOuter = float(0.95);
+    const lateralMask = float(1).sub(smoothstep(edgeInner, edgeOuter, vAbs));
+
+    const coreMask = float(1).sub(smoothstep(float(0), edgeInner, vAbs));
+    const coreGlow = coreMask.pow(3.0).mul(shared.uniforms.coreBoost);
 
     const grown = float(1).sub(
       smoothstep(
@@ -147,7 +153,10 @@ class FlyLine {
     const base = grown.mul(this.uniforms.postFade);
     const a = base.add(flowOn.mul(flowMask)).mul(lateralMask);
 
-    material.colorNode = this.uniforms.color.mul(a).mul(shared.uniforms.intensity);
+    const tint = this.uniforms.color.add(
+      vec3(1.0, 1.0, 1.0).sub(this.uniforms.color).mul(coreGlow),
+    );
+    material.colorNode = tint.mul(a).mul(shared.uniforms.intensity);
     material.opacityNode = a;
 
     this.material = material;
@@ -208,6 +217,7 @@ export default class FlyLines {
       flowSpeed: 0.6,
       flowLength: 0.15,
       intensity: 2.0,
+      coreBoost: 1.6,
       postArriveFade: 0.3,
       postArriveFadeDuration: 0.4,
     };
@@ -218,6 +228,7 @@ export default class FlyLines {
       flowLength: uniform(this.params.flowLength),
       intensity: uniform(this.params.intensity),
       lineWidth: uniform(this.params.width),
+      coreBoost: uniform(this.params.coreBoost),
     };
 
     this.shared = { params: this.params, uniforms: this.uniforms };
@@ -271,6 +282,8 @@ export default class FlyLines {
       .on('change', () => { this.uniforms.flowLength.value = this.params.flowLength; });
     f.addBinding(this.params, 'intensity', { min: 0, max: 6, step: 0.1 })
       .on('change', () => { this.uniforms.intensity.value = this.params.intensity; });
+    f.addBinding(this.params, 'coreBoost', { min: 0, max: 4, step: 0.05 })
+      .on('change', () => { this.uniforms.coreBoost.value = this.params.coreBoost; });
     f.addBinding(this.params, 'postArriveFade', { min: 0, max: 1, step: 0.05 });
     f.addBinding(this.params, 'postArriveFadeDuration', { min: 0, max: 2, step: 0.05 });
     f.addButton({ title: 'Test line (Beijing -> NY)' }).on('click', () => {
