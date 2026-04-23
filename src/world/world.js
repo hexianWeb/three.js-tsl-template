@@ -1,5 +1,6 @@
 import InnerPhysicalSphere from './innerPhysicalSphere.js'
 import DotSphere from './dotSphere.js'
+import BorderDots from './borderDots.js'
 import ClickWave from './clickWave.js'
 import FlyLines from './flyLines.js'
 import SpokeController from './spokeController.js'
@@ -34,6 +35,7 @@ export default class World {
         this.scene = experience.scene
 
         this.dotSphere = new DotSphere(this.scene)
+        this.borderDots = new BorderDots(this.scene)
         this.innerPhysicalSphere = new InnerPhysicalSphere(this.scene)
         this.energyShield = new EnergyShield(this.scene)
         this.flyLines = new FlyLines(this.scene)
@@ -43,6 +45,7 @@ export default class World {
             camera: experience.worldCamera.instance,
             scene: this.scene,
             dotSphere: this.dotSphere,
+            borderDots: this.borderDots,
         })
 
         this.spokes = new SpokeController({
@@ -57,6 +60,7 @@ export default class World {
      */
     debuggerInit(debug) {
         this.dotSphere.debuggerInit(debug)
+        this.borderDots.debuggerInit(debug)
         this.innerPhysicalSphere.debuggerInit(debug)
         this.energyShield.debuggerInit(debug)
         this.flyLines.debuggerInit(debug)
@@ -66,6 +70,7 @@ export default class World {
     update(delta = 0) {
         this.energyShield.update(delta)
         this.flyLines.update(delta)
+        this.borderDots.update(delta)
     }
 
     dispose() {
@@ -73,6 +78,7 @@ export default class World {
         this.innerPhysicalSphere.dispose()
         this.energyShield.dispose()
         this.dotSphere.dispose()
+        this.borderDots.dispose()
         this.flyLines.dispose()
         this.spokes.dispose()
     }
