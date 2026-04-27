@@ -20,10 +20,9 @@ export default class Experience {
         this.renderer = new Renderer({ canvas })
 
         this.scene = new THREE.Scene()
-        this.environment = new Environment(this.scene)
-
         this.worldCamera = new WorldCamera(canvas, this.sizes)
         this.scene.add(this.worldCamera.instance)
+        this.environment = new Environment(this.scene, this.worldCamera.instance)
 
         this.world = new World(this)
 
@@ -49,10 +48,13 @@ export default class Experience {
             this.world.debuggerInit(this.debug)
             this.renderer.debuggerInit(this.debug)
         }
+
+        this.world.spokes.play()
     }
 
     resize() {
         this.worldCamera.resize()
+        this.environment.resize()
         this.renderer.setSizeFromSizes(this.sizes)
     }
 
@@ -79,6 +81,7 @@ export default class Experience {
         this._unsubscribeResize = null
 
         this.world.dispose()
+        this.environment.dispose()
         this.worldCamera.dispose()
         this.debug.dispose()
         this.sizes.dispose()

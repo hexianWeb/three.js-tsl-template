@@ -5,6 +5,7 @@ import ClickWave from './clickWave.js'
 import FlyLines from './flyLines.js'
 import SpokeController from './spokeController.js'
 import EnergyShield from './energyShield.js'
+import StarDust from './starDust.js'
 
 const SAMPLE_DATA = {
     hub: { lng: 116.4, lat: 39.9 },
@@ -39,6 +40,7 @@ export default class World {
         this.innerPhysicalSphere = new InnerPhysicalSphere(this.scene)
         this.energyShield = new EnergyShield(this.scene)
         this.flyLines = new FlyLines(this.scene)
+        this.starDust = new StarDust(this.scene, experience.worldCamera.instance)
 
         this.clickWave = new ClickWave({
             canvas: experience.canvas,
@@ -64,6 +66,7 @@ export default class World {
         this.innerPhysicalSphere.debuggerInit(debug)
         this.energyShield.debuggerInit(debug)
         this.flyLines.debuggerInit(debug)
+        this.starDust.debuggerInit(debug)
         this.spokes.debuggerInit(debug)
     }
 
@@ -71,10 +74,12 @@ export default class World {
         this.energyShield.update(delta)
         this.flyLines.update(delta)
         this.borderDots.update(delta)
+        this.starDust.update(delta)
     }
 
     dispose() {
         this.clickWave.dispose()
+        this.starDust.dispose()
         this.innerPhysicalSphere.dispose()
         this.energyShield.dispose()
         this.dotSphere.dispose()
