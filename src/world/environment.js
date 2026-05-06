@@ -7,8 +7,9 @@ export default class Environment {
      * @param {import('../utils/Resources.js').default} resources
      * @param {THREE.WebGPURenderer} renderer
      * @param {() => (THREE.Object3D | null)} getModel
+     * @param {Promise<void>} rendererReady
      */
-    constructor(scene, resources, renderer, getModel) {
+    constructor(scene, resources, renderer, getModel, rendererReady = Promise.resolve()) {
         this.scene = scene
         this.resources = resources
         this.renderer = renderer
@@ -27,7 +28,7 @@ export default class Environment {
         this.scene.add(this.keyLight)
         this.scene.add(this.keyLight.target)
 
-        this.resources.ready.then(() => this._onSourcesReady())
+        Promise.all([this.resources.ready, rendererReady]).then(() => this._onSourcesReady())
     }
 
     _onSourcesReady() {

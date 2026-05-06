@@ -19,6 +19,9 @@ export default class Experience {
         this.sizes = new Sizes()
         this.time = new Time()
         this.renderer = new Renderer({ canvas })
+        this.rendererReady = new Promise((resolve) => {
+            this._resolveRendererReady = resolve
+        })
 
         this.scene = new THREE.Scene()
         this.worldCamera = new WorldCamera(canvas, this.sizes)
@@ -30,7 +33,8 @@ export default class Experience {
             this.scene,
             this.resources,
             this.renderer.instance,
-            () => this.world?.model ?? null
+            () => this.world?.model ?? null,
+            this.rendererReady
         )
 
         /** @type {(() => void) | null} */
@@ -40,6 +44,7 @@ export default class Experience {
     async init() {
         this.renderer.attachPipeline(this.scene, this.worldCamera.instance)
         await this.renderer.init()
+        this._resolveRendererReady()
 
         this.time.connectDocument(document)
 

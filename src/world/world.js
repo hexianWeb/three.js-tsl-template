@@ -12,9 +12,6 @@ export default class World {
         /** @type {THREE.Object3D | null} */
         this.model = null
 
-        /** @type {THREE.Box3Helper | null} */
-        this._modelBoundsHelper = null
-
         eventBus.on('source ready', () => {
             const gltf = this.experience.resources?.items?.craneModel
             if (!gltf?.scene) {
@@ -24,44 +21,8 @@ export default class World {
             this.model = gltf.scene
             this._prepareMeshes(this.model)
             this.scene.add(this.model)
-            this._debugModelBoundingBox(this.model)
             this._frameCameraToModel(this.model)
         })
-    }
-
-    /**
-     * Dev-only: log AABB and draw {@link THREE.Box3Helper} around the loaded GLB.
-     * @param {THREE.Object3D} object
-     */
-    _debugModelBoundingBox(object) {
-        if (!import.meta.env.DEV) {
-            return
-        }
-
-        const box = new THREE.Box3().setFromObject(object)
-        if (box.isEmpty()) {
-            console.warn('[World] GLB bounding box is empty')
-            return
-        }
-
-        const size = box.getSize(new THREE.Vector3())
-        const center = box.getCenter(new THREE.Vector3())
-        console.log('[World] GLB AABB', {
-            min: box.min.toArray(),
-            max: box.max.toArray(),
-            size: size.toArray(),
-            center: center.toArray(),
-        })
-
-        if (this._modelBoundsHelper) {
-            this.scene.remove(this._modelBoundsHelper)
-            this._modelBoundsHelper.geometry.dispose()
-            this._modelBoundsHelper.material.dispose()
-            this._modelBoundsHelper = null
-        }
-
-        this._modelBoundsHelper = new THREE.Box3Helper(box, 0xffaa33)
-        this.scene.add(this._modelBoundsHelper)
     }
 
     /**
@@ -124,13 +85,6 @@ export default class World {
     update() {}
 
     dispose() {
-        if (this._modelBoundsHelper) {
-            this.scene.remove(this._modelBoundsHelper)
-            this._modelBoundsHelper.geometry.dispose()
-            this._modelBoundsHelper.material.dispose()
-            this._modelBoundsHelper = null
-        }
-
         if (!this.model) {
             return
         }
