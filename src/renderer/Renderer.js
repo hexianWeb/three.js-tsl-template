@@ -1,5 +1,13 @@
 import * as THREE from 'three/webgpu'
-import { pass } from 'three/tsl'
+import {
+    pass,
+    mrt,
+    output,
+    diffuseColor,
+    normalView,
+    velocity,
+    directionToColor
+} from 'three/tsl'
 
 export default class Renderer {
     /**
@@ -17,6 +25,8 @@ export default class Renderer {
 
         /** @type {THREE.RenderPipeline | null} */
         this.renderPipeline = null
+        /** @type {ReturnType<typeof pass> | null} */
+        this.scenePass = null
     }
 
     /**
@@ -25,7 +35,24 @@ export default class Renderer {
      */
     attachPipeline(scene, camera) {
         const scenePass = pass(scene, camera)
-        this.renderPipeline = new THREE.RenderPipeline(this.instance, scenePass)
+        scenePass.setMRT(
+            mrt({
+                output: output,
+                diffuseColor: diffuseColor,
+                normal: directionToColor(normalView),
+                velocity: velocity
+            })
+        )
+
+        const diffuseTexture = scenePass.getTexture('diffuseColor')
+        diffuseTexture.type = THREE.UnsignedByteType
+        const normalTexture = scenePass.getTexture('normal')
+        normalTexture.type = THREE.UnsignedByteType
+
+        const scenePassColor = scenePass.getTextureNode('output')
+
+        this.scenePass = scenePass
+        this.renderPipeline = new THREE.RenderPipeline(this.instance, scenePassColor)
     }
 
     async init() {
