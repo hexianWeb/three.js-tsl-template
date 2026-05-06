@@ -40,7 +40,6 @@ postProcessing.outputColorTransform = false
 const scenePass = pass(scene, camera)
 const outputPass = renderOutput(scenePass)
 postProcessing.outputNode = outputPass
-// postProcessing.outputNode = sobel(outputPass)
 
 const { material } = createInstancedGridMaterial()
 

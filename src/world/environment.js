@@ -1,5 +1,4 @@
 import * as THREE from 'three/webgpu'
-import { color, fog, rangeFogFactor, uniform } from 'three/tsl'
 
 export default class Environment {
     /**
@@ -15,9 +14,8 @@ export default class Environment {
         this.renderer = renderer
         this.getModel = getModel
 
-        this.fogColor = uniform(color('#e8edf4'))
-        this.fogRange = { near: 120, far: 450 }
-        this._rebuildFog()
+        /** Clear color only; scene has no distance fog. */
+        this.clearColor = new THREE.Color('#e8edf4')
 
         this.keyLight = new THREE.DirectionalLight(0xffffff, 2.5)
         this.keyLight.position.set(20, 40, 20)
@@ -80,10 +78,6 @@ export default class Environment {
         cam.updateProjectionMatrix()
     }
 
-    _rebuildFog() {
-        this.scene.fogNode = fog(this.fogColor, rangeFogFactor(this.fogRange.near, this.fogRange.far))
-    }
-
     /**
      * @param {import('../utils/debug.js').default} debug
      */
@@ -98,12 +92,6 @@ export default class Environment {
         if (!folder) {
             return
         }
-        folder.addBinding(this.fogRange, 'near', { min: 0.1, max: 400, step: 1, label: 'fog near' }).on('change', () => {
-            this._rebuildFog()
-        })
-        folder.addBinding(this.fogRange, 'far', { min: 1, max: 800, step: 1, label: 'fog far' }).on('change', () => {
-            this._rebuildFog()
-        })
 
         const envState = { intensity: this.scene.environmentIntensity ?? 1 }
         folder
