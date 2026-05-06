@@ -8,6 +8,8 @@ export default class Debug {
     constructor() {
         this.active = window.location.hash === '#debug'
 
+        // DEV_MODE
+        this.active = true
         if (this.active) {
             this.ui = new Pane({ title: 'Debug' })
         } else {
