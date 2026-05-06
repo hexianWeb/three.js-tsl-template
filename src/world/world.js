@@ -1,5 +1,4 @@
 import * as THREE from 'three/webgpu'
-import { sin, positionLocal, time, vec2, vec3, vec4, uv, uniform } from 'three/tsl'
 import { eventBus } from '../utils/event-bus.js'
 
 export default class World {
@@ -10,85 +9,114 @@ export default class World {
         this.experience = experience
         this.scene = experience.scene
 
-        this.axesHelper = new THREE.AxesHelper(5)
-        this.scene.add(this.axesHelper)
+        /** @type {THREE.Object3D | null} */
+        this.model = null
 
-        this.box = new THREE.Mesh(
-            new THREE.BoxGeometry(0.2, 0.2, 0.2),
-            new THREE.MeshBasicMaterial({
-                color: 'red'
-            })
-        )
-        this.scene.add(this.box)
-
-        this.tweakParams = {
-            timeFrequency: 0.5,
-            positionFrequency: 2,
-            intensityFrequency: 0.5
-        }
-        this.timeFrequency = uniform(this.tweakParams.timeFrequency)
-        this.positionFrequency = uniform(this.tweakParams.positionFrequency)
-        this.intensityFrequency = uniform(this.tweakParams.intensityFrequency)
-
-        const oscillation = sin(time.mul(this.timeFrequency).add(positionLocal.y.mul(this.positionFrequency))).mul(this.intensityFrequency)
-        this.material = new THREE.MeshBasicNodeMaterial()
-        this.material.positionNode = vec3(
-            positionLocal.x.add(oscillation),
-            positionLocal.y,
-            positionLocal.z
-        )
-        this.material.colorNode = vec4(
-            uv().mul(vec2(32, 8)).fract(),
-            1,
-            1
-        )
-
-        this.torusKnot = new THREE.Mesh(new THREE.TorusKnotGeometry(1, 0.35, 128, 32), this.material)
-        this.scene.add(this.torusKnot)
+        /** @type {THREE.Box3Helper | null} */
+        this._modelBoundsHelper = null
 
         eventBus.on('source ready', () => {
             const gltf = this.experience.resources?.items?.craneModel
-            if (gltf?.scene) {
-                this.scene.add(gltf.scene)
+            if (!gltf?.scene) {
+                return
             }
+
+            this.model = gltf.scene
+            this.scene.add(this.model)
+            this._debugModelBoundingBox(this.model)
+            this._frameCameraToModel(this.model)
         })
     }
 
     /**
-     * @param {import('../utils/debug.js').default} debug
+     * Dev-only: log AABB and draw {@link THREE.Box3Helper} around the loaded GLB.
+     * @param {THREE.Object3D} object
      */
-    debuggerInit(debug) {
-        if (!debug.active) {
+    _debugModelBoundingBox(object) {
+        if (!import.meta.env.DEV) {
             return
         }
-        const folder = debug.addFolder({
-            title: 'Demo',
-            expanded: true
-        })
-        if (!folder) {
+
+        const box = new THREE.Box3().setFromObject(object)
+        if (box.isEmpty()) {
+            console.warn('[World] GLB bounding box is empty')
             return
         }
-        folder.addBinding(this.tweakParams, 'timeFrequency', { min: 0, max: 5, label: 'timeFrequency' }).on('change', () => {
-            this.timeFrequency.value = this.tweakParams.timeFrequency
+
+        const size = box.getSize(new THREE.Vector3())
+        const center = box.getCenter(new THREE.Vector3())
+        console.log('[World] GLB AABB', {
+            min: box.min.toArray(),
+            max: box.max.toArray(),
+            size: size.toArray(),
+            center: center.toArray(),
         })
-        folder.addBinding(this.tweakParams, 'positionFrequency', { min: 0, max: 5, label: 'positionFrequency' }).on('change', () => {
-            this.positionFrequency.value = this.tweakParams.positionFrequency
-        })
-        folder.addBinding(this.tweakParams, 'intensityFrequency', { min: 0, max: 5, label: 'intensityFrequency' }).on('change', () => {
-            this.intensityFrequency.value = this.tweakParams.intensityFrequency
-        })
+
+        if (this._modelBoundsHelper) {
+            this.scene.remove(this._modelBoundsHelper)
+            this._modelBoundsHelper.geometry.dispose()
+            this._modelBoundsHelper.material.dispose()
+            this._modelBoundsHelper = null
+        }
+
+        this._modelBoundsHelper = new THREE.Box3Helper(box, 0xffaa33)
+        this.scene.add(this._modelBoundsHelper)
+    }
+
+    /**
+     * @param {THREE.Object3D} object
+     */
+    _frameCameraToModel(object) {
+        const camera = this.experience.worldCamera.instance
+        const controls = this.experience.worldCamera.controls
+
+        const box = new THREE.Box3().setFromObject(object)
+        if (box.isEmpty()) {
+            return
+        }
+
+        const center = box.getCenter(new THREE.Vector3())
+        const sphere = box.getBoundingSphere(new THREE.Sphere())
+
+        const padding = 1.35
+        const fovRad = THREE.MathUtils.degToRad(camera.fov)
+        const distance = (sphere.radius / Math.sin(fovRad / 2)) * padding
+
+        const offset = new THREE.Vector3(1, 0.55, 1).normalize().multiplyScalar(distance)
+        camera.position.copy(center).add(offset)
+        camera.near = Math.max(0.01, sphere.radius / 100)
+        camera.far = Math.max(500, sphere.radius * 50)
+        camera.updateProjectionMatrix()
+
+        controls.target.copy(center)
+        controls.maxDistance = Math.max(sphere.radius * 20, distance * 4)
+        controls.update()
     }
 
     update() {}
 
     dispose() {
-        this.torusKnot.geometry.dispose()
-        this.material.dispose()
+        if (this._modelBoundsHelper) {
+            this.scene.remove(this._modelBoundsHelper)
+            this._modelBoundsHelper.geometry.dispose()
+            this._modelBoundsHelper.material.dispose()
+            this._modelBoundsHelper = null
+        }
 
-        this.box.geometry.dispose()
-        this.box.material.dispose()
+        if (!this.model) {
+            return
+        }
 
-        this.axesHelper.geometry.dispose()
-        this.axesHelper.material.dispose()
+        this.model.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                child.geometry?.dispose()
+                const mats = Array.isArray(child.material) ? child.material : [child.material]
+                for (const m of mats) {
+                    m?.dispose?.()
+                }
+            }
+        })
+        this.scene.remove(this.model)
+        this.model = null
     }
 }
