@@ -125,15 +125,46 @@ TRAA 始终开启
 
 ## 4. Environment：真实感地基
 
-### 4.1 改后的 `environment.js` 结构
+### 4.1 实际包围盒数据（设计输入）
+
+起重机模型实测：
+
+| 项 | X | Y | Z |
+|---|---|---|---|
+| min | -8.367 | -0.239 | -27.711 |
+| max |  9.403 | 28.499 |  25.699 |
+| size | 17.770 | 28.738 | 53.410 |
+| center | 0.518 | 14.130 | -1.006 |
+
+由此计算：
+- 包围球半径 `R ≈ sqrt((sx/2)² + (sy/2)² + (sz/2)²) ≈ 31.6 m`
+- 实际由 `Box3.getBoundingSphere` 计算并传入。
+
+### 4.2 改后的 `environment.js` 结构
 
 构造签名变化：`new Environment(scene)` → `new Environment(scene, resources, renderer)`。
+
+阴影正交体与 Key light 位置**不再写死**，而是在 `'source ready'` 事件里由模型包围盒驱动重算（与 `World._frameCameraToModel` 同时机）。
 
 ```text
 class Environment {
   constructor(scene, resources, renderer) {
-    // ① IBL：等 HDRI 加载完后接进 scene.environment
+    this.scene = scene
+
+    // ① 创建 Key light（位置/阴影体在 source ready 后再 fit）
+    this.keyLight = new THREE.DirectionalLight(0xffffff, 2.5)
+    this.keyLight.castShadow = true
+    this.keyLight.shadow.mapSize.set(2048, 2048)
+    this.keyLight.shadow.bias       = -0.0005
+    this.keyLight.shadow.normalBias = 0.05  // 大场景略调高
+    scene.add(this.keyLight)
+    scene.add(this.keyLight.target)
+
+    // ② 移除 HemisphereLight：与 IBL 功能重叠
+    // ③ Fog 保留不变
+
     eventBus.on('source ready', () => {
+      // IBL
       const hdr = resources.items.studioEnv
       hdr.mapping = THREE.EquirectangularReflectionMapping
       const pmrem = new THREE.PMREMGenerator(renderer)
@@ -142,36 +173,54 @@ class Environment {
       scene.environmentIntensity = 1.0
       hdr.dispose()
       pmrem.dispose()
+
+      // Fit shadow & light to model bbox
+      this._fitKeyLightToModel(experience.world.model)
     })
+  }
 
-    // ② 主光：一盏方向光当 "厂房顶灯/窗光"，带阴影
-    const key = new THREE.DirectionalLight(0xffffff, 2.5)
-    key.position.set(6, 12, 8)
-    key.castShadow = true
-    key.shadow.mapSize.set(2048, 2048)
-    key.shadow.camera.near = 0.5
-    key.shadow.camera.far  = 80
-    key.shadow.camera.left   = -15
-    key.shadow.camera.right  =  15
-    key.shadow.camera.top    =  15
-    key.shadow.camera.bottom = -15
-    key.shadow.bias       = -0.0005
-    key.shadow.normalBias = 0.02
-    scene.add(key)
+  _fitKeyLightToModel(object) {
+    const box    = new THREE.Box3().setFromObject(object)
+    const center = box.getCenter(new THREE.Vector3())
+    const sphere = box.getBoundingSphere(new THREE.Sphere())
+    const R = sphere.radius
 
-    // ③ 移除 HemisphereLight：与 IBL 功能重叠
-    // ④ Fog 保留不变
+    // 光源摆在模型上方斜前方，距离 = R * 2 保证完全在模型外
+    const dir  = new THREE.Vector3(1, 1.5, 1).normalize()
+    const dist = R * 2
+    this.keyLight.position.copy(center).addScaledVector(dir, dist)
+    this.keyLight.target.position.copy(center)
+    this.keyLight.target.updateMatrixWorld()
+
+    // 阴影正交体：覆盖整个包围球，留 10% 余量
+    const m = R * 1.1
+    const cam = this.keyLight.shadow.camera
+    cam.left = -m; cam.right = m; cam.top = m; cam.bottom = -m
+    cam.near = Math.max(0.5, dist - R * 1.2)
+    cam.far  = dist + R * 1.2
+    cam.updateProjectionMatrix()
   }
 }
 ```
 
-### 4.2 关键决策
+### 4.3 关键决策
 
 - **PMREM 必须用渲染器实例做**：`Environment` 构造增加 `resources, renderer` 参数。这是本次唯一对外接口的破坏性改动。
-- **`scene.background` 不设 HDRI**：保留原 fogColor (`#e8edf4`) 作为干净背景。展示工业品时背景越素净越好。
-- **阴影贴图 2048**：足够清晰但不爆显存；正交体 ±15 按起重机包围盒经验给。
+- **包围盒驱动光照**：`_fitKeyLightToModel` 用模型 bbox 自适应计算光源位置/阴影正交体，避免硬编码值与实际模型不匹配。
+- **`scene.background` 不设 HDRI**：保留原 fogColor (`#e8edf4`) 作为干净背景。
+- **阴影贴图 2048**：在 R≈31.6m 时每米约 29 像素，工业品展示足够；如果细金属杆出现锯齿，再升 4096。
+- **`normalBias = 0.05`**：比常规小场景的 0.02 略高，因为大场景下深度精度问题更明显。
 - **去掉 HemisphereLight**：避免和 IBL 功能重叠致整体提亮、丢对比。
 - **Key light 强度 2.5**：补偿去掉 Hemi 后的整体亮度。
+
+### 4.4 跨模块协作
+
+`Environment._fitKeyLightToModel` 需要在模型加载完成后调用。两种实现方式：
+
+- **方案 A（推荐）**：`Environment` 持有 `experience` 引用，在 `'source ready'` 里直接读 `experience.world.model`。
+- **方案 B**：让 `World` 在 framing 完成后 `eventBus.emit('model framed', model)`，`Environment` 监听该事件。
+
+选 A，更简单且 `'source ready'` 事件在 GLB 加载完后才触发，时机可靠。`Experience` 把自身传给 `Environment`：`new Environment(this.scene, this.resources, this.renderer.instance, this)`。或者只传 `() => this.world.model` 闭包避免循环引用。**推荐传闭包 `getModel: () => experience.world.model`** 作为第 4 个参数，既不循环依赖也清晰。
 
 ### 4.3 启用渲染器阴影
 
@@ -254,8 +303,8 @@ Debug
 | 风险 | 应对 |
 |---|---|
 | velocity buffer 全 0（场景静态） | TRAA 仍工作于相机抖动与 OrbitControls 阻尼，保持永开 |
-| 阴影 acne / peter-panning | 已预设 `bias=-0.0005 / normalBias=0.02`，需要时再微调 |
-| 起重机包围盒超出 ±15 阴影正交体 | World 在 framing 时可反向调整 shadow camera；属优化项，留作后续 |
+| 阴影 acne / peter-panning | 已预设 `bias=-0.0005 / normalBias=0.05`，大场景下需要时再微调 |
+| 模型包围盒大（Z 向 53m） | `_fitKeyLightToModel` 用 bbox 驱动光源位置与阴影正交体，自适应 |
 
 ## 9. 验证方式
 
@@ -270,6 +319,5 @@ Debug
 - 整模型材质审计与手调粗糙度/金属度
 - 接地平面 / 展台
 - HDRI 作为场景背景（仅作环境光源）
-- shadow camera 跟随模型包围盒自适应
 - 透明材质特殊处理（确认无透明材质）
 - 跨设备 WebGPU 兜底（确认目标设备支持）
