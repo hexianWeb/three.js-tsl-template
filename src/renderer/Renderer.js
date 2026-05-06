@@ -13,6 +13,7 @@ import {
     vec4
 } from 'three/tsl'
 import { ssgi } from 'three/addons/tsl/display/SSGINode.js'
+import { traa } from 'three/addons/tsl/display/TRAANode.js'
 
 export default class Renderer {
     /**
@@ -34,6 +35,10 @@ export default class Renderer {
         this.scenePass = null
         this.giPass = null
         this.compositeNode = null
+        this.traaPass = null
+        this.scenePassColor = null
+        this.gi = null
+        this.ao = null
     }
 
     /**
@@ -60,6 +65,7 @@ export default class Renderer {
         const scenePassDiffuse = scenePass.getTextureNode('diffuseColor')
         const scenePassDepth = scenePass.getTextureNode('depth')
         const scenePassNormal = scenePass.getTextureNode('normal')
+        const scenePassVelocity = scenePass.getTextureNode('velocity')
 
         const sceneNormal = sample((uv) => {
             return colorToDirection(scenePassNormal.sample(uv))
@@ -77,10 +83,16 @@ export default class Renderer {
             scenePassColor.a
         )
 
+        const traaPass = traa(compositeNode, scenePassDepth, scenePassVelocity, camera)
+
         this.scenePass = scenePass
         this.giPass = giPass
         this.compositeNode = compositeNode
-        this.renderPipeline = new THREE.RenderPipeline(this.instance, compositeNode)
+        this.traaPass = traaPass
+        this.scenePassColor = scenePassColor
+        this.gi = gi
+        this.ao = ao
+        this.renderPipeline = new THREE.RenderPipeline(this.instance, traaPass)
     }
 
     async init() {
