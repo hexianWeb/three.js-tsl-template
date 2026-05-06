@@ -185,8 +185,9 @@ class Environment {
     const sphere = box.getBoundingSphere(new THREE.Sphere())
     const R = sphere.radius
 
-    // 光源摆在模型上方斜前方，距离 = R * 2 保证完全在模型外
-    const dir  = new THREE.Vector3(1, 1.5, 1).normalize()
+    // 光源摆在模型正上方略偏，距离 = R * 2 保证完全在模型外
+    // 模型 Z 向 53m 是长边，方向更偏俯视避免长边一侧过暗
+    const dir  = new THREE.Vector3(0.5, 1.5, 0.5).normalize()
     const dist = R * 2
     this.keyLight.position.copy(center).addScaledVector(dir, dist)
     this.keyLight.target.position.copy(center)
