@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu'
 import Debug from '../utils/debug.js'
+import Resources from '../utils/Resources.js'
 import WorldCamera from '../world/camera.js'
 import Environment from '../world/environment.js'
 import World from '../world/world.js'
@@ -26,6 +27,7 @@ export default class Experience {
         this.scene.add(this.worldCamera.instance)
 
         this.world = new World(this)
+        this.resources = new Resources()
 
         /** @type {(() => void) | null} */
         this._unsubscribeResize = null
