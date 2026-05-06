@@ -8,9 +8,16 @@ export default class Environment {
     constructor(scene) {
         this.scene = scene
 
-        this.fogColor = uniform(color('#ffffff'))
-        this.fogRange = { near: 10, far: 15 }
+        this.fogColor = uniform(color('#e8edf4'))
+        this.fogRange = { near: 120, far: 450 }
         this._rebuildFog()
+
+        const hemi = new THREE.HemisphereLight(0xffffff, 0x6a7080, 1.05)
+        this.scene.add(hemi)
+
+        const dir = new THREE.DirectionalLight(0xffffff, 2)
+        dir.position.set(6, 12, 8)
+        this.scene.add(dir)
     }
 
     _rebuildFog() {
@@ -31,10 +38,10 @@ export default class Environment {
         if (!folder) {
             return
         }
-        folder.addBinding(this.fogRange, 'near', { min: 0.1, max: 50, step: 0.1, label: 'fog near' }).on('change', () => {
+        folder.addBinding(this.fogRange, 'near', { min: 0.1, max: 400, step: 1, label: 'fog near' }).on('change', () => {
             this._rebuildFog()
         })
-        folder.addBinding(this.fogRange, 'far', { min: 0.1, max: 80, step: 0.1, label: 'fog far' }).on('change', () => {
+        folder.addBinding(this.fogRange, 'far', { min: 1, max: 800, step: 1, label: 'fog far' }).on('change', () => {
             this._rebuildFog()
         })
     }

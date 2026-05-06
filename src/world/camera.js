@@ -10,7 +10,7 @@ export default class WorldCamera {
         this.sizes = sizes
         this.canvas = canvas
 
-        this.instance = new THREE.PerspectiveCamera(25, sizes.width / sizes.height, 0.1, 100)
+        this.instance = new THREE.PerspectiveCamera(40, sizes.width / sizes.height, 0.05, 2000)
         this.instance.position.set(6, 3, 10)
 
         this.controls = new OrbitControls(this.instance, canvas)
