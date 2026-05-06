@@ -43,6 +43,40 @@ export default class Environment {
         this.scene.environmentIntensity = 1.0
         hdr.dispose()
         pmrem.dispose()
+
+        const model = this.getModel?.()
+        if (model) {
+            this._fitKeyLightToModel(model)
+        }
+    }
+
+    /**
+     * @param {THREE.Object3D} object
+     */
+    _fitKeyLightToModel(object) {
+        const box = new THREE.Box3().setFromObject(object)
+        if (box.isEmpty()) return
+
+        const center = box.getCenter(new THREE.Vector3())
+        const sphere = box.getBoundingSphere(new THREE.Sphere())
+        const radius = sphere.radius
+
+        const dir = new THREE.Vector3(0.5, 1.5, 0.5).normalize()
+        const dist = radius * 2
+
+        this.keyLight.position.copy(center).addScaledVector(dir, dist)
+        this.keyLight.target.position.copy(center)
+        this.keyLight.target.updateMatrixWorld()
+
+        const margin = radius * 1.1
+        const cam = this.keyLight.shadow.camera
+        cam.left = -margin
+        cam.right = margin
+        cam.top = margin
+        cam.bottom = -margin
+        cam.near = Math.max(0.5, dist - radius * 1.2)
+        cam.far = dist + radius * 1.2
+        cam.updateProjectionMatrix()
     }
 
     _rebuildFog() {
