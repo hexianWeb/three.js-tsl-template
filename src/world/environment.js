@@ -103,5 +103,49 @@ export default class Environment {
         folder.addBinding(this.fogRange, 'far', { min: 1, max: 800, step: 1, label: 'fog far' }).on('change', () => {
             this._rebuildFog()
         })
+
+        const envState = { intensity: this.scene.environmentIntensity ?? 1 }
+        folder
+            .addBinding(envState, 'intensity', { min: 0, max: 3, step: 0.01, label: 'env intensity' })
+            .on('change', (ev) => {
+                this.scene.environmentIntensity = ev.value
+            })
+
+        const tmState = { exposure: this.renderer.toneMappingExposure }
+        folder
+            .addBinding(tmState, 'exposure', { min: 0, max: 3, step: 0.01, label: 'tonemap exposure' })
+            .on('change', (ev) => {
+                this.renderer.toneMappingExposure = ev.value
+            })
+
+        const lightState = {
+            intensity: this.keyLight.intensity,
+            azimuthDeg: 45,
+            elevationDeg: 60
+        }
+        const applyLightDir = () => {
+            const az = THREE.MathUtils.degToRad(lightState.azimuthDeg)
+            const el = THREE.MathUtils.degToRad(lightState.elevationDeg)
+            const target = this.keyLight.target.position
+            const center = target.clone()
+            const radius = this.keyLight.position.distanceTo(target)
+            const dir = new THREE.Vector3(
+                Math.cos(el) * Math.cos(az),
+                Math.sin(el),
+                Math.cos(el) * Math.sin(az)
+            )
+            this.keyLight.position.copy(center).addScaledVector(dir, radius || 1)
+        }
+        folder
+            .addBinding(lightState, 'intensity', { min: 0, max: 10, step: 0.05, label: 'key intensity' })
+            .on('change', (ev) => {
+                this.keyLight.intensity = ev.value
+            })
+        folder
+            .addBinding(lightState, 'azimuthDeg', { min: -180, max: 180, step: 1, label: 'key azimuth' })
+            .on('change', applyLightDir)
+        folder
+            .addBinding(lightState, 'elevationDeg', { min: 5, max: 89, step: 1, label: 'key elevation' })
+            .on('change', applyLightDir)
     }
 }
