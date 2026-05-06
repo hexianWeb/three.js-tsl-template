@@ -10,6 +10,11 @@ export default class Renderer {
             canvas,
             forceWebGL: false
         })
+
+        this.instance.toneMapping = THREE.ACESFilmicToneMapping
+        this.instance.toneMappingExposure = 1.0
+        this.instance.shadowMap.enabled = true
+
         /** @type {THREE.RenderPipeline | null} */
         this.renderPipeline = null
     }
@@ -32,7 +37,7 @@ export default class Renderer {
      */
     setSizeFromSizes(sizes) {
         this.instance.setSize(sizes.width, sizes.height)
-        this.instance.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+        this.instance.setPixelRatio(Math.min(window.devicePixelRatio, 1))
     }
 
     render() {
