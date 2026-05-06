@@ -22,6 +22,7 @@ export default class World {
             }
 
             this.model = gltf.scene
+            this._prepareMeshes(this.model)
             this.scene.add(this.model)
             this._debugModelBoundingBox(this.model)
             this._frameCameraToModel(this.model)
@@ -61,6 +62,33 @@ export default class World {
 
         this._modelBoundsHelper = new THREE.Box3Helper(box, 0xffaa33)
         this.scene.add(this._modelBoundsHelper)
+    }
+
+    /**
+     * @param {THREE.Object3D} root
+     */
+    _prepareMeshes(root) {
+        root.traverse((child) => {
+            if (!(child instanceof THREE.Mesh)) return
+            child.castShadow = true
+            child.receiveShadow = true
+
+            const materials = Array.isArray(child.material) ? child.material : [child.material]
+            const prepared = materials.map((material) => {
+                if (!material || material.isMeshStandardMaterial) {
+                    return material
+                }
+
+                const fallback = new THREE.MeshPhysicalMaterial({
+                    color: material.color ?? 0xcccccc,
+                    map: material.map ?? null
+                })
+                material.dispose?.()
+                return fallback
+            })
+
+            child.material = Array.isArray(child.material) ? prepared : prepared[0]
+        })
     }
 
     /**
