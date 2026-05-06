@@ -21,13 +21,17 @@ export default class Experience {
         this.renderer = new Renderer({ canvas })
 
         this.scene = new THREE.Scene()
-        this.environment = new Environment(this.scene)
-
         this.worldCamera = new WorldCamera(canvas, this.sizes)
         this.scene.add(this.worldCamera.instance)
 
         this.world = new World(this)
         this.resources = new Resources()
+        this.environment = new Environment(
+            this.scene,
+            this.resources,
+            this.renderer.instance,
+            () => this.world?.model ?? null
+        )
 
         /** @type {(() => void) | null} */
         this._unsubscribeResize = null

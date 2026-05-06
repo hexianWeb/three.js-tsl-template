@@ -4,20 +4,45 @@ import { color, fog, rangeFogFactor, uniform } from 'three/tsl'
 export default class Environment {
     /**
      * @param {THREE.Scene} scene
+     * @param {import('../utils/Resources.js').default} resources
+     * @param {THREE.WebGPURenderer} renderer
+     * @param {() => (THREE.Object3D | null)} getModel
      */
-    constructor(scene) {
+    constructor(scene, resources, renderer, getModel) {
         this.scene = scene
+        this.resources = resources
+        this.renderer = renderer
+        this.getModel = getModel
 
         this.fogColor = uniform(color('#e8edf4'))
         this.fogRange = { near: 120, far: 450 }
         this._rebuildFog()
 
-        const hemi = new THREE.HemisphereLight(0xffffff, 0x6a7080, 1.05)
-        this.scene.add(hemi)
+        this.keyLight = new THREE.DirectionalLight(0xffffff, 2.5)
+        this.keyLight.position.set(20, 40, 20)
+        this.keyLight.castShadow = true
+        this.keyLight.shadow.mapSize.set(2048, 2048)
+        this.keyLight.shadow.bias = -0.0005
+        this.keyLight.shadow.normalBias = 0.05
+        this.scene.add(this.keyLight)
+        this.scene.add(this.keyLight.target)
 
-        const dir = new THREE.DirectionalLight(0xffffff, 2)
-        dir.position.set(6, 12, 8)
-        this.scene.add(dir)
+        this.resources.ready.then(() => this._onSourcesReady())
+    }
+
+    _onSourcesReady() {
+        const hdr = this.resources.items.studioEnv
+        if (!hdr) {
+            console.error('[Environment] studioEnv HDR not loaded')
+            return
+        }
+        hdr.mapping = THREE.EquirectangularReflectionMapping
+        const pmrem = new THREE.PMREMGenerator(this.renderer)
+        const envRT = pmrem.fromEquirectangular(hdr)
+        this.scene.environment = envRT.texture
+        this.scene.environmentIntensity = 1.0
+        hdr.dispose()
+        pmrem.dispose()
     }
 
     _rebuildFog() {
