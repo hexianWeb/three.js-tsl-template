@@ -7,6 +7,10 @@ export default [
     name: 'craneModel',
     type: 'gltfModel',
     path: 'model/crane.glb'
+  },
+  {
+    name: 'studioEnv',
+    type: 'hdrTexture',
+    path: 'hdri/studio.hdr'
   }
-  // Add more entries (texture, hdrTexture, video, cubeTexture, etc.) as needed
 ]
