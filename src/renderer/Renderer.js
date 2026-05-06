@@ -10,6 +10,7 @@ import {
     colorToDirection,
     sample,
     add,
+    vec3,
     vec4
 } from 'three/tsl'
 import { ssgi } from 'three/addons/tsl/display/SSGINode.js'
@@ -109,5 +110,53 @@ export default class Renderer {
 
     render() {
         this.renderPipeline.render()
+    }
+
+    /**
+     * @param {'combined'|'ao'|'gi'|'direct'} mode
+     */
+    setOutputMode(mode) {
+        if (!this.renderPipeline) return
+        switch (mode) {
+            case 'ao':
+                this.renderPipeline.outputNode = vec4(vec3(this.ao), 1)
+                break
+            case 'gi':
+                this.renderPipeline.outputNode = vec4(this.gi, 1)
+                break
+            case 'direct':
+                this.renderPipeline.outputNode = this.scenePassColor
+                break
+            case 'combined':
+            default:
+                this.renderPipeline.outputNode = this.traaPass
+                break
+        }
+        this.renderPipeline.needsUpdate = true
+    }
+
+    /**
+     * @param {import('../utils/debug.js').default} debug
+     */
+    debuggerInit(debug) {
+        if (!debug.active || !this.giPass) return
+        const folder = debug.addFolder({ title: 'Postprocess', expanded: false })
+        if (!folder) return
+
+        const state = { mode: 'combined' }
+        folder
+            .addBinding(state, 'mode', {
+                label: 'Output',
+                options: { Combined: 'combined', AO: 'ao', GI: 'gi', Direct: 'direct' }
+            })
+            .on('change', (ev) => this.setOutputMode(ev.value))
+
+        const ssgi = folder.addFolder({ title: 'SSGI', expanded: true })
+        ssgi.addBinding(this.giPass.sliceCount, 'value', { min: 1, max: 4, step: 1, label: 'sliceCount' })
+        ssgi.addBinding(this.giPass.stepCount, 'value', { min: 1, max: 32, step: 1, label: 'stepCount' })
+        ssgi.addBinding(this.giPass.radius, 'value', { min: 1, max: 25, label: 'radius' })
+        ssgi.addBinding(this.giPass.thickness, 'value', { min: 0.01, max: 10, label: 'thickness' })
+        ssgi.addBinding(this.giPass.aoIntensity, 'value', { min: 0, max: 4, label: 'aoIntensity' })
+        ssgi.addBinding(this.giPass.giIntensity, 'value', { min: 0, max: 100, label: 'giIntensity' })
     }
 }
