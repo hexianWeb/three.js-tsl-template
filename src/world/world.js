@@ -26,6 +26,7 @@ export default class World {
     }
 
     /**
+     * @description 准备模型材质
      * @param {THREE.Object3D} root
      */
     _prepareMeshes(root) {
@@ -53,6 +54,7 @@ export default class World {
     }
 
     /**
+     * @description 将相机定位到模型中心
      * @param {THREE.Object3D} object
      */
     _frameCameraToModel(object) {

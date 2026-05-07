@@ -23,7 +23,8 @@ export default class Renderer {
     constructor({ canvas }) {
         this.instance = new THREE.WebGPURenderer({
             canvas,
-            forceWebGL: false
+            forceWebGL: false,
+            logarithmicDepthBuffer: true,
         })
 
         this.instance.toneMapping = THREE.ACESFilmicToneMapping
@@ -75,6 +76,7 @@ export default class Renderer {
         const giPass = ssgi(scenePassColor, scenePassDepth, sceneNormal, camera)
         giPass.sliceCount.value = 2
         giPass.stepCount.value = 12
+        giPass.aoIntensity.value = 3.5
 
         const gi = giPass.rgb
         const ao = giPass.a
@@ -156,7 +158,7 @@ export default class Renderer {
         ssgi.addBinding(this.giPass.stepCount, 'value', { min: 1, max: 32, step: 1, label: 'stepCount' })
         ssgi.addBinding(this.giPass.radius, 'value', { min: 1, max: 25, label: 'radius' })
         ssgi.addBinding(this.giPass.thickness, 'value', { min: 0.01, max: 10, label: 'thickness' })
-        ssgi.addBinding(this.giPass.aoIntensity, 'value', { min: 0, max: 4, label: 'aoIntensity' })
+        ssgi.addBinding(this.giPass.aoIntensity, 'value', { min: 0, max: 10, label: 'aoIntensity' })
         ssgi.addBinding(this.giPass.giIntensity, 'value', { min: 0, max: 100, label: 'giIntensity' })
     }
 }
