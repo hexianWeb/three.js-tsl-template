@@ -79,7 +79,7 @@ export default class Experience {
     update(timestamp) {
         this.time.update(timestamp)
         this.worldCamera.update()
-        this.world.update()
+        this.world.update(this.time.getDelta())
         this.renderer.render()
     }
 

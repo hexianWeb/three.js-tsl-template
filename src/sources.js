@@ -6,7 +6,22 @@ export default [
   {
     name: 'craneModel',
     type: 'gltfModel',
+    path: 'model/crane.glb'
+  },
+  {
+    name: 'flybarModel',
+    type: 'gltfModel',
+    path: 'model/flybar.glb'
+  },
+  {
+    name: 'tankBoxModel',
+    type: 'gltfModel',
     path: 'model/box.glb'
+  },
+  {
+    name: 'railwayModel',
+    type: 'gltfModel',
+    path: 'model/railway.glb'
   },
   {
     name: 'studioEnv',
