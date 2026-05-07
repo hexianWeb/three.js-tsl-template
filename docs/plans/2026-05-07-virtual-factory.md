@@ -1,21 +1,29 @@
 # 虚拟工厂可视化 Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** 把 `src/world/world.js` 中直接处理 `craneModel` 的逻辑抽离为可复例化的 `Crane` 组件，配合 `TankField`（InstancedMesh）/`Rails`/`Flybar`，并以本地仿真（1Hz tick）驱动状态机，构建未来可平滑切换为短轮询后台的可视化架构。
+**Goal:** 把 `src/world/world.js` 中直接处理 `craneModel` 的逻辑抽离为可复例化的 `Crane` 组件，配合 `TankField`（InstancedMesh）/`Rails`（`railway.glb` 双实例）/`Flybar`，并以本地仿真（1Hz tick）驱动状态机，构建未来可平滑切换为短轮询后台的可视化架构。
 
-**Architecture:** 单向数据流 `FactorySim → FactoryState → 视觉层`；视觉层只读状态、用 gsap 自插值；状态层不持有 Three.js 引用；后续接后台只换 Sim 为 PollingAdapter。详见 [`2026-05-07-virtual-factory-design.md`](./2026-05-07-virtual-factory-design.md)。
+**Architecture:** 本期采用 `FactoryController → FactoryState + 视觉实体`：`FactoryController` 同时承担本地仿真派单与 Crane/Flybar 动画编排，`FactoryState` 保持纯数据，视觉实体负责自身 mesh / material / label。后续接后台时拆出 `PollingAdapter` 写入 `FactoryState`，再由 Controller/视觉实体消费状态。详见 [`2026-05-07-virtual-factory-design.md`](./2026-05-07-virtual-factory-design.md)。
 
 **Tech Stack:** Three.js 0.183 (`three/webgpu` + `three/tsl`)、gsap 3.15、mitt 3、Vite 5。
 
 **Testing strategy:** 当前项目无测试框架，且场景以视觉为主。每个任务的「验证」改为：① `npm run dev` 启动；② 浏览器打开 `http://localhost:5173`；③ 控制台无报错；④ 视觉/DevTools Stats 满足任务声明的检查项。验收清单见设计文档 §5.4。
 
 **Asset prerequisites（开始本计划前由用户提供）：**
+- `public/model/crane.glb`：天车模型
 - `public/model/flybar.glb`：单根飞杆模型
-- `public/model/box.glb`：方形药剂槽（已有约定，请确认存在）
-- `public/model/crane.glb`：现有
+- `public/model/box.glb`：单个药水槽模型
+- `public/model/railway.glb`：单根钢轨模型
 
-如启动时缺资源：在控制台 `warn` 后早退，不阻塞场景。
+**Asset conventions（已由 Blender 侧确认）：**
+- 所有 GLB 的 forward / up 方向、物体原点、比例已处理好，运行时代码不做 scale，也不额外调整 rotation。
+- `flybar` 在槽上时使用世界坐标 `(tank.x, -8, tank.z)`。
+- `flybar` 在天车上时使用世界坐标 `(crane.x, 12, crane.z)`。
+- 天车始终只沿 X 轴移动；两根钢轨分别放置在 `(0, 15, -26)` 与 `(0, 15, 26)`。
+- 药水槽只有 1 行，共 40 个；槽体 X 向宽度 `8.57`，槽间步距为 `8.57 * 1.2 = 10.284`。
+
+资源缺失或加载失败必须保留 `Resources` 层的 `console.error`，不要吞错或早退兼容；本期资源都应可用，缺失应尽早暴露。
 
 ---
 
@@ -32,13 +40,13 @@ pnpm dev
 
 **Step 2:** 浏览器打开 `http://localhost:5173`，确认现有 `crane.glb` 已能渲染、控制台无报错。
 
-**Step 3:** 确认 `public/model/flybar.glb` 与 `public/model/box.glb` 存在：
+**Step 3:** 确认 `public/model/crane.glb`、`public/model/flybar.glb`、`public/model/box.glb` 与 `public/model/railway.glb` 存在：
 
 ```powershell
 Get-ChildItem public/model
 ```
 
-期望输出至少包含 `crane.glb`、`flybar.glb`、`box.glb`。如缺失则停止本计划等待美术补齐。
+期望输出至少包含 `crane.glb`、`flybar.glb`、`box.glb`、`railway.glb`。如缺失则停止本计划；不要添加 fallback 模型。
 
 **Step 4:** 创建工作分支（如未在隔离 worktree 中）
 
@@ -55,7 +63,7 @@ git checkout -b feat/virtual-factory
 **Files:**
 - Modify: `src/sources.js`
 
-**Step 1:** 在 `src/sources.js` 末尾追加两条资源：
+**Step 1:** 在 `src/sources.js` 中追加三条工厂资源：
 
 ```js
 export default [
@@ -75,6 +83,11 @@ export default [
     path: 'model/box.glb'
   },
   {
+    name: 'railwayModel',
+    type: 'gltfModel',
+    path: 'model/railway.glb'
+  },
+  {
     name: 'studioEnv',
     type: 'hdrTexture',
     path: 'hdri/studio.hdr'
@@ -88,7 +101,7 @@ export default [
 
 ```powershell
 git add src/sources.js
-git commit -m "feat(sources): add flybar and tank box model entries"
+git commit -m "feat(sources): add virtual factory model entries"
 ```
 
 ---
@@ -101,33 +114,38 @@ git commit -m "feat(sources): add flybar and tank box model entries"
 **Step 1:** 创建文件并写入：
 
 ```js
-import * as THREE from 'three/webgpu'
-
 /**
  * 工厂布局常量。所有数值仅用于本地仿真展示，
- * 后续接入后台时由 PollingAdapter 写入 FactoryState 覆盖。
+ * 后续接入后台时由 PollingAdapter 写入 FactoryState 覆盖动态状态。
  */
+export const TANK_WIDTH_X = 8.57
+export const TANK_SPACING_X = TANK_WIDTH_X * 1.2
+export const TANK_COUNT = 40
+export const FLYBAR_TANK_Y = -8
+export const FLYBAR_CRANE_Y = 12
+
 export const FACTORY_CONFIG = {
   rails: {
-    yLevel: 15,
-    z: [-27, 25],
-    length: 200,
-    radius: 0.25
+    positions: [
+      [0, 15, -26],
+      [0, 15, 26]
+    ]
   },
   tanks: {
-    rows: 2,
-    cols: 20,
-    spacingX: 5,
-    rowZ: [-15, 15],
-    originX: -47.5,
+    rows: 1,
+    cols: TANK_COUNT,
+    widthX: TANK_WIDTH_X,
+    spacingX: TANK_SPACING_X,
+    rowZ: [0],
+    originX: -((TANK_COUNT - 1) * TANK_SPACING_X) / 2,
     baseRoughness: 0.6,
     baseMetalness: 0.4,
     jitter: 0.2
   },
   cranes: [
-    { id: 'A', initialX: -30, mode: 'auto' },
-    { id: 'B', initialX: 0,   mode: 'manual' },
-    { id: 'C', initialX: 30,  mode: 'maintenance' }
+    { id: 'A', initialX: -30, initialY: 0, initialZ: 0, mode: 'auto' },
+    { id: 'B', initialX: 0,   initialY: 0, initialZ: 0, mode: 'manual' },
+    { id: 'C', initialX: 30,  initialY: 0, initialZ: 0, mode: 'maintenance' }
   ],
   flybars: {
     count: 6
@@ -142,8 +160,6 @@ export const FACTORY_CONFIG = {
     maintenance: '#ef4444'
   }
 }
-
-export const TANK_ANCHOR_Y_OFFSET = 4
 ```
 
 **Step 2:** Commit
@@ -171,7 +187,7 @@ import { FACTORY_CONFIG } from '../config.js'
  *   cranes: Array<{ id: string, mode: string, status: string, x: number,
  *                   labelText: string, trackText: string,
  *                   carryingFlybarId: number|null,
- *                   task: { fromTankId: number, toTankId: number } | null }>,
+ *                   task: { fromTankId: number, toTankId: number, flybarId: number } | null }>,
  *   tanks: Array<{ id: number, x: number, z: number, occupiedFlybarId: number|null }>,
  *   flybars: Array<{ id: number, location: { kind: 'tank'|'crane', tankId?: number, craneId?: string } }>,
  *   on: Function, off: Function, emit: Function
@@ -403,7 +419,7 @@ git commit -m "feat(factory): add TSL crane & tank material factories"
 
 ---
 
-## Task 6: Rails 实体
+## Task 6: Rails 实体（railway.glb 双实例）
 
 **Files:**
 - Create: `src/world/factory/entities/Rails.js`
@@ -415,30 +431,28 @@ import * as THREE from 'three/webgpu'
 import { FACTORY_CONFIG } from '../config.js'
 
 export default class Rails {
-  constructor() {
-    const { yLevel, z, length, radius } = FACTORY_CONFIG.rails
+  /**
+   * @param {THREE.Object3D} railwayScene  railway.glb 的 scene
+   */
+  constructor(railwayScene) {
     this.root = new THREE.Group()
     this.root.name = 'Rails'
 
-    const geom = new THREE.CylinderGeometry(radius, radius, length, 16)
-    geom.rotateZ(Math.PI / 2)
-    const mat = new THREE.MeshStandardMaterial({ color: 0x8a8a8a, metalness: 0.9, roughness: 0.4 })
-
-    for (const zPos of z) {
-      const m = new THREE.Mesh(geom, mat)
-      m.position.set(0, yLevel, zPos)
-      m.castShadow = true
-      m.receiveShadow = true
-      this.root.add(m)
+    for (const pos of FACTORY_CONFIG.rails.positions) {
+      const rail = railwayScene.clone(true)
+      rail.position.set(pos[0], pos[1], pos[2])
+      rail.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true
+          child.receiveShadow = true
+        }
+      })
+      this.root.add(rail)
     }
-
-    this._geom = geom
-    this._mat = mat
   }
 
   dispose() {
-    this._geom.dispose()
-    this._mat.dispose()
+    // GLB geometry/material/texture belong to Resources; Rails only removes clones.
     this.root.parent?.remove(this.root)
   }
 }
@@ -448,7 +462,7 @@ export default class Rails {
 
 ```powershell
 git add src/world/factory/entities/Rails.js
-git commit -m "feat(factory): add Rails entity (two cylinder rails)"
+git commit -m "feat(factory): add railway model rails entity"
 ```
 
 ---
@@ -462,7 +476,7 @@ git commit -m "feat(factory): add Rails entity (two cylinder rails)"
 
 ```js
 import * as THREE from 'three/webgpu'
-import { FACTORY_CONFIG, TANK_ANCHOR_Y_OFFSET } from '../config.js'
+import { FACTORY_CONFIG, FLYBAR_TANK_Y } from '../config.js'
 import { createTankMaterial } from '../materials/createTankMaterial.js'
 
 export default class TankField {
@@ -476,8 +490,7 @@ export default class TankField {
 
     const sourceMesh = findFirstMesh(boxScene)
     if (!sourceMesh) {
-      console.warn('[TankField] box.glb contains no mesh, abort')
-      return
+      throw new Error('[TankField] box.glb contains no mesh')
     }
     const geometry = sourceMesh.geometry.clone()
     const baseMap = sourceMesh.material?.map ?? null
@@ -510,7 +523,7 @@ export default class TankField {
       mesh.setMatrixAt(i, dummy.matrix)
 
       const anchor = new THREE.Object3D()
-      anchor.position.set(t.x, TANK_ANCHOR_Y_OFFSET, t.z)
+      anchor.position.set(t.x, FLYBAR_TANK_Y, t.z)
       this.root.add(anchor)
       this.anchors.push(anchor)
     }
@@ -574,13 +587,7 @@ export class Flybar {
   }
 
   dispose() {
-    this.root.traverse((c) => {
-      if (c.isMesh) {
-        c.geometry?.dispose()
-        const mats = Array.isArray(c.material) ? c.material : [c.material]
-        mats.forEach((m) => m?.dispose?.())
-      }
-    })
+    // GLB geometry/material/texture belong to Resources; Flybar only removes its clone.
     this.root.parent?.remove(this.root)
   }
 }
@@ -622,7 +629,7 @@ git commit -m "feat(factory): add Flybar + FlybarPool"
 ```js
 import * as THREE from 'three/webgpu'
 import gsap from 'gsap'
-import { FACTORY_CONFIG } from '../config.js'
+import { FACTORY_CONFIG, FLYBAR_CRANE_Y } from '../config.js'
 import { createCraneMaterial } from '../materials/createCraneMaterial.js'
 import { createLabelPlane, drawLabel, drawTrack } from '../labels/createLabelPlane.js'
 
@@ -674,7 +681,7 @@ export default class Crane {
 
     this.flybarMount = new THREE.Object3D()
     this.flybarMount.name = 'flybarMount'
-    this.flybarMount.position.copy(center)
+    this.flybarMount.position.set(0, FLYBAR_CRANE_Y - this.root.position.y, 0)
     this.root.add(this.flybarMount)
 
     const labelLeft  = createLabelPlane({ width: 6, height: 6, draw: drawLabel })
@@ -720,9 +727,7 @@ export default class Crane {
     this.labelLeft.dispose()
     this.labelRight.dispose()
     this.trackPlane.dispose()
-    this.visual.traverse((c) => {
-      if (c.isMesh) c.geometry?.dispose()
-    })
+    // GLB geometry/texture belong to Resources; Crane owns only the replacement material and labels.
     this.material?.dispose()
     this.root.parent?.remove(this.root)
   }
@@ -773,12 +778,21 @@ moveToX(targetX, { duration, ease = 'power2.inOut' } = {}) {
   const dur = duration ?? Math.max(0.4, dx / 12)
   return new Promise((resolve) => {
     this.tl?.kill()
-    this.tl = gsap.timeline({ onComplete: resolve })
+    this.tl = gsap.timeline({
+      onUpdate: () => { this.state.x = this.root.position.x },
+      onComplete: () => {
+        this.state.x = this.root.position.x
+        resolve()
+      }
+    })
     this.tl.to(this.root.position, { x: targetX, duration: dur, ease })
   })
 }
 
 pickFlybar(flybar) {
+  if (this.flybar) {
+    console.warn(`[Crane] ${this.id} already has flybar ${this.flybar.id}, replacing with ${flybar.id}`)
+  }
   this.flybarMount.attach(flybar.root)
   this.flybar = flybar
   return new Promise((resolve) => {
@@ -792,11 +806,11 @@ pickFlybar(flybar) {
 dropFlybar(targetAnchor) {
   if (!this.flybar) return Promise.resolve()
   const flybar = this.flybar
+  targetAnchor.attach(flybar.root)
   return new Promise((resolve) => {
     gsap.to(flybar.root.position, {
-      y: -1, duration: 0.6, ease: 'power2.in',
+      x: 0, y: 0, z: 0, duration: 0.6, ease: 'power2.in',
       onComplete: () => {
-        targetAnchor.attach(flybar.root)
         this.flybar = null
         resolve()
       }
@@ -825,24 +839,24 @@ git commit -m "feat(factory): add Crane move/pick/drop/setMode behaviors"
 
 ---
 
-## Task 11: FactorySim（1Hz tick + 任务派发 + Crane 状态机驱动）
+## Task 11: FactoryController（1Hz tick + 任务派发 + 视觉编排）
 
 **Files:**
-- Create: `src/world/factory/state/FactorySim.js`
+- Create: `src/world/factory/FactoryController.js`
 
 **Step 1:** 写入：
 
 ```js
-import { FACTORY_CONFIG } from '../config.js'
+import { FACTORY_CONFIG } from './config.js'
 
 const NEXT_MODE = { auto: 'manual', manual: 'maintenance', maintenance: 'auto' }
 
-export default class FactorySim {
+export default class FactoryController {
   /**
-   * @param {ReturnType<typeof import('./FactoryState.js').createFactoryState>} state
-   * @param {Map<string, import('../entities/Crane.js').default>} cranesById
-   * @param {import('../entities/Flybar.js').FlybarPool} flybarPool
-   * @param {import('../entities/TankField.js').default} tankField
+   * @param {ReturnType<typeof import('./state/FactoryState.js').createFactoryState>} state
+   * @param {Map<string, import('./entities/Crane.js').default>} cranesById
+   * @param {import('./entities/Flybar.js').FlybarPool} flybarPool
+   * @param {import('./entities/TankField.js').default} tankField
    */
   constructor(state, cranesById, flybarPool, tankField) {
     this.state = state
@@ -884,11 +898,14 @@ export default class FactorySim {
       cs.task = task
       cs.status = 'moving'
       cs.trackText = '前行'
-      this._reservedFlybars.add(this._flybarOnTank(task.fromTankId))
+      this._reservedFlybars.add(task.flybarId)
       this._reservedTanks.add(task.toTankId)
 
       this._runCraneTask(cs).catch((err) => {
-        console.warn(`[FactorySim] crane ${cs.id} task failed`, err)
+        console.warn(`[FactoryController] crane ${cs.id} task failed`, err)
+        cs.status = 'idle'
+        cs.trackText = '待机'
+        cs.carryingFlybarId = null
         this._releaseTask(cs)
       })
     }
@@ -904,6 +921,7 @@ export default class FactorySim {
     }
     if (!candidates.length) return null
     const fromTankId = candidates[Math.floor(Math.random() * candidates.length)]
+    const flybarId = tanks[fromTankId].occupiedFlybarId
 
     const empties = []
     for (const t of tanks) {
@@ -914,21 +932,16 @@ export default class FactorySim {
     }
     if (!empties.length) return null
     const toTankId = empties[Math.floor(Math.random() * empties.length)]
-    return { fromTankId, toTankId }
-  }
-
-  _flybarOnTank(tankId) {
-    return this.state.tanks[tankId].occupiedFlybarId
+    return { fromTankId, toTankId, flybarId }
   }
 
   async _runCraneTask(cs) {
     const crane = this.cranes.get(cs.id)
     if (!crane) return this._releaseTask(cs)
-    const { fromTankId, toTankId } = cs.task
+    const { fromTankId, toTankId, flybarId } = cs.task
     const fromTank = this.state.tanks[fromTankId]
     const toTank   = this.state.tanks[toTankId]
-    const flybarId = fromTank.occupiedFlybarId
-    if (flybarId == null) return this._releaseTask(cs)
+    if (fromTank.occupiedFlybarId !== flybarId) return this._releaseTask(cs)
     const flybar = this.flybarPool.get(flybarId)
 
     await crane.moveToX(fromTank.x)
@@ -936,6 +949,7 @@ export default class FactorySim {
     await crane.pickFlybar(flybar)
     fromTank.occupiedFlybarId = null
     cs.carryingFlybarId = flybarId
+    this.state.flybars[flybarId].location = { kind: 'crane', craneId: cs.id }
 
     cs.status = 'carrying';  cs.trackText = '后退'
     await crane.moveToX(toTank.x)
@@ -944,6 +958,7 @@ export default class FactorySim {
     await crane.dropFlybar(this.tankField.getAnchor(toTankId))
     toTank.occupiedFlybarId = flybarId
     cs.carryingFlybarId = null
+    this.state.flybars[flybarId].location = { kind: 'tank', tankId: toTankId }
 
     cs.status = 'idle'; cs.trackText = '待机'
     this._releaseTask(cs)
@@ -951,7 +966,7 @@ export default class FactorySim {
 
   _releaseTask(cs) {
     if (!cs.task) return
-    this._reservedFlybars.delete(this._flybarOnTank(cs.task.fromTankId))
+    this._reservedFlybars.delete(cs.task.flybarId)
     this._reservedTanks.delete(cs.task.toTankId)
     cs.task = null
   }
@@ -970,8 +985,8 @@ export default class FactorySim {
 **Step 2:** Commit
 
 ```powershell
-git add src/world/factory/state/FactorySim.js
-git commit -m "feat(factory): add FactorySim (1Hz tick state machine)"
+git add src/world/factory/FactoryController.js
+git commit -m "feat(factory): add FactoryController task orchestration"
 ```
 
 ---
@@ -986,7 +1001,7 @@ git commit -m "feat(factory): add FactorySim (1Hz tick state machine)"
 ```js
 import * as THREE from 'three/webgpu'
 import { createFactoryState } from './state/FactoryState.js'
-import FactorySim from './state/FactorySim.js'
+import FactoryController from './FactoryController.js'
 import Rails from './entities/Rails.js'
 import TankField from './entities/TankField.js'
 import { FlybarPool } from './entities/Flybar.js'
@@ -998,16 +1013,17 @@ export default class Factory {
    * @param {{
    *   craneScene: THREE.Object3D,
    *   flybarScene: THREE.Object3D,
-   *   tankBoxScene: THREE.Object3D
+   *   tankBoxScene: THREE.Object3D,
+   *   railwayScene: THREE.Object3D
    * }} resources
    */
-  constructor({ craneScene, flybarScene, tankBoxScene }) {
+  constructor({ craneScene, flybarScene, tankBoxScene, railwayScene }) {
     this.root = new THREE.Group()
     this.root.name = 'Factory'
 
     this.state = createFactoryState()
 
-    this.rails = new Rails()
+    this.rails = new Rails(railwayScene)
     this.root.add(this.rails.root)
 
     this.tankField = new TankField(tankBoxScene, this.state.tanks)
@@ -1022,7 +1038,7 @@ export default class Factory {
         id: cs.id,
         prototypeScene: craneScene,
         state: cs,
-        initialPosition: new THREE.Vector3(cfg?.initialX ?? 0, FACTORY_CONFIG.rails.yLevel, 0)
+        initialPosition: new THREE.Vector3(cfg?.initialX ?? 0, cfg?.initialY ?? 0, cfg?.initialZ ?? 0)
       })
       this.cranes.set(cs.id, crane)
       this.root.add(crane.root)
@@ -1042,17 +1058,17 @@ export default class Factory {
       crane.setMode(cs.mode)
     }
 
-    this.sim = new FactorySim(this.state, this.cranes, this.flybarPool, this.tankField)
+    this.controller = new FactoryController(this.state, this.cranes, this.flybarPool, this.tankField)
   }
 
   update(dt) {
-    this.sim.update(dt)
+    this.controller.update(dt)
     for (const c of this.cranes.values()) c.update(dt)
     this.tankField.update?.(dt)
   }
 
   dispose() {
-    this.sim.pause()
+    this.controller.pause()
     for (const c of this.cranes.values()) c.dispose()
     this.cranes.clear()
     this.tankField?.dispose()
@@ -1103,15 +1119,20 @@ export default class World {
             const craneScene   = items?.craneModel?.scene
             const flybarScene  = items?.flybarModel?.scene
             const tankBoxScene = items?.tankBoxModel?.scene
+            const railwayScene = items?.railwayModel?.scene
 
-            if (!craneScene || !flybarScene || !tankBoxScene) {
-                console.warn('[World] missing factory glbs, abort factory build', {
-                    crane: !!craneScene, flybar: !!flybarScene, tank: !!tankBoxScene
-                })
-                return
+            if (!craneScene || !flybarScene || !tankBoxScene || !railwayScene) {
+                const detail = {
+                    crane: !!craneScene,
+                    flybar: !!flybarScene,
+                    tank: !!tankBoxScene,
+                    railway: !!railwayScene
+                }
+                console.error('[World] missing required factory glbs', detail)
+                throw new Error('[World] missing required factory glbs')
             }
 
-            this.factory = new Factory({ craneScene, flybarScene, tankBoxScene })
+            this.factory = new Factory({ craneScene, flybarScene, tankBoxScene, railwayScene })
             this.scene.add(this.factory.root)
 
             this.model = this.factory.root
@@ -1177,9 +1198,10 @@ pnpm dev
 
 打开浏览器：
 - 控制台无报错
-- 场景中能看到 3 台 crane（编号 A/B/C 显示在两侧 plane）+ 钢轨 + 大批方形槽
-- 槽阵列只产生 1 个 InstancedMesh：在 console 跑 `_e = window` （或临时把 factory 暴露到 window 检查 `factory.tankField.mesh.count`）
-- 等待 ~1s 后能看到天车开始水平移动，飞杆下放、转移；轨迹文字依次切换 `前行/取飞杆/后退/下飞杆/待机`
+- 场景中能看到 3 台 crane（编号 A/B/C 显示在两侧 plane）+ 2 条 `railway.glb` 钢轨 + 1 行 40 个方形槽
+- 槽阵列只产生 1 个 InstancedMesh，且 `factory.tankField.mesh.count === 40`
+- 两条钢轨世界坐标分别为 `(0, 15, -26)` 与 `(0, 15, 26)`
+- 等待 ~1s 后能看到天车只沿 X 轴水平移动；飞杆在槽上落点为 `(tank.x, -8, tank.z)`，在天车上挂点为 `(crane.x, 12, crane.z)`；轨迹文字依次切换 `前行/取飞杆/后退/下飞杆/待机`
 - 等待 ~15s 能看到某台天车颜色平滑切换
 
 **Step 4:** Commit
@@ -1199,13 +1221,17 @@ git commit -m "refactor(world): replace inline craneModel handling with Factory"
 
 | # | 项 | 通过？ |
 |---|---|---|
-| 1 | 多台 crane 编号可见 | ☐ |
-| 2 | 槽阵列单 InstancedMesh | ☐ |
+| 1 | 3 台 crane 编号 A/B/C 可见 | ☐ |
+| 2 | 槽阵列为 1 行 40 个，单 InstancedMesh，`mesh.count === 40` | ☐ |
 | 3 | 槽 roughness/metalness 抖动可见 | ☐ |
 | 4 | setMode 平滑过渡 + 贴图保留 | ☐ |
-| 5 | 任务流转 4 段 + 文本切换 | ☐ |
-| 6 | trackText 不变帧无 needsUpdate | ☐ |
-| 7 | dispose 不报错 | ☐ |
+| 5 | 两条 railway 模型位于 `(0,15,-26)` / `(0,15,26)` | ☐ |
+| 6 | 天车只沿 X 轴移动到目标槽 `x`，不改 Y/Z | ☐ |
+| 7 | 飞杆取放高度正确：槽上 Y=-8，天车上 Y=12，无额外 rotation/scale | ☐ |
+| 8 | 任务流转 4 段 + 文本切换 | ☐ |
+| 9 | `FactoryController` 任务 reservation 不泄漏，`flybars[id].location` 随取放同步更新 | ☐ |
+| 10 | trackText 不变帧无 needsUpdate | ☐ |
+| 11 | dispose 不重复释放 GLB 共享 geometry/material/texture，不报错 | ☐ |
 
 **Step 2:** 任一项失败：在对应 Task 上回滚或追加修复 commit；不混入新功能。
 

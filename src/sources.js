@@ -6,7 +6,7 @@ export default [
   {
     name: 'craneModel',
     type: 'gltfModel',
-    path: 'model/crane.glb'
+    path: 'model/box.glb'
   },
   {
     name: 'studioEnv',

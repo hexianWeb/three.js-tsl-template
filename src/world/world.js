@@ -12,6 +12,7 @@ export default class World {
         /** @type {THREE.Object3D | null} */
         this.model = null
 
+        this.scene.add(new THREE.AxesHelper(100))
         eventBus.on('source ready', () => {
             const gltf = this.experience.resources?.items?.craneModel
             if (!gltf?.scene) {
