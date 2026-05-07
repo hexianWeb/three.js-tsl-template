@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu'
 import { eventBus } from '../utils/event-bus.js'
+import Factory from './factory/Factory.js'
 
 export default class World {
     /**
@@ -9,60 +10,44 @@ export default class World {
         this.experience = experience
         this.scene = experience.scene
 
+        /** @type {Factory | null} */
+        this.factory = null
         /** @type {THREE.Object3D | null} */
         this.model = null
 
         this.scene.add(new THREE.AxesHelper(100))
         eventBus.on('source ready', () => {
-            const gltf = this.experience.resources?.items?.craneModel
-            if (!gltf?.scene) {
-                return
+            const items = this.experience.resources?.items
+            const craneScene = items?.craneModel?.scene
+            const flybarScene = items?.flybarModel?.scene
+            const tankBoxScene = items?.tankBoxModel?.scene
+            const railwayScene = items?.railwayModel?.scene
+
+            if (!craneScene || !flybarScene || !tankBoxScene || !railwayScene) {
+                const detail = {
+                    crane: !!craneScene,
+                    flybar: !!flybarScene,
+                    tank: !!tankBoxScene,
+                    railway: !!railwayScene
+                }
+                console.error('[World] missing required factory glbs', detail)
+                throw new Error('[World] missing required factory glbs')
             }
 
-            this.model = gltf.scene
-            this._prepareMeshes(this.model)
-            this.scene.add(this.model)
-            this._frameCameraToModel(this.model)
+            this.factory = new Factory({ craneScene, flybarScene, tankBoxScene, railwayScene })
+            this.scene.add(this.factory.root)
+
+            this.model = this.factory.root
+            this._frameCameraToFactory()
         })
     }
 
-    /**
-     * @description 准备模型材质
-     * @param {THREE.Object3D} root
-     */
-    _prepareMeshes(root) {
-        root.traverse((child) => {
-            if (!(child instanceof THREE.Mesh)) return
-            child.castShadow = true
-            child.receiveShadow = true
-
-            const materials = Array.isArray(child.material) ? child.material : [child.material]
-            const prepared = materials.map((material) => {
-                if (!material || material.isMeshStandardMaterial) {
-                    return material
-                }
-
-                const fallback = new THREE.MeshPhysicalMaterial({
-                    color: material.color ?? 0xcccccc,
-                    map: material.map ?? null
-                })
-                material.dispose?.()
-                return fallback
-            })
-
-            child.material = Array.isArray(child.material) ? prepared : prepared[0]
-        })
-    }
-
-    /**
-     * @description 将相机定位到模型中心
-     * @param {THREE.Object3D} object
-     */
-    _frameCameraToModel(object) {
+    _frameCameraToFactory() {
+        if (!this.factory) return
         const camera = this.experience.worldCamera.instance
         const controls = this.experience.worldCamera.controls
 
-        const box = new THREE.Box3().setFromObject(object)
+        const box = new THREE.Box3().setFromObject(this.factory.root)
         if (box.isEmpty()) {
             return
         }
@@ -85,23 +70,14 @@ export default class World {
         controls.update()
     }
 
-    update() {}
+    /** @param {number} dt seconds */
+    update(dt) {
+        this.factory?.update(dt ?? 0)
+    }
 
     dispose() {
-        if (!this.model) {
-            return
-        }
-
-        this.model.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-                child.geometry?.dispose()
-                const mats = Array.isArray(child.material) ? child.material : [child.material]
-                for (const m of mats) {
-                    m?.dispose?.()
-                }
-            }
-        })
-        this.scene.remove(this.model)
+        this.factory?.dispose()
+        this.factory = null
         this.model = null
     }
 }
