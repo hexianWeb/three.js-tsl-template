@@ -1,4 +1,5 @@
 import * as THREE from 'three/webgpu'
+import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js'
 import Debug from '../utils/debug.js'
 import Resources from '../utils/Resources.js'
 import WorldCamera from '../world/camera.js'
@@ -22,6 +23,10 @@ export default class Experience {
         this.rendererReady = new Promise((resolve) => {
             this._resolveRendererReady = resolve
         })
+
+        this.cssRenderer = new CSS2DRenderer()
+        this.cssRenderer.domElement.className = 'css2d-overlay'
+        document.body.appendChild(this.cssRenderer.domElement)
 
         this.scene = new THREE.Scene()
         this.worldCamera = new WorldCamera(canvas, this.sizes)
@@ -58,6 +63,7 @@ export default class Experience {
         if (this.debug.active) {
             this.environment.debuggerInit(this.debug)
             this.worldCamera.debuggerInit(this.debug)
+            this.world.debuggerInit(this.debug)
             this.renderer.debuggerInit(this.debug)
         }
     }
@@ -65,6 +71,7 @@ export default class Experience {
     resize() {
         this.worldCamera.resize()
         this.renderer.setSizeFromSizes(this.sizes)
+        this.cssRenderer.setSize(this.sizes.width, this.sizes.height)
     }
 
     start() {
@@ -81,6 +88,7 @@ export default class Experience {
         this.worldCamera.update()
         this.world.update(this.time.getDelta())
         this.renderer.render()
+        this.cssRenderer.render(this.scene, this.worldCamera.instance)
     }
 
     dispose() {
@@ -97,5 +105,7 @@ export default class Experience {
         if (typeof this.renderer.instance.dispose === 'function') {
             this.renderer.instance.dispose()
         }
+
+        this.cssRenderer.domElement.remove()
     }
 }
