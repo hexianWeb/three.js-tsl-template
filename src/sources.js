@@ -11,17 +11,22 @@ export default [
   {
     name: 'flybarModel',
     type: 'gltfModel',
-    path: 'model/flybar.glb'
+    path: 'model/flybar2.glb'
   },
   {
     name: 'tankBoxModel',
     type: 'gltfModel',
-    path: 'model/box.glb'
+    path: 'model/box2.glb'
   },
   {
     name: 'railwayModel',
     type: 'gltfModel',
     path: 'model/railway.glb'
+  },
+  {
+    name: 'wallColumnModel',
+    type: 'gltfModel',
+    path: 'model/wall.glb'
   },
   {
     name: 'studioEnv',
