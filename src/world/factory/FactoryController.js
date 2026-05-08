@@ -4,10 +4,11 @@ const NEXT_MODE = { auto: 'manual', manual: 'maintenance', maintenance: 'auto' }
 
 export default class FactoryController {
     /**
-     * @param {ReturnType<typeof import('./state/FactoryState.js').createFactoryState>} state
-     * @param {Map<string, import('./entities/Crane.js').default>} cranesById
-     * @param {import('./entities/Flybar.js').FlybarPool} flybarPool
-     * @param {import('./entities/TankField.js').default} tankField
+     * @description 工厂控制器
+     * @param {ReturnType<typeof import('./state/FactoryState.js').createFactoryState>} state 工厂状态
+     * @param {Map<string, import('./entities/Crane.js').default>} cranesById 天车
+     * @param {import('./entities/Flybar.js').FlybarPool} flybarPool 飞杆池
+     * @param {import('./entities/TankField.js').default} tankField 水槽场
      */
     constructor(state, cranesById, flybarPool, tankField) {
         this.state = state
@@ -68,7 +69,9 @@ export default class FactoryController {
     }
 
     /**
-     * @param {{ moveRange: { minX: number, maxX: number } }} cs
+     * @description 为天车派单
+     * @param {{ moveRange: { minX: number, maxX: number } }} cs 天车
+     * @returns {{ fromTankId: number, toTankId: number, flybarId: number } | null} 派单结果
      */
     _draftTaskForCrane(cs) {
         const { minX, maxX } = cs.moveRange
@@ -99,6 +102,10 @@ export default class FactoryController {
         return { fromTankId, toTankId, flybarId }
     }
 
+    /**
+     * @description 运行天车任务
+     * @param {{ id: string, task: { fromTankId: number, toTankId: number, flybarId: number } }} cs 天车
+     */
     async _runCraneTask(cs) {
         const crane = this.cranes.get(cs.id)
         if (!crane) return this._releaseTask(cs)
@@ -132,6 +139,10 @@ export default class FactoryController {
         this._releaseTask(cs)
     }
 
+    /**
+     * @description 释放天车任务
+     * @param {{ id: string, task: { fromTankId: number, toTankId: number, flybarId: number } }} cs 天车
+     */
     _releaseTask(cs) {
         if (!cs.task) return
         this._reservedFlybars.delete(cs.task.flybarId)
@@ -139,6 +150,9 @@ export default class FactoryController {
         cs.task = null
     }
 
+    /**
+     * @description 随机切换天车模式
+     */
     _rotateRandomMode() {
         const cs = this.state.cranes[Math.floor(Math.random() * this.state.cranes.length)]
         const next = NEXT_MODE[cs.mode] ?? 'auto'

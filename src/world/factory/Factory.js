@@ -7,14 +7,16 @@ import { FlybarPool } from './entities/Flybar.js'
 import Crane from './entities/Crane.js'
 import { FACTORY_CONFIG } from './config.js'
 
+/** @typedef {import('../../utils/debug.js').default} Debug */
+
 export default class Factory {
     /**
-     * @param {{
-     *   craneScene: THREE.Object3D,
-     *   flybarScene: THREE.Object3D,
-     *   tankBoxScene: THREE.Object3D,
-     *   railwayScene: THREE.Object3D
-     * }} resources
+     * @description 工厂实体
+     * @param {Object} resources
+     * @param {THREE.Object3D} resources.craneScene 天车场景
+     * @param {THREE.Object3D} resources.flybarScene 飞杆场景
+     * @param {THREE.Object3D} resources.tankBoxScene 水槽场景
+     * @param {THREE.Object3D} resources.railwayScene 轨道场景
      */
     constructor({ craneScene, flybarScene, tankBoxScene, railwayScene }) {
         this.root = new THREE.Group()
@@ -58,6 +60,30 @@ export default class Factory {
         }
 
         this.controller = new FactoryController(this.state, this.cranes, this.flybarPool, this.tankField)
+    }
+
+    /**
+     * @param {Debug} debug
+     */
+    debuggerInit(debug) {
+        if (!debug.active) {
+            return
+        }
+        const folder = debug.addFolder({ title: '水槽', expanded: true })
+        if (!folder) {
+            return
+        }
+
+        const tintNode = this.tankField.material.userData.tintColor
+        const state = { color: FACTORY_CONFIG.tanks.tint }
+
+        folder
+            .addBinding(state, 'color', { view: 'color', label: '颜色' })
+            .on('change', (ev) => {
+                if (tintNode?.value?.set) {
+                    tintNode.value.set(ev.value)
+                }
+            })
     }
 
     update(dt) {
