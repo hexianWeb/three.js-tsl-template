@@ -14,11 +14,18 @@ export default class Environment {
         this.renderer = renderer
         this.getModel = getModel
 
-        /** Clear color only; scene has no distance fog. */
-        this.clearColor = new THREE.Color('#e8edf4')
+        this.scene.background = new THREE.Color('#888c8f')
+        /** Initial key light direction (deg). Applied in constructor and after model fit. */
+        this.keyLightState = {
+            intensity: 2.5,
+            azimuthDeg: -45,
+            elevationDeg: 66
+        }
+        this._keyLightDefaultDistance = Math.hypot(20, 40, 20)
 
-        this.keyLight = new THREE.DirectionalLight(0xffffff, 2.5)
-        this.keyLight.position.set(20, 40, 20)
+        this.keyLight = new THREE.DirectionalLight(0xffffff, this.keyLightState.intensity)
+        this.keyLight.target.position.set(0, 0, 0)
+        this._applyKeyLightFromState(this._keyLightDefaultDistance)
         this.keyLight.castShadow = true
         this.keyLight.shadow.mapSize.set(2048, 2048)
         this.keyLight.shadow.bias = -0.0005
@@ -27,6 +34,30 @@ export default class Environment {
         this.scene.add(this.keyLight.target)
 
         Promise.all([this.resources.ready, rendererReady]).then(() => this._onSourcesReady())
+    }
+
+    /**
+     * Place key light at `target + dir(azimuth, elevation) * radius`.
+     * @param {number} [radius]
+     */
+    _applyKeyLightFromState(radius) {
+        const { azimuthDeg, elevationDeg, intensity } = this.keyLightState
+        const az = THREE.MathUtils.degToRad(azimuthDeg)
+        const el = THREE.MathUtils.degToRad(elevationDeg)
+        const target = this.keyLight.target.position
+        const center = target
+        const dir = new THREE.Vector3(
+            Math.cos(el) * Math.cos(az),
+            Math.sin(el),
+            Math.cos(el) * Math.sin(az)
+        )
+        let r = radius
+        if (r === undefined || r === null) {
+            r = this.keyLight.position.distanceTo(target)
+            if (r < 1e-6) r = this._keyLightDefaultDistance
+        }
+        this.keyLight.position.copy(center).addScaledVector(dir, r)
+        this.keyLight.intensity = intensity
     }
 
     _onSourcesReady() {
@@ -60,12 +91,10 @@ export default class Environment {
         const sphere = box.getBoundingSphere(new THREE.Sphere())
         const radius = sphere.radius
 
-        const dir = new THREE.Vector3(0.5, 1.5, 0.5).normalize()
         const dist = radius * 2
-
-        this.keyLight.position.copy(center).addScaledVector(dir, dist)
         this.keyLight.target.position.copy(center)
         this.keyLight.target.updateMatrixWorld()
+        this._applyKeyLightFromState(dist)
 
         const margin = radius * 1.1
         const cam = this.keyLight.shadow.camera
@@ -107,34 +136,17 @@ export default class Environment {
                 this.renderer.toneMappingExposure = ev.value
             })
 
-        const lightState = {
-            intensity: this.keyLight.intensity,
-            azimuthDeg: 45,
-            elevationDeg: 60
-        }
-        const applyLightDir = () => {
-            const az = THREE.MathUtils.degToRad(lightState.azimuthDeg)
-            const el = THREE.MathUtils.degToRad(lightState.elevationDeg)
-            const target = this.keyLight.target.position
-            const center = target.clone()
-            const radius = this.keyLight.position.distanceTo(target)
-            const dir = new THREE.Vector3(
-                Math.cos(el) * Math.cos(az),
-                Math.sin(el),
-                Math.cos(el) * Math.sin(az)
-            )
-            this.keyLight.position.copy(center).addScaledVector(dir, radius || 1)
-        }
+        const applyLightDir = () => this._applyKeyLightFromState()
         folder
-            .addBinding(lightState, 'intensity', { min: 0, max: 10, step: 0.05, label: 'key intensity' })
+            .addBinding(this.keyLightState, 'intensity', { min: 0, max: 10, step: 0.05, label: 'key intensity' })
             .on('change', (ev) => {
                 this.keyLight.intensity = ev.value
             })
         folder
-            .addBinding(lightState, 'azimuthDeg', { min: -180, max: 180, step: 1, label: 'key azimuth' })
+            .addBinding(this.keyLightState, 'azimuthDeg', { min: -180, max: 180, step: 1, label: 'key azimuth' })
             .on('change', applyLightDir)
         folder
-            .addBinding(lightState, 'elevationDeg', { min: 5, max: 89, step: 1, label: 'key elevation' })
+            .addBinding(this.keyLightState, 'elevationDeg', { min: 5, max: 89, step: 1, label: 'key elevation' })
             .on('change', applyLightDir)
     }
 }
