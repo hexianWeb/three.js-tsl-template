@@ -16,6 +16,12 @@ export default class WorldCamera {
         this.controls = new OrbitControls(this.instance, canvas)
         this.controls.enableDamping = true
 
+        // 仅在上半球（极角从视线自 +Y 下到水平面）；方位绕 +Z 左右各 45°（总跨度为整圆的 1/4）
+        this.controls.minPolarAngle = 0
+        this.controls.maxPolarAngle = Math.PI / 2
+        this.controls.minAzimuthAngle = -Math.PI / 4
+        this.controls.maxAzimuthAngle = Math.PI / 4
+
         this._debugFov = { fov: this.instance.fov }
     }
 

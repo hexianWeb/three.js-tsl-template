@@ -72,11 +72,11 @@ export default class World {
         const center = box.getCenter(new THREE.Vector3())
         const sphere = box.getBoundingSphere(new THREE.Sphere())
 
-        const padding = 1.35
+        const padding = 0.5
         const fovRad = THREE.MathUtils.degToRad(camera.fov)
         const distance = (sphere.radius / Math.sin(fovRad / 2)) * padding
 
-        const offset = new THREE.Vector3(1, 0.55, 1).normalize().multiplyScalar(distance)
+        const offset = new THREE.Vector3(0, 0.5, 1).normalize().multiplyScalar(distance)
         camera.position.copy(center).add(offset)
         camera.near = Math.max(0.01, sphere.radius / 100)
         camera.far = Math.max(500, sphere.radius * 50)
@@ -111,7 +111,7 @@ export default class World {
         if (wallScene && !this.bearingColumn) {
             const column = wallScene.clone(true)
             column.name = 'BearingColumn'
-            column.position.set(0, 0, -29)
+            column.position.set(0, 0, 0)
             column.traverse((obj) => {
                 if (obj.isMesh) {
                     obj.castShadow = true
