@@ -63,6 +63,31 @@ export function drawTrack(ctx, text) {
     ctx.fillText(text ?? '', width / 2, height / 2)
 }
 
+export function drawTankNumber(ctx, text) {
+    const { width, height } = ctx.canvas
+    ctx.fillStyle = '#ffffff'
+    ctx.font = 'bold 150px "Bahnschrift"'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(text ?? '', width / 2, height / 2)
+}
+
+export function drawVerticalTankName(ctx, text) {
+    const { width, height } = ctx.canvas
+    const chars = Array.from(text ?? '')
+    const lineHeight = Math.min(92, Math.floor((height - 24) / Math.max(chars.length, 1)))
+    ctx.fillStyle = '#ffffff'
+    ctx.font = `bold ${Math.max(44, lineHeight)}px "Noto Sans SC"`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+
+    const totalHeight = lineHeight * chars.length
+    const startY = height / 2 - totalHeight / 2 + lineHeight / 2
+    chars.forEach((char, index) => {
+        ctx.fillText(char, width / 2, startY + index * lineHeight)
+    })
+}
+
 function roundRect(ctx, x, y, w, h, r) {
     ctx.beginPath()
     ctx.moveTo(x + r, y)
