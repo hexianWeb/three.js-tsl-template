@@ -1,7 +1,8 @@
 import * as THREE from 'three/webgpu'
+import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
 import gsap from 'gsap'
 import { FLYBAR_CRANE_Y } from '../config.js'
-import { createLabelPlane, drawLabel, drawTrack } from '../labels/createLabelPlane.js'
+import { createLabelPlane, drawLabel } from '../labels/createLabelPlane.js'
 
 export default class Crane {
     /** @type {THREE.Box3 | null} */
@@ -55,16 +56,13 @@ export default class Crane {
         this.labelLeft = labelLeft
         this.labelRight = labelRight
 
-        const trackPlane = createLabelPlane({
-            width: 60,
-            height: 30,
-            canvasW: 256,
-            canvasH: 128,
-            draw: drawTrack
-        })
-        trackPlane.mesh.position.set(center.x, bbox.max.y + 6, center.z)
-        this.root.add(trackPlane.mesh)
-        this.trackPlane = trackPlane
+        const trackEl = document.createElement('div')
+        trackEl.className = 'crane-track-label'
+        const trackObject = new CSS2DObject(trackEl)
+        trackObject.position.set(center.x, bbox.max.y + 6, center.z)
+        this.root.add(trackObject)
+        this.trackEl = trackEl
+        this.trackObject = trackObject
 
         this.setLabel(state.labelText)
         this.setTrack(state.trackText)
@@ -141,21 +139,25 @@ export default class Crane {
     }
 
     setTrack(text) {
-        this.trackPlane.setText(text)
+        const value = text ?? ''
+        if (this.trackEl.textContent !== value) {
+            this.trackEl.textContent = value
+        }
         this.state.trackText = text
     }
 
     update() {
         this.labelLeft.setText(this.state.labelText)
         this.labelRight.setText(this.state.labelText)
-        this.trackPlane.setText(this.state.trackText)
+        this.setTrack(this.state.trackText)
     }
 
     dispose() {
         this.tl?.kill()
         this.labelLeft.dispose()
         this.labelRight.dispose()
-        this.trackPlane.dispose()
+        this.trackObject.removeFromParent()
+        this.trackEl.remove()
         this.root.parent?.remove(this.root)
     }
 }
