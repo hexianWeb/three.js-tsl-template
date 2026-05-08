@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu'
 import { eventBus } from '../utils/event-bus.js'
 import Factory from './factory/Factory.js'
+import { TANK_MAX_X } from './factory/config.js'
 
 export default class World {
     /**
@@ -14,6 +15,15 @@ export default class World {
         this.factory = null
         /** @type {THREE.Object3D | null} */
         this.model = null
+        /** @type {THREE.Mesh | null} */
+        this.ground = null
+        /** 承重柱（地板地形）；与 ground 同层，不参与 factory.root 取景。 */
+        /** @type {THREE.Object3D | null} */
+        this.bearingColumn = null
+        /** @type {import('../utils/debug.js').default | null} */
+        this._debug = null
+        /** @type {boolean} */
+        this._groundDebugBound = false
 
         this.scene.add(new THREE.AxesHelper(100))
         eventBus.on('source ready', () => {
@@ -22,13 +32,15 @@ export default class World {
             const flybarScene = items?.flybarModel?.scene
             const tankBoxScene = items?.tankBoxModel?.scene
             const railwayScene = items?.railwayModel?.scene
+            const wallColumnScene = items?.wallColumnModel?.scene
 
-            if (!craneScene || !flybarScene || !tankBoxScene || !railwayScene) {
+            if (!craneScene || !flybarScene || !tankBoxScene || !railwayScene || !wallColumnScene) {
                 const detail = {
                     crane: !!craneScene,
                     flybar: !!flybarScene,
                     tank: !!tankBoxScene,
-                    railway: !!railwayScene
+                    railway: !!railwayScene,
+                    wallColumn: !!wallColumnScene
                 }
                 console.error('[World] missing required factory glbs', detail)
                 throw new Error('[World] missing required factory glbs')
@@ -36,6 +48,11 @@ export default class World {
 
             this.factory = new Factory({ craneScene, flybarScene, tankBoxScene, railwayScene })
             this.scene.add(this.factory.root)
+            this._addGroundPlane()
+
+            if (this.experience.debug.active) {
+                this.factory.debuggerInit(this.experience.debug)
+            }
 
             this.model = this.factory.root
             this._frameCameraToFactory()
@@ -70,12 +87,100 @@ export default class World {
         controls.update()
     }
 
+    /**
+     * 铺在车间下方的大地板；挂在 scene 上而非 factory.root，避免参与取景包围盒把相机拉得过远。
+     */
+    _addGroundPlane() {
+        if (!this.ground) {
+            const geometry = new THREE.PlaneGeometry(2000, 2000)
+            geometry.rotateX(-Math.PI / 2)
+            const material = new THREE.MeshStandardMaterial({
+                color: '#5c626c',
+                roughness: 0.92,
+                metalness: 0.06
+            })
+            const mesh = new THREE.Mesh(geometry, material)
+            mesh.name = 'FactoryGround'
+            mesh.position.set(TANK_MAX_X / 2, -18 * 1.5, -0)
+            mesh.receiveShadow = true
+            this.ground = mesh
+            this.scene.add(mesh)
+        }
+
+        const wallScene = this.experience.resources?.items?.wallColumnModel?.scene
+        if (wallScene && !this.bearingColumn) {
+            const column = wallScene.clone(true)
+            column.name = 'BearingColumn'
+            column.position.set(0, 0, -29)
+            column.traverse((obj) => {
+                if (obj.isMesh) {
+                    obj.castShadow = true
+                    obj.receiveShadow = true
+                }
+            })
+            this.scene.add(column)
+            this.bearingColumn = column
+        }
+
+        this._tryBindGroundDebug()
+    }
+
+    /**
+     * @param {import('../utils/debug.js').default} debug
+     */
+    debuggerInit(debug) {
+        if (!debug.active) {
+            return
+        }
+        this._debug = debug
+        this._tryBindGroundDebug()
+    }
+
+    _tryBindGroundDebug() {
+        const dbg = this._debug ?? this.experience.debug
+        if (this._groundDebugBound || !dbg?.active || !this.ground) {
+            return
+        }
+        const mat = this.ground.material
+        if (!mat || !('color' in mat)) {
+            return
+        }
+        const folder = dbg.addFolder({ title: '地板', expanded: true })
+        if (!folder) {
+            return
+        }
+        const state = {
+            color: `#${mat.color.getHexString()}`
+        }
+        folder
+            .addBinding(state, 'color', { view: 'color', label: '颜色' })
+            .on('change', (ev) => {
+                mat.color.set(ev.value)
+            })
+        this._groundDebugBound = true
+    }
+
     /** @param {number} dt seconds */
     update(dt) {
         this.factory?.update(dt ?? 0)
     }
 
     dispose() {
+        if (this.bearingColumn) {
+            this.scene.remove(this.bearingColumn)
+            this.bearingColumn = null
+        }
+        if (this.ground) {
+            this.ground.geometry?.dispose()
+            const material = this.ground.material
+            if (Array.isArray(material)) {
+                for (const x of material) x?.dispose?.()
+            } else {
+                material?.dispose?.()
+            }
+            this.scene.remove(this.ground)
+            this.ground = null
+        }
         this.factory?.dispose()
         this.factory = null
         this.model = null
