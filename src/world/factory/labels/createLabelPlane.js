@@ -51,18 +51,6 @@ export function drawLabel(ctx, text) {
     ctx.fillText(text ?? '', width / 2, height / 2 + 8)
 }
 
-export function drawTrack(ctx, text) {
-    const { width, height } = ctx.canvas
-    ctx.fillStyle = 'rgba(20,30,48,0.85)'
-    roundRect(ctx, 8, height / 2 - 36, width - 16, 72, 16)
-    ctx.fill()
-    ctx.fillStyle = '#ffffff'
-    ctx.font = 'bold 30px Arial'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(text ?? '', width / 2, height / 2)
-}
-
 export function drawTankNumber(ctx, text) {
     const { width, height } = ctx.canvas
     ctx.fillStyle = '#ffffff'
@@ -88,12 +76,3 @@ export function drawVerticalTankName(ctx, text) {
     })
 }
 
-function roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath()
-    ctx.moveTo(x + r, y)
-    ctx.arcTo(x + w, y, x + w, y + h, r)
-    ctx.arcTo(x + w, y + h, x, y + h, r)
-    ctx.arcTo(x, y + h, x, y, r)
-    ctx.arcTo(x, y, x + w, y, r)
-    ctx.closePath()
-}
