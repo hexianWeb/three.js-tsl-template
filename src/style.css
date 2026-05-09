@@ -99,3 +99,48 @@ body
 .crane-track-label[data-track-mode="maintenance"] {
     background-image: url(/img/error_mode.png);
 }
+
+/* 飞杆状态标签 */
+.flybar-status-label {
+    transform: translate(-50%, -50%);
+    padding: 4px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+    background-color: #1c713b;
+    border: 1px solid #67a57f;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.flybar-status-label__text {
+    display: inline-block;
+    font-family: "Bahnschrift", "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    background-image: linear-gradient(
+        180deg,
+        #ffffff 0%,
+        #f7feff 30%,
+        #dcdcdc 65%,
+        #b6b6b6 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
+
+/* 闲置中 - 黄色 */
+.flybar-status-label[data-status="idle"] {
+    background-color: #5a5a5a;
+    border-color: #929292;
+}
+
+/* 浸泡中 - 绿色 */
+.flybar-status-label[data-status="immersing"] {
+    background-color: #1c713b;
+    border-color: #67a57f;
+}

@@ -119,6 +119,7 @@ export default class FactoryController {
         cs.status = 'picking'
         cs.trackText = '取飞杆'
         await crane.pickFlybar(flybar)
+        // hideLabel 已在 Crane.pickFlybar 中调用
         fromTank.occupiedFlybarId = null
         cs.carryingFlybarId = flybarId
         this.state.flybars[flybarId].location = { kind: 'crane', craneId: cs.id }
@@ -130,6 +131,7 @@ export default class FactoryController {
         cs.status = 'dropping'
         cs.trackText = '下飞杆'
         await crane.dropFlybar(this.tankField.getAnchor(toTankId))
+        flybar.showLabel() // 飞杆放下到 tank 时显示标签
         toTank.occupiedFlybarId = flybarId
         cs.carryingFlybarId = null
         this.state.flybars[flybarId].location = { kind: 'tank', tankId: toTankId }

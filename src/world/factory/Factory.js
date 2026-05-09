@@ -30,7 +30,7 @@ export default class Factory {
         this.tankField = new TankField(tankBoxScene, this.state.tanks)
         this.root.add(this.tankField.root)
 
-        this.flybarPool = new FlybarPool(flybarScene, this.state.flybars.length)
+        this.flybarPool = new FlybarPool(flybarScene, this.state.flybars)
 
         this.cranes = new Map()
         for (const cs of this.state.cranes) {
@@ -51,6 +51,7 @@ export default class Factory {
                 const flybar = this.flybarPool.get(fb.id)
                 anchor.add(flybar.root)
                 flybar.root.position.set(0, 0, 0)
+                flybar.showLabel()
             }
         }
 

@@ -104,6 +104,7 @@ export default class Crane {
             console.warn(`[Crane] ${this.id} already has flybar ${this.flybar.id}, replacing with ${flybar.id}`)
         }
         this.flybarMount.attach(flybar.root)
+        flybar.hideLabel() // 飞杆被 crane 拾取时立即隐藏标签
         this.flybar = flybar
         return new Promise((resolve) => {
             gsap.to(flybar.root.position, {

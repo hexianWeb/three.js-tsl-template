@@ -11,7 +11,7 @@ import { FACTORY_CONFIG, PROCESS_DATA, TANK_MAX_X, TANK_ORIGIN_X, getDefaultTank
  *                   task: { fromTankId: number, toTankId: number, flybarId: number } | null }>,
  *   tanks: Array<{ id: number, numberText: string, processName: string, liquidState: string,
  *                  x: number, z: number, occupiedFlybarId: number|null }>,
- *   flybars: Array<{ id: number, location: { kind: 'tank'|'crane', tankId?: number, craneId?: string } }>,
+ *   flybars: Array<{ id: number, location: { kind: 'tank'|'crane', tankId?: number, craneId?: string }, isEmpty: boolean }>,
  *   on: Function, off: Function, emit: Function
  * }}
  */
@@ -53,7 +53,9 @@ export function createFactoryState() {
     const initialTankIds = pickFirstN(tanks.length, FACTORY_CONFIG.flybars.count)
     for (let i = 0; i < FACTORY_CONFIG.flybars.count; i++) {
         const tankId = initialTankIds[i]
-        flybars.push({ id: i, location: { kind: 'tank', tankId } })
+        // isEmpty: true = 空杆(闲置中), false = 挂载物品(浸泡中)
+        const isEmpty = Math.random() > 0.5
+        flybars.push({ id: i, location: { kind: 'tank', tankId }, isEmpty })
         tanks[tankId].occupiedFlybarId = i
     }
 
