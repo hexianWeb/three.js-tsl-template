@@ -48,18 +48,26 @@ export default class Crane {
         this.flybarMount.position.set(0, FLYBAR_CRANE_Y - this.root.position.y, 0)
         this.root.add(this.flybarMount)
 
-        const labelLeft = createLabelPlane({ width: 8, height: 8, draw: drawLabel })
-        const labelRight = createLabelPlane({ width: 8, height: 8, draw: drawLabel })
-        labelLeft.mesh.position.set(center.x, center.y-4.0, bbox.min.z)
-        labelRight.mesh.position.set(center.x, center.y-4.0, bbox.max.z)
+        const LABEL_WIDTH = 8
+        const LABEL_HEIGHT = 8
+        const labelLeft = createLabelPlane({ width: LABEL_WIDTH, height: LABEL_HEIGHT, draw: drawLabel })
+        const labelRight = createLabelPlane({ width: LABEL_WIDTH, height: LABEL_HEIGHT, draw: drawLabel })
+        labelLeft.mesh.position.set(center.x, center.y-LABEL_HEIGHT/2, bbox.min.z)
+        labelRight.mesh.position.set(center.x, center.y-LABEL_HEIGHT/2, bbox.max.z)
         this.root.add(labelLeft.mesh, labelRight.mesh)
         this.labelLeft = labelLeft
         this.labelRight = labelRight
 
         const trackEl = document.createElement('div')
         trackEl.className = 'crane-track-label'
+        const m0 = state.mode === 'manual' || state.mode === 'maintenance' ? state.mode : 'auto'
+        trackEl.dataset.trackMode = m0
+        const trackTextSpan = document.createElement('span')
+        trackTextSpan.className = 'crane-track-label__text'
+        trackEl.appendChild(trackTextSpan)
+        this.trackTextSpan = trackTextSpan
         const trackObject = new CSS2DObject(trackEl)
-        trackObject.position.set(center.x, bbox.max.y + 6, center.z)
+        trackObject.position.set(center.x, bbox.max.y + LABEL_HEIGHT, center.z)
         this.root.add(trackObject)
         this.trackEl = trackEl
         this.trackObject = trackObject
@@ -130,6 +138,8 @@ export default class Crane {
 
     setMode(mode) {
         this.state.mode = mode
+        const m = mode === 'manual' || mode === 'maintenance' ? mode : 'auto'
+        this.trackEl.dataset.trackMode = m
     }
 
     setLabel(text) {
@@ -140,8 +150,8 @@ export default class Crane {
 
     setTrack(text) {
         const value = text ?? ''
-        if (this.trackEl.textContent !== value) {
-            this.trackEl.textContent = value
+        if (this.trackTextSpan.textContent !== value) {
+            this.trackTextSpan.textContent = value
         }
         this.state.trackText = text
     }

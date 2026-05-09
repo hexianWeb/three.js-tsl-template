@@ -53,10 +53,49 @@ body
     transform: translate(-50%, -50%);
     padding: 6px 14px;
     border-radius: 10px;
-    background: rgba(20, 30, 48, 0.85);
-    color: #fff;
-    font: bold 14px/1.2 Arial, sans-serif;
     white-space: nowrap;
     user-select: none;
     pointer-events: none;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
+    min-width: 7rem;
+    min-height: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: end;
+}
+
+/* 仅作用于文字：竖向白→青渐变 + 青色外发光（外层保留 PNG 背景） */
+.crane-track-label__text {
+    display: inline-block;
+    font-family: "Bahnschrift", "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    background-image: linear-gradient(
+        180deg,
+        #ffffff 0%,
+        #f7feff 30%,
+        #dcdcdc 65%,
+        #b6b6b6 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+
+}
+
+.crane-track-label[data-track-mode="auto"] {
+    background-image: url(/img/auto_mode.png);
+}
+
+.crane-track-label[data-track-mode="manual"] {
+    background-image: url(/img/manual_mode.png);
+}
+
+.crane-track-label[data-track-mode="maintenance"] {
+    background-image: url(/img/error_mode.png);
 }

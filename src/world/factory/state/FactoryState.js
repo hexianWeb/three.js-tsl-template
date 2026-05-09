@@ -44,7 +44,7 @@ export function createFactoryState() {
             ? { minX: crane.moveRange.minX, maxX: crane.moveRange.maxX }
             : { minX: TANK_ORIGIN_X, maxX: TANK_MAX_X },
         labelText: crane.id,
-        trackText: '待机',
+        trackText: '等待任务',
         carryingFlybarId: null,
         task: null
     }))
@@ -66,7 +66,12 @@ export function createFactoryState() {
         emit: emitter.emit
     }
 }
-
+/**
+ * 选取一个等步长的索引数组，返回长度为 n，步长分布在 total 内的下标，用于初始分布抓取器于各罐
+ * @param {number} total 总元素数
+ * @param {number} n 需要选取的数量
+ * @returns {number[]} 下标数组
+ */
 function pickFirstN(total, n) {
     const idx = []
     const step = Math.max(1, Math.floor(total / n))

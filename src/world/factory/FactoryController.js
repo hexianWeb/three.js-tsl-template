@@ -54,14 +54,14 @@ export default class FactoryController {
 
             cs.task = task
             cs.status = 'moving'
-            cs.trackText = '前行'
+            cs.trackText = `前往 ${this.state.tanks[task.fromTankId].numberText}`
             this._reservedFlybars.add(task.flybarId)
             this._reservedTanks.add(task.toTankId)
 
             this._runCraneTask(cs).catch((err) => {
                 console.warn(`[FactoryController] crane ${cs.id} task failed`, err)
                 cs.status = 'idle'
-                cs.trackText = '待机'
+                cs.trackText = '等待任务'
                 cs.carryingFlybarId = null
                 this._releaseTask(cs)
             })
@@ -124,7 +124,7 @@ export default class FactoryController {
         this.state.flybars[flybarId].location = { kind: 'crane', craneId: cs.id }
 
         cs.status = 'carrying'
-        cs.trackText = '后退'
+        cs.trackText = `前往 ${toTank.numberText}`
         await crane.moveToX(toTank.x)
 
         cs.status = 'dropping'
@@ -135,7 +135,7 @@ export default class FactoryController {
         this.state.flybars[flybarId].location = { kind: 'tank', tankId: toTankId }
 
         cs.status = 'idle'
-        cs.trackText = '待机'
+        cs.trackText = '等待任务'
         this._releaseTask(cs)
     }
 
