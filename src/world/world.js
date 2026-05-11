@@ -2,7 +2,7 @@ import * as THREE from 'three/webgpu'
 import { eventBus } from '../utils/event-bus.js'
 import Factory from './factory/Factory.js'
 import { TANK_MAX_X } from './factory/config.js'
-
+import { ROW_GAP_Z } from './factory/layout.js'
 export default class World {
     /**
      * @param {import('../app/Experience.js').default} experience
@@ -95,31 +95,29 @@ export default class World {
             const geometry = new THREE.PlaneGeometry(2000, 2000)
             geometry.rotateX(-Math.PI / 2)
             const material = new THREE.MeshStandardMaterial({
-                color: '#5c626c',
+                color: '#071726',
                 roughness: 0.92,
                 metalness: 0.06
             })
             const mesh = new THREE.Mesh(geometry, material)
             mesh.name = 'FactoryGround'
-            mesh.position.set(TANK_MAX_X / 2, -18 * 1.5, -0)
+            mesh.position.set(TANK_MAX_X / 2, -18 * 1.5,  0)
             mesh.receiveShadow = true
             this.ground = mesh
             this.scene.add(mesh)
         }
 
-        const wallScene = this.experience.resources?.items?.wallColumnModel?.scene
-        if (wallScene && !this.bearingColumn) {
-            const column = wallScene.clone(true)
-            column.name = 'BearingColumn'
-            column.position.set(0, 0, 0)
-            column.traverse((obj) => {
-                if (obj.isMesh) {
-                    obj.castShadow = true
-                    obj.receiveShadow = true
-                }
-            })
-            this.scene.add(column)
-            this.bearingColumn = column
+        const wall1Scene = this.experience.resources?.items?.wallColumnModel?.scene.clone(true)
+        const wall2Scene = this.experience.resources?.items?.wallColumnModel?.scene.clone(true)
+        if (wall1Scene && wall2Scene && !this.bearingColumn1 && !this.bearingColumn2) {
+            wall1Scene.name = 'BearingColumn'
+            wall1Scene.position.set(0, 0, 0 - ROW_GAP_Z / 2)
+            wall2Scene.name = 'BearingColumn'
+            wall2Scene.position.set(0, 0, 0 + ROW_GAP_Z / 2)
+            this.scene.add(wall1Scene)
+            this.scene.add(wall2Scene)
+            this.bearingColumn1 = wall1Scene
+            this.bearingColumn2 = wall2Scene
         }
 
         this._tryBindGroundDebug()

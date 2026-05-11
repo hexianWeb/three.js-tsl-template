@@ -70,19 +70,22 @@ export default class FactoryController {
 
     /**
      * @description 为天车派单
-     * @param {{ moveRange: { minX: number, maxX: number } }} cs 天车
+     * @param {{ rowId?: string, moveRange: { minX: number, maxX: number } }} cs 天车
      * @returns {{ fromTankId: number, toTankId: number, flybarId: number } | null} 派单结果
      */
     _draftTaskForCrane(cs) {
         const { minX, maxX } = cs.moveRange
         const tanks = this.state.tanks
-        const inRange = (x) => x >= minX && x <= maxX
+        const canServeTank = (tank) =>
+            tank.x >= minX &&
+            tank.x <= maxX &&
+            (!cs.rowId || tank.rowId === cs.rowId)
 
         const candidates = []
         for (const t of tanks) {
             if (t.occupiedFlybarId == null) continue
             if (this._reservedFlybars.has(t.occupiedFlybarId)) continue
-            if (!inRange(t.x)) continue
+            if (!canServeTank(t)) continue
             candidates.push(t.id)
         }
         if (!candidates.length) return null
@@ -94,7 +97,7 @@ export default class FactoryController {
             if (t.id === fromTankId) continue
             if (t.occupiedFlybarId != null) continue
             if (this._reservedTanks.has(t.id)) continue
-            if (!inRange(t.x)) continue
+            if (!canServeTank(t)) continue
             empties.push(t.id)
         }
         if (!empties.length) return null

@@ -1,15 +1,22 @@
 import mitt from 'mitt'
-import { FACTORY_CONFIG, PROCESS_DATA, TANK_MAX_X, TANK_ORIGIN_X, getDefaultTankLiquidState } from '../config.js'
+import {
+    FACTORY_CONFIG,
+    PROCESS_DATA_BY_TANK,
+    TANK_LAYOUT,
+    TANK_MAX_X,
+    TANK_ORIGIN_X,
+    getDefaultTankLiquidState
+} from '../config.js'
 
 /**
  * @description 工厂状态
  * @returns {{
- *   cranes: Array<{ id: string, mode: string, status: string, x: number,
+ *   cranes: Array<{ id: string, mode: string, status: string, x: number, z: number, rowId: string,
  *                   moveRange: { minX: number, maxX: number },
  *                   labelText: string, trackText: string,
  *                   carryingFlybarId: number|null,
  *                   task: { fromTankId: number, toTankId: number, flybarId: number } | null }>,
- *   tanks: Array<{ id: number, numberText: string, processName: string, liquidState: string,
+ *   tanks: Array<{ id: number, number: number, rowId: string, col: number, numberText: string, processName: string, liquidState: string,
  *                  x: number, z: number, occupiedFlybarId: number|null,
  *                  temperatureC: number|null, temperatureLimitC: number|null }>,
  *   flybars: Array<{ id: number, location: { kind: 'tank'|'crane', tankId?: number, craneId?: string }, isEmpty: boolean }>,
@@ -19,24 +26,25 @@ import { FACTORY_CONFIG, PROCESS_DATA, TANK_MAX_X, TANK_ORIGIN_X, getDefaultTank
 export function createFactoryState() {
     const emitter = mitt()
 
-    const tanks = []
-    let tid = 0
-    for (let r = 0; r < FACTORY_CONFIG.tanks.rows; r++) {
-        for (let c = 0; c < FACTORY_CONFIG.tanks.cols; c++) {
-            const process = PROCESS_DATA[tid]
-            tanks.push({
-                id: tid++,
-                numberText: `${process?.id ?? tid}#`,
-                processName: process?.name ?? '',
-                liquidState: getDefaultTankLiquidState(process?.name ?? ''),
-                x: FACTORY_CONFIG.tanks.originX + c * FACTORY_CONFIG.tanks.spacingX,
-                z: FACTORY_CONFIG.tanks.rowZ[r],
-                occupiedFlybarId: null,
-                temperatureC: null,
-                temperatureLimitC: null
-            })
+    const tanks = TANK_LAYOUT.map((slot, id) => {
+        const process = PROCESS_DATA_BY_TANK.get(slot.number)
+        const processName = process?.name ?? ''
+
+        return {
+            id,
+            number: slot.number,
+            rowId: slot.rowId,
+            col: slot.col,
+            numberText: `${slot.number}#`,
+            processName,
+            liquidState: getDefaultTankLiquidState(processName),
+            x: slot.x,
+            z: slot.z,
+            occupiedFlybarId: null,
+            temperatureC: null,
+            temperatureLimitC: null
         }
-    }
+    })
 
     applyMockTankTemperatures(tanks)
 
@@ -45,6 +53,8 @@ export function createFactoryState() {
         mode: crane.mode,
         status: 'idle',
         x: crane.initialX,
+        z: crane.initialZ,
+        rowId: crane.rowId,
         moveRange: crane.moveRange
             ? { minX: crane.moveRange.minX, maxX: crane.moveRange.maxX }
             : { minX: TANK_ORIGIN_X, maxX: TANK_MAX_X },

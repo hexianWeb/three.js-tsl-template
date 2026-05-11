@@ -14,7 +14,7 @@ export default class Environment {
         this.renderer = renderer
         this.getModel = getModel
 
-        this.scene.background = new THREE.Color('#888c8f')
+        this.scene.background = new THREE.Color('#071726')
         /** Initial key light direction (deg). Applied in constructor and after model fit. */
         this.keyLightState = {
             intensity: 2.5,

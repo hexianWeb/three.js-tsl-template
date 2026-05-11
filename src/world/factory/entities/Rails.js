@@ -9,7 +9,7 @@ export default class Rails {
         this.root = new THREE.Group()
         this.root.name = 'Rails'
 
-        for (const pos of FACTORY_CONFIG.rails.positions) {
+        for (const pos of getRailPositions()) {
             const rail = railwayScene.clone(true)
             rail.position.set(pos[0], pos[1], pos[2])
             rail.traverse((child) => {
@@ -26,4 +26,14 @@ export default class Rails {
         // GLB geometry/material/texture belong to Resources; Rails only removes clones.
         this.root.parent?.remove(this.root)
     }
+}
+
+function getRailPositions() {
+    if (FACTORY_CONFIG.rails.positions) {
+        return FACTORY_CONFIG.rails.positions
+    }
+
+    return FACTORY_CONFIG.tanks.rowZ.flatMap((rowZ) =>
+        FACTORY_CONFIG.rails.rowOffsets.map(([x, y, zOffset]) => [x, y, rowZ + zOffset])
+    )
 }
