@@ -12,10 +12,14 @@ export class Flybar {
         this.root.name = `Flybar-${id}`
         this.isEmpty = isEmpty
 
-        // 创建 CSS2D 标签
+        this.#attachStatusCss2d()
+        this.updateLabel()
+    }
+
+    /** CSS2D 状态标签：飞杆上方，初始隐藏（由 showLabel / hideLabel 控制）。 */
+    #attachStatusCss2d() {
         const labelEl = document.createElement('div')
         labelEl.className = 'flybar-status-label'
-        labelEl.dataset.status = isEmpty ? 'idle' : 'immersing'
 
         const textSpan = document.createElement('span')
         textSpan.className = 'flybar-status-label__text'
@@ -25,13 +29,10 @@ export class Flybar {
         this.textSpan = textSpan
 
         const labelObject = new CSS2DObject(labelEl)
-        // 标签位置在飞杆上方
         labelObject.position.set(0, 10, 25)
-        labelObject.visible = false // 初始隐藏
+        labelObject.visible = false
         this.root.add(labelObject)
         this.labelObject = labelObject
-
-        this.updateLabel()
     }
 
     /**

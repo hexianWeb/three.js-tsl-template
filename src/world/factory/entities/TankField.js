@@ -1,5 +1,4 @@
 import * as THREE from 'three/webgpu'
-import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
 import { FACTORY_CONFIG, FLYBAR_TANK_Y } from '../config.js'
 import { createTankMaterial } from '../materials/createTankMaterial.js'
 import {
@@ -8,10 +7,10 @@ import {
     createFoamTexture
 } from '../materials/createLiquidMaterials.js'
 import {
-    createLabelPlane,
-    drawTankNumber,
-    drawVerticalTankName
-} from '../labels/createLabelPlane.js'
+    createTemperatureAlert,
+    updateTemperatureAlert
+} from '../labels/createTemperatureAlert.js'
+import { createTankSideLabels } from '../labels/createTankSideLabels.js'
 
 export default class TankField {
     /**
@@ -40,6 +39,8 @@ export default class TankField {
 
         this.#tankResources = tankRes
         this.#liquidResources = liquidRes
+        /** 温度弹窗轮播计时（秒），多槽同时超限时仅显示其一 */
+        this.#alertCarouselT = 0
         // 兼容外部访问
         this.mesh = tankRes.mesh
         this.material = tankRes.material
@@ -51,6 +52,7 @@ export default class TankField {
     #tankResources
     #liquidResources
     #pulseT
+    #alertCarouselT
 
     /** @param {number} tankId */
     getAnchor(tankId) {
@@ -65,17 +67,36 @@ export default class TankField {
         if (!this.#tankStates?.length || !this.#tankVisuals.length) return
 
         this.#pulseT += dt
-        const { breathRadPerSec, liquidColor, liquidOpacity } = FACTORY_CONFIG.tanks.temperatureAlarm
+        this.#alertCarouselT += dt
+        const { breathRadPerSec, liquidColor, liquidOpacity, alertRotateSec } = FACTORY_CONFIG.tanks.temperatureAlarm
         const pulse = 0.45 + 0.55 * Math.sin(this.#pulseT * breathRadPerSec)
         const attr = this.mesh.geometry.attributes.aTempAlarm
         if (!attr) return
 
-        for (let i = 0; i < this.#tankStates.length; i++) {
+        const n = this.#tankStates.length
+        /** @type {boolean[]} */
+        const overFlags = new Array(n)
+        for (let i = 0; i < n; i++) {
             const t = this.#tankStates[i]
-            const over =
+            overFlags[i] =
                 t.temperatureLimitC != null &&
                 t.temperatureC != null &&
                 t.temperatureC > t.temperatureLimitC
+        }
+
+        const overIndices = []
+        for (let i = 0; i < n; i++) {
+            if (overFlags[i]) overIndices.push(i)
+        }
+        const dwell = Math.max(0.5, Number(alertRotateSec) || 4)
+        const activeCarouselIndex =
+            overIndices.length === 0
+                ? -1
+                : overIndices[Math.floor(this.#alertCarouselT / dwell) % overIndices.length]
+
+        for (let i = 0; i < n; i++) {
+            const t = this.#tankStates[i]
+            const over = overFlags[i]
 
             attr.array[i] = over ? pulse : 0
 
@@ -97,28 +118,9 @@ export default class TankField {
             const labelKey = `${curNum ?? 'x'}|${limNum ?? 'x'}|${over ? '1' : '0'}`
             if (labelKey !== v.lastLabelKey) {
                 v.lastLabelKey = labelKey
-                const ta = v.tempAlert
-                ta.tankIdEl.textContent = (t.numberText && String(t.numberText).trim()) || '--'
-                ta.currentEl.textContent = formatTempC(curNum)
-                if (limNum != null && !Number.isNaN(Number(limNum))) {
-                    ta.thresholdEl.textContent = `${Number(limNum).toFixed(1)}°C ⚠️`
-                } else {
-                    ta.thresholdEl.textContent = '--'
-                }
-                if (over && curNum != null && limNum != null) {
-                    const delta = Number(curNum) - Number(limNum)
-                    ta.statusEl.textContent = `超限 +${delta.toFixed(1)}°C`
-                } else {
-                    ta.statusEl.textContent = ''
-                }
-                if (curNum != null && limNum != null && Number(limNum) > 0) {
-                    const pct = Math.min(100, (Number(curNum) / Number(limNum)) * 100)
-                    ta.barFill.style.width = `${pct}%`
-                } else {
-                    ta.barFill.style.width = '0%'
-                }
+                updateTemperatureAlert(v.tempAlert, t, over)
             }
-            v.tempAlert.object.visible = over
+            v.tempAlert.object.visible = over && i === activeCarouselIndex
         }
         attr.needsUpdate = true
     }
@@ -241,7 +243,7 @@ export default class TankField {
                 liquid,
                 sharedLiquidMat: liquidMat,
                 alarmLiquidMat: null,
-                tempAlert: this.#createTemperatureAlert(t),
+                tempAlert: createTemperatureAlert(t),
                 lastLabelKey: null
             }
             this.#tankVisuals.push(visual)
@@ -255,145 +257,11 @@ export default class TankField {
                 this.root.add(foam)
             }
 
-            this.#addSideLabels(t, bbox, center)
+            const sideLabels = createTankSideLabels(t, bbox, center)
+            this.root.add(...sideLabels.map((label) => label.mesh))
+            this.decorations.push(...sideLabels)
         }
         mesh.instanceMatrix.needsUpdate = true
-    }
-
-    // ---- 阶段 4：单个储罐两侧的编号/名称标签 ----
-    /**
-     * @param {{ id: number, numberText?: string, processName?: string }} tank
-     */
-    #addSideLabels(tank, bbox, center) {
-        // 标签平面尺寸（世界单位）与离地高度
-        const numberWidth = 6
-        const numberHeight = 3
-        const gapNumberName = 0.35
-        const nameWidth = 5
-        const nameHeight = 20
-        const yBase = bbox.min.y + 0.45
-        // 0.04: 让标签略微外移，避免与罐体表面 z-fight
-        const sides = [bbox.min.z - 0.04, bbox.max.z + 0.04]
-
-        for (const sideZ of sides) {
-            const facesNegativeZ = sideZ < center.z
-
-            const number = createLabelPlane({
-                width: numberWidth,
-                height: numberHeight,
-                canvasW: 256,
-                canvasH: 128,
-                draw: drawTankNumber
-            })
-            number.mesh.position.set(tank.x + center.x, yBase + numberHeight / 2, tank.z + sideZ)
-            number.mesh.rotation.y = facesNegativeZ ? Math.PI : 0
-            number.mesh.renderOrder = 3
-
-            const name = createLabelPlane({
-                width: nameWidth,
-                height: nameHeight,
-                canvasW: 128,
-                canvasH: 512,
-                draw: drawVerticalTankName
-            })
-            const yName = yBase + numberHeight + gapNumberName + nameHeight / 2
-            name.mesh.position.set(tank.x + center.x, yName, tank.z + sideZ)
-            name.mesh.rotation.y = facesNegativeZ ? Math.PI : 0
-            name.mesh.renderOrder = 3
-
-            number.setText(tank.numberText)
-            name.setText(tank.processName)
-
-            this.root.add(number.mesh, name.mesh)
-            this.decorations.push(number, name)
-        }
-    }
-
-    /**
-     * 背景：`/img/error_dialog.png`；正文排版同 `temperature_warning_compact.html`。
-     * 外层 `tank-temp-css2d` 供 CSS2D 挂接；内层 `tank-temperature-alert` 做底部锚点偏移。
-     * @param {{ id: number, x: number, z: number }} tank
-     */
-    #createTemperatureAlert(tank) {
-        const root = document.createElement('div')
-        root.className = 'tank-temp-css2d'
-
-        const wrap = document.createElement('div')
-        wrap.className = 'tank-temperature-alert'
-
-        const card = document.createElement('div')
-        card.className = 'alert-card'
-        card.setAttribute('role', 'alert')
-        card.setAttribute('aria-label', '温度预警')
-
-        const header = document.createElement('div')
-        header.className = 'alert-header'
-
-        const title = document.createElement('span')
-        title.className = 'alert-title'
-        title.textContent = '温度预警'
-        header.appendChild(title)
-
-        const body = document.createElement('div')
-        body.className = 'alert-body'
-
-        const rowTank = document.createElement('div')
-        rowTank.className = 'tank-temp-row'
-        const labTank = document.createElement('span')
-        labTank.className = 'row-label'
-        labTank.textContent = '槽体'
-        const tankIdEl = document.createElement('span')
-        tankIdEl.className = 'row-value'
-        rowTank.append(labTank, tankIdEl)
-
-        const divider1 = document.createElement('div')
-        divider1.className = 'divider'
-
-        const rowCur = document.createElement('div')
-        rowCur.className = 'tank-temp-row tank-temp-row--current'
-        const labCur = document.createElement('span')
-        labCur.className = 'row-label'
-        labCur.textContent = '当前温度'
-        const currentEl = document.createElement('span')
-        currentEl.className = 'row-value hot'
-        rowCur.append(labCur, currentEl)
-
-        const barTrack = document.createElement('div')
-        barTrack.className = 'bar-track'
-        const barFill = document.createElement('div')
-        barFill.className = 'bar-fill'
-        barTrack.appendChild(barFill)
-
-        const thRow = document.createElement('div')
-        thRow.className = 'threshold-row'
-        const labTh = document.createElement('span')
-        labTh.className = 'row-label'
-        labTh.textContent = '阈值'
-        const thresholdEl = document.createElement('span')
-        thresholdEl.className = 'threshold-value'
-        thRow.append(labTh, thresholdEl)
-
-        const divider2 = document.createElement('div')
-        divider2.className = 'divider divider--loose'
-
-        const statusLine = document.createElement('div')
-        statusLine.className = 'status-line'
-        const dot = document.createElement('div')
-        dot.className = 'dot'
-        const statusEl = document.createElement('span')
-        statusEl.className = 'status-text'
-        statusLine.append(dot, statusEl)
-
-        body.append(rowTank, divider1, rowCur, barTrack, thRow, divider2, statusLine)
-        card.append(header, body)
-        wrap.appendChild(card)
-        root.appendChild(wrap)
-
-        const object = new CSS2DObject(root)
-        object.position.set(tank.x, 10, tank.z-25)
-        object.visible = false
-
-        return { object, tankIdEl, currentEl, thresholdEl, barFill, statusEl }
     }
 }
 
@@ -407,14 +275,4 @@ function findFirstMesh(root) {
 
 function clamp01(v) {
     return Math.max(0, Math.min(1, v))
-}
-
-/**
- * @param {number|null|undefined} v
- */
-function formatTempC(v) {
-    if (v == null || Number.isNaN(Number(v))) {
-        return '--'
-    }
-    return `${Number(v).toFixed(1)}°C`
 }

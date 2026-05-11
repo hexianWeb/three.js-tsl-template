@@ -96,7 +96,9 @@ export const FACTORY_CONFIG = {
             bodyMixColor: '#ff5533',
             liquidColor: '#ff4422',
             liquidOpacity: 0.62,
-            breathRadPerSec: 2.2
+            breathRadPerSec: 2.2,
+            /** 多个槽同时超限时，温度弹窗轮流展示的间隔（秒） */
+            alertRotateSec: 4
         }
     },
     cranes: [

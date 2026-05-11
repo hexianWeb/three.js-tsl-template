@@ -4,6 +4,9 @@ import gsap from 'gsap'
 import { FLYBAR_CRANE_Y } from '../config.js'
 import { createLabelPlane, drawLabel } from '../labels/createLabelPlane.js'
 
+const CRANE_LABEL_WIDTH = 8
+const CRANE_LABEL_HEIGHT = 8
+
 export default class Crane {
     /** @type {THREE.Box3 | null} */
     static staticBBox = null
@@ -48,32 +51,61 @@ export default class Crane {
         this.flybarMount.position.set(0, FLYBAR_CRANE_Y - this.root.position.y, 0)
         this.root.add(this.flybarMount)
 
-        const LABEL_WIDTH = 8
-        const LABEL_HEIGHT = 8
-        const labelLeft = createLabelPlane({ width: LABEL_WIDTH, height: LABEL_HEIGHT, draw: drawLabel })
-        const labelRight = createLabelPlane({ width: LABEL_WIDTH, height: LABEL_HEIGHT, draw: drawLabel })
-        labelLeft.mesh.position.set(center.x, center.y-LABEL_HEIGHT/2, bbox.min.z)
-        labelRight.mesh.position.set(center.x, center.y-LABEL_HEIGHT/2, bbox.max.z)
+        this.#addSideLabels(bbox, center)
+        this.#attachTrackCss2d(bbox, center)
+
+        this.setLabel(state.labelText)
+        this.setTrack(state.trackText)
+    }
+
+    /**
+     * 为行车添加左右侧标牌（画布平面），用于显示行车编号等信息。
+     * @description 创建并定位两个标牌平面，分别挂载到行车的左右侧，用于侧面标识。
+     * @param {THREE.Box3} bbox - 行车模型的包围盒，用于计算标牌摆放位置。
+     * @param {THREE.Vector3} center - 行车模型的几何中心点。
+     */
+    #addSideLabels(bbox, center) {
+        const labelLeft = createLabelPlane({
+            width: CRANE_LABEL_WIDTH,
+            height: CRANE_LABEL_HEIGHT,
+            draw: drawLabel
+        })
+        const labelRight = createLabelPlane({
+            width: CRANE_LABEL_WIDTH,
+            height: CRANE_LABEL_HEIGHT,
+            draw: drawLabel
+        })
+        const y = center.y - CRANE_LABEL_HEIGHT / 2
+        labelLeft.mesh.position.set(center.x, y, bbox.min.z)
+        labelRight.mesh.position.set(center.x, y, bbox.max.z)
         this.root.add(labelLeft.mesh, labelRight.mesh)
         this.labelLeft = labelLeft
         this.labelRight = labelRight
+    }
 
+    /**
+     * 为行车添加轨迹标牌（画布平面），用于显示行车轨迹等信息。
+     * @description 创建并定位轨迹标牌平面，挂载到行车的顶部，用于显示行车轨迹。
+     * @param {THREE.Box3} bbox - 行车模型的包围盒，用于计算标牌摆放位置。
+     * @param {THREE.Vector3} center - 行车模型的几何中心点。
+     */
+    #attachTrackCss2d(bbox, center) {
         const trackEl = document.createElement('div')
         trackEl.className = 'crane-track-label'
-        const m0 = state.mode === 'manual' || state.mode === 'maintenance' ? state.mode : 'auto'
+        const m0 =
+            this.state.mode === 'manual' || this.state.mode === 'maintenance'
+                ? this.state.mode
+                : 'auto'
         trackEl.dataset.trackMode = m0
         const trackTextSpan = document.createElement('span')
         trackTextSpan.className = 'crane-track-label__text'
         trackEl.appendChild(trackTextSpan)
         this.trackTextSpan = trackTextSpan
         const trackObject = new CSS2DObject(trackEl)
-        trackObject.position.set(center.x, bbox.max.y + LABEL_HEIGHT, center.z)
+        trackObject.position.set(center.x, bbox.max.y + CRANE_LABEL_HEIGHT, center.z)
         this.root.add(trackObject)
         this.trackEl = trackEl
         this.trackObject = trackObject
-
-        this.setLabel(state.labelText)
-        this.setTrack(state.trackText)
     }
 
     moveToX(targetX, { duration, ease = 'power2.inOut' } = {}) {
