@@ -10,7 +10,8 @@ import { FACTORY_CONFIG, PROCESS_DATA, TANK_MAX_X, TANK_ORIGIN_X, getDefaultTank
  *                   carryingFlybarId: number|null,
  *                   task: { fromTankId: number, toTankId: number, flybarId: number } | null }>,
  *   tanks: Array<{ id: number, numberText: string, processName: string, liquidState: string,
- *                  x: number, z: number, occupiedFlybarId: number|null }>,
+ *                  x: number, z: number, occupiedFlybarId: number|null,
+ *                  temperatureC: number|null, temperatureLimitC: number|null }>,
  *   flybars: Array<{ id: number, location: { kind: 'tank'|'crane', tankId?: number, craneId?: string }, isEmpty: boolean }>,
  *   on: Function, off: Function, emit: Function
  * }}
@@ -30,10 +31,14 @@ export function createFactoryState() {
                 liquidState: getDefaultTankLiquidState(process?.name ?? ''),
                 x: FACTORY_CONFIG.tanks.originX + c * FACTORY_CONFIG.tanks.spacingX,
                 z: FACTORY_CONFIG.tanks.rowZ[r],
-                occupiedFlybarId: null
+                occupiedFlybarId: null,
+                temperatureC: null,
+                temperatureLimitC: null
             })
         }
     }
+
+    applyMockTankTemperatures(tanks)
 
     const cranes = FACTORY_CONFIG.cranes.map((crane) => ({
         id: crane.id,
@@ -68,6 +73,29 @@ export function createFactoryState() {
         emit: emitter.emit
     }
 }
+
+/**
+ * 本地 mock：2 个正常、2 个超限、1 个等于上限（不超限），其余默认温和区间。
+ * @param {Array<{ id: number, temperatureC: number|null, temperatureLimitC: number|null }>} tanks
+ */
+function applyMockTankTemperatures(tanks) {
+    for (const t of tanks) {
+        if (t.id === 0 || t.id === 1) {
+            t.temperatureC = 55
+            t.temperatureLimitC = 60
+        } else if (t.id === 2 || t.id === 3) {
+            t.temperatureC = 72
+            t.temperatureLimitC = 60
+        } else if (t.id === 4) {
+            t.temperatureC = 60
+            t.temperatureLimitC = 60
+        } else {
+            t.temperatureC = 48 + (t.id % 7)
+            t.temperatureLimitC = 65
+        }
+    }
+}
+
 /**
  * 选取一个等步长的索引数组，返回长度为 n，步长分布在 total 内的下标，用于初始分布抓取器于各罐
  * @param {number} total 总元素数

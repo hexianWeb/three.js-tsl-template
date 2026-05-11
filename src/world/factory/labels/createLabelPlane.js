@@ -60,6 +60,37 @@ export function drawTankNumber(ctx, text) {
     ctx.fillText(text ?? '', width / 2, height / 2)
 }
 
+/**
+ * 温度条：`cur|lim|over` — over 为 `1` 时红橙底（超限），`0` 时浅底；lim 空表示无上限仅显示当前。
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {string} text
+ */
+export function drawTankTemperature(ctx, text) {
+    const { width, height } = ctx.canvas
+    const parts = (text ?? '').split('|')
+    const cur = parts[0] ?? ''
+    const lim = parts[1] ?? ''
+    const over = parts[2] === '1'
+    const curDisp = cur === '' ? '--' : cur
+
+    if (over) {
+        const g = ctx.createLinearGradient(0, 0, width, height)
+        g.addColorStop(0, '#b91c1c')
+        g.addColorStop(1, '#ea580c')
+        ctx.fillStyle = g
+    } else {
+        ctx.fillStyle = 'rgba(30,40,48,0.88)'
+    }
+    ctx.fillRect(0, 0, width, height)
+
+    ctx.fillStyle = over ? '#fff7ed' : '#e2e8f0'
+    ctx.font = 'bold 56px "Bahnschrift","Noto Sans SC",sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    const line = lim === '' ? `${curDisp}°C` : `${curDisp}/${lim}°C`
+    ctx.fillText(line, width / 2, height / 2)
+}
+
 export function drawVerticalTankName(ctx, text) {
     const { width, height } = ctx.canvas
     const chars = Array.from(text ?? '')

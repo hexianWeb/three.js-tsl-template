@@ -90,7 +90,14 @@ export const FACTORY_CONFIG = {
         baseMetalness: 0.4,
         jitter: 0.2,
         /** 水槽主体着色用；调试面板可实时修改（与 GPU uniform 初始值一致）。 */
-        tint: '#e5fffa'
+        tint: '#e5fffa',
+        /** 温度超限告警视觉（槽体 mix、槽液、呼吸速度） */
+        temperatureAlarm: {
+            bodyMixColor: '#ff5533',
+            liquidColor: '#ff4422',
+            liquidOpacity: 0.62,
+            breathRadPerSec: 2.2
+        }
     },
     cranes: [
         {
