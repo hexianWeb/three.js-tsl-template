@@ -75,6 +75,30 @@ export default class FactoryFloor {
             return
         }
         const mat = this.ground.material
+        const darkColor = mat?.userData?.groundDarkColor
+        const grayColor = mat?.userData?.groundGrayColor
+        if (darkColor?.value?.set && grayColor?.value?.set) {
+            const folder = dbg.addFolder({ title: '地板', expanded: true })
+            if (!folder) {
+                return
+            }
+            const state = {
+                dark: `#${darkColor.value.getHexString()}`,
+                gray: `#${grayColor.value.getHexString()}`
+            }
+            folder
+                .addBinding(state, 'dark', { view: 'color', label: '深色' })
+                .on('change', (ev) => {
+                    darkColor.value.set(ev.value)
+                })
+            folder
+                .addBinding(state, 'gray', { view: 'color', label: '灰色' })
+                .on('change', (ev) => {
+                    grayColor.value.set(ev.value)
+                })
+            this._groundDebugBound = true
+            return
+        }
         if (mat?.colorNode) {
             this._groundDebugBound = true
             return
