@@ -33,7 +33,7 @@ export default class FactoryFloor {
         if (!this.ground) {
             const geometry = new THREE.PlaneGeometry(1000, 1000)
             geometry.rotateX(-Math.PI / 2)
-            const material = createFactoryGroundMaterial()
+            const material = createFactoryGroundMaterial({ fadeCenterX: TANK_MAX_X / 2 })
             const mesh = new THREE.Mesh(geometry, material)
             mesh.name = 'FactoryGround'
             mesh.position.set(TANK_MAX_X / 2, -18 * 1.5, 0)
