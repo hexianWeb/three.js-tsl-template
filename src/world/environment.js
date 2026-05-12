@@ -14,7 +14,9 @@ export default class Environment {
         this.renderer = renderer
         this.getModel = getModel
 
-        this.scene.background = new THREE.Color('#071726')
+        /** Same instance as {@link THREE.Scene#background}; also used for renderer clear color. */
+        this.clearColor = new THREE.Color('#424446')
+        this.scene.background = this.clearColor
         /** Initial key light direction (deg). Applied in constructor and after model fit. */
         this.keyLightState = {
             intensity: 2.5,
@@ -116,11 +118,19 @@ export default class Environment {
         }
         const folder = debug.addFolder({
             title: 'Environment',
-            expanded: false
+            expanded: true
         })
         if (!folder) {
             return
         }
+
+        const bgState = { color: `#${this.clearColor.getHexString()}` }
+        folder
+            .addBinding(bgState, 'color', { view: 'color', label: '背景色' })
+            .on('change', (ev) => {
+                this.clearColor.set(ev.value)
+                this.renderer.setClearColor(this.clearColor)
+            })
 
         const envState = { intensity: this.scene.environmentIntensity ?? 1 }
         folder
