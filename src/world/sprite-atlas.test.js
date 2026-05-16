@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { getAtlasFrameFromNormalizedX, getAtlasUvTransform } from './sprite-atlas.js'
+import { getAtlasCellFromFrame, getAtlasFrameFromNormalizedX } from './sprite-atlas.js'
 
 test('maps normalized mouse x in [-0.9, 0.9] to atlas frames 0 through 34', () => {
     assert.equal(getAtlasFrameFromNormalizedX(-1), 0)
@@ -11,18 +11,14 @@ test('maps normalized mouse x in [-0.9, 0.9] to atlas frames 0 through 34', () =
     assert.equal(getAtlasFrameFromNormalizedX(1), 34)
 })
 
-test('maps top-left to bottom-right frame order into bottom-left UV coordinates', () => {
-    assert.deepEqual(getAtlasUvTransform(0), {
-        repeatX: 1 / 5,
-        repeatY: 1 / 7,
-        offsetX: 0,
-        offsetY: 6 / 7
+test('maps frame order from top-left to bottom-right atlas cells', () => {
+    assert.deepEqual(getAtlasCellFromFrame(0), {
+        column: 0,
+        rowFromTop: 0
     })
 
-    assert.deepEqual(getAtlasUvTransform(34), {
-        repeatX: 1 / 5,
-        repeatY: 1 / 7,
-        offsetX: 4 / 5,
-        offsetY: 0
+    assert.deepEqual(getAtlasCellFromFrame(34), {
+        column: 4,
+        rowFromTop: 6
     })
 })
