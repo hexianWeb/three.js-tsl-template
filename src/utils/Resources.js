@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js'
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js'
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js'
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js'
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js'
@@ -22,16 +22,29 @@ export default class Resources {
       this._resolveReady = resolve
     })
 
+    /** @type {boolean} */
+    this._beginLoadCalled = false
+    /** @type {Record<string, unknown> | null} */
+    this.loaders = null
+  }
+
+  /**
+   * 必须在 WebGPURenderer `init()` 完成后调用（KTX2 需要 detectSupport）。
+   *
+   * @param {THREE.WebGPURenderer} renderer
+   */
+  beginLoad(renderer) {
+    if (this._beginLoadCalled) {
+      return
+    }
+    this._beginLoadCalled = true
+
     if (this.toLoad === 0) {
       this._resolveReady()
       eventBus.emit('source ready')
       return
     }
-    this.startLoading()
-  }
 
-  startLoading() {
-    // Create loaders once
     this.loaders = {
       gltfModel: new GLTFLoader(),
       texture: new THREE.TextureLoader(),
@@ -40,16 +53,22 @@ export default class Resources {
       fbxModel: new FBXLoader(),
       audio: new THREE.AudioLoader(),
       objModel: new OBJLoader(),
-      hdrTexture: new RGBELoader(),
+      hdrTexture: new HDRLoader(),
       svg: new SVGLoader(),
       exrTexture: new EXRLoader(),
-      video: null, // special handling
+      video: null,
       ktx2Texture: new KTX2Loader()
     }
 
-    // TODO: user may need to set decoder paths for GLTF/Draco/KTX2
+    const usesKtx2 = this.sources.some(s => s.type === 'ktx2Texture')
+    if (usesKtx2) {
+      const ktx2 = /** @type {KTX2Loader} */ (this.loaders.ktx2Texture)
+      ktx2.setTranscoderPath('/basis/')
+      ktx2.detectSupport(renderer)
+    }
+
+    // TODO: user may need to set decoder paths for GLTF/Draco
     // this.loaders.gltfModel.setDRACOLoader(new DRACOLoader().setDecoderPath('/draco/'))
-    // this.loaders.ktx2Texture.setTranscoderPath('/ktx2/')
 
     for (const source of this.sources) {
       this.loadResource(source)
@@ -58,7 +77,7 @@ export default class Resources {
 
   loadResource(source) {
     const { name, type, path } = source
-    const loader = this.loaders[type]
+    const loader = /** @type {import('three').Loader & { load: Function }} */ (this.loaders[type])
 
     if (!loader && type !== 'video') {
       console.error(`[Resources] Unknown type "${type}" for "${name}"`)
@@ -66,11 +85,11 @@ export default class Resources {
       return
     }
 
-    const onLoad = (file) => {
+    const onLoad = file => {
       this.items[name] = file
       this.itemLoaded(name, file)
     }
-    const onError = (err) => {
+    const onError = err => {
       console.error(`[Resources] Failed to load ${type} "${name}":`, err)
       this.itemLoaded(name, null)
     }
@@ -91,11 +110,7 @@ export default class Resources {
       return
     }
 
-    if (type === 'cubeTexture' || type === 'hdrTexture' || type === 'exrTexture' || type === 'ktx2Texture') {
-      loader.load(path, onLoad, undefined, onError)
-    } else {
-      loader.load(path, onLoad, undefined, onError)
-    }
+    loader.load(path, onLoad, undefined, onError)
   }
 
   itemLoaded(name, file) {

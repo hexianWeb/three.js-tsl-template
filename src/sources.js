@@ -4,9 +4,19 @@
  */
 export default [
   {
-    name: 'craneModel',
-    type: 'gltfModel',
-    path: 'model/crane.glb'
-  }
+    name: 'positionGridTex',
+    type: 'ktx2Texture',
+    path: 'texture/position_grid.ktx2'
+  },
+  {
+    name: 'renderedGridTex',
+    type: 'ktx2Texture',
+    path: 'texture/rendered_grid.ktx2'
+  },
+  {
+    name: 'motionVectorGridTex',
+    type: 'ktx2Texture',
+    path: 'texture/motion_vector_grid.ktx2'
+  },
   // Add more entries (texture, hdrTexture, video, cubeTexture, etc.) as needed
 ]

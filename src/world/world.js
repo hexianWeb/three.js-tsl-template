@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu'
-import { sin, positionLocal, time, vec2, vec3, vec4, uv, uniform } from 'three/tsl'
+import { getAtlasFrameFromNormalizedX, getAtlasUvTransform } from './sprite-atlas.js'
 
 export default class World {
     /**
@@ -9,78 +9,107 @@ export default class World {
         this.experience = experience
         this.scene = experience.scene
 
-        this.axesHelper = new THREE.AxesHelper(5)
-        this.scene.add(this.axesHelper)
-
-        this.box = new THREE.Mesh(
-            new THREE.BoxGeometry(0.2, 0.2, 0.2),
-            new THREE.MeshBasicMaterial({
-                color: 'red'
-            })
-        )
-        this.scene.add(this.box)
-
-        this.tweakParams = {
-            timeFrequency: 0.5,
-            positionFrequency: 2,
-            intensityFrequency: 0.5
+        /** @type {THREE.Group | null} */
+        this.ktxDemoGroup = null
+        this._disposeKtxDemo = []
+        this._atlasTextures = []
+        this._currentFrame = -1
+        this._onMouseMove = event => {
+            const normalizedX = (event.clientX / window.innerWidth) * 2 - 1
+            this._setAtlasFrame(getAtlasFrameFromNormalizedX(normalizedX))
         }
-        this.timeFrequency = uniform(this.tweakParams.timeFrequency)
-        this.positionFrequency = uniform(this.tweakParams.positionFrequency)
-        this.intensityFrequency = uniform(this.tweakParams.intensityFrequency)
 
-        const oscillation = sin(time.mul(this.timeFrequency).add(positionLocal.y.mul(this.positionFrequency))).mul(this.intensityFrequency)
-        this.material = new THREE.MeshBasicNodeMaterial()
-        this.material.positionNode = vec3(
-            positionLocal.x.add(oscillation),
-            positionLocal.y,
-            positionLocal.z
-        )
-        this.material.colorNode = vec4(
-            uv().mul(vec2(32, 8)).fract(),
-            1,
-            1
-        )
+        window.addEventListener('mousemove', this._onMouseMove)
 
-        this.torusKnot = new THREE.Mesh(new THREE.TorusKnotGeometry(1, 0.35, 128, 32), this.material)
-        this.scene.add(this.torusKnot)
+        experience.resources.ready.then(() => {
+            this._buildKtxTexturePlanes(experience)
+            this._setAtlasFrame(getAtlasFrameFromNormalizedX(0))
+        })
     }
 
     /**
-     * @param {import('../utils/debug.js').default} debug
+     * @param {number} frame
      */
-    debuggerInit(debug) {
-        if (!debug.active) {
+    _setAtlasFrame(frame) {
+        if (frame === this._currentFrame) {
             return
         }
-        const folder = debug.addFolder({
-            title: 'Demo',
-            expanded: true
-        })
-        if (!folder) {
-            return
+
+        this._currentFrame = frame
+        const transform = getAtlasUvTransform(frame)
+
+        for (const tex of this._atlasTextures) {
+            tex.repeat.set(transform.repeatX, transform.repeatY)
+            tex.offset.set(transform.offsetX, transform.offsetY)
+            tex.needsUpdate = true
         }
-        folder.addBinding(this.tweakParams, 'timeFrequency', { min: 0, max: 5, label: 'timeFrequency' }).on('change', () => {
-            this.timeFrequency.value = this.tweakParams.timeFrequency
-        })
-        folder.addBinding(this.tweakParams, 'positionFrequency', { min: 0, max: 5, label: 'positionFrequency' }).on('change', () => {
-            this.positionFrequency.value = this.tweakParams.positionFrequency
-        })
-        folder.addBinding(this.tweakParams, 'intensityFrequency', { min: 0, max: 5, label: 'intensityFrequency' }).on('change', () => {
-            this.intensityFrequency.value = this.tweakParams.intensityFrequency
-        })
     }
+
+    /**
+     * @param {import('../app/Experience.js').default} experience
+     */
+    _buildKtxTexturePlanes(experience) {
+        const keys = /** @type {const} */ ([
+            'positionGridTex',
+            'renderedGridTex',
+            'motionVectorGridTex'
+        ])
+
+        const group = new THREE.Group()
+        /** 纹理 宽:高 = 5:7 */
+        const planeWidth = 2.5
+        const planeHeight = (planeWidth * 7) / 5
+        const gap = 0.35
+        const halfRow = planeWidth + gap
+
+        keys.forEach((key, index) => {
+            const tex = experience.resources.items[key]
+            if (!tex || !tex.isTexture) {
+                console.warn(`[World] Missing texture "${key}", skip plane`)
+                return
+            }
+
+            tex.needsUpdate = true
+            tex.repeat.set(1 / 5, 1 / 7)
+            tex.offset.set(0, 6 / 7)
+            this._atlasTextures.push(tex)
+
+            const material = new THREE.MeshBasicMaterial({ map: tex })
+            material.name = `${key}_preview`
+            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(planeWidth, planeHeight, 1, 1), material)
+            const x = (index - 1) * halfRow
+            mesh.position.set(x, 0, 0)
+
+            group.add(mesh)
+            this._disposeKtxDemo.push(mesh.geometry, material)
+        })
+
+        if (group.children.length > 0) {
+            this.ktxDemoGroup = group
+            this.scene.add(group)
+        }
+    }
+
+    /**
+     * @param {import('../utils/debug.js').default} _debug
+     */
+    debuggerInit(_debug) {}
 
     update() {}
 
     dispose() {
-        this.torusKnot.geometry.dispose()
-        this.material.dispose()
+        for (const disposable of this._disposeKtxDemo) {
+            if (disposable && typeof disposable.dispose === 'function') {
+                disposable.dispose()
+            }
+        }
+        this._disposeKtxDemo = []
 
-        this.box.geometry.dispose()
-        this.box.material.dispose()
+        if (this.ktxDemoGroup) {
+            this.scene.remove(this.ktxDemoGroup)
+            this.ktxDemoGroup = null
+        }
 
-        this.axesHelper.geometry.dispose()
-        this.axesHelper.material.dispose()
+        window.removeEventListener('mousemove', this._onMouseMove)
     }
 }

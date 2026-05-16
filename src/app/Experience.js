@@ -2,7 +2,6 @@ import * as THREE from 'three/webgpu'
 import Debug from '../utils/debug.js'
 import Resources from '../utils/Resources.js'
 import WorldCamera from '../world/camera.js'
-import Environment from '../world/environment.js'
 import World from '../world/world.js'
 import Sizes from '../systems/Sizes.js'
 import Time from '../systems/Time.js'
@@ -21,13 +20,12 @@ export default class Experience {
         this.renderer = new Renderer({ canvas })
 
         this.scene = new THREE.Scene()
-        this.environment = new Environment(this.scene)
 
         this.worldCamera = new WorldCamera(canvas, this.sizes)
         this.scene.add(this.worldCamera.instance)
 
-        this.world = new World(this)
         this.resources = new Resources()
+        this.world = new World(this)
 
         /** @type {(() => void) | null} */
         this._unsubscribeResize = null
@@ -37,19 +35,20 @@ export default class Experience {
         this.renderer.attachPipeline(this.scene, this.worldCamera.instance)
         await this.renderer.init()
 
+        this.resources.beginLoad(this.renderer.instance)
+        await this.resources.ready
+
         this.time.connectDocument(document)
 
         this._unsubscribeResize = this.sizes.onResize(() => {
             this.resize()
         })
 
-        this.renderer.instance.setClearColor(this.environment.fogColor.value)
+        this.renderer.instance.setClearColor('#1a1a1a')
         this.resize()
 
         if (this.debug.active) {
-            this.environment.debuggerInit(this.debug)
             this.worldCamera.debuggerInit(this.debug)
-            this.world.debuggerInit(this.debug)
         }
     }
 
