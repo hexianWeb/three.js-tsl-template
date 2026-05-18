@@ -1,6 +1,7 @@
 export const ATLAS_COLUMNS = 5
 export const ATLAS_ROWS = 7
-const FRAME_COUNT = ATLAS_COLUMNS * ATLAS_ROWS
+export const ATLAS_FRAME_COUNT = ATLAS_COLUMNS * ATLAS_ROWS
+const FRAME_COUNT = ATLAS_FRAME_COUNT
 const INPUT_MIN = -0.9
 const INPUT_MAX = 0.9
 
@@ -21,6 +22,16 @@ export function getAtlasFrameFromNormalizedX(normalizedX) {
     const progress = (clamped - INPUT_MIN) / (INPUT_MAX - INPUT_MIN)
 
     return Math.round(progress * (FRAME_COUNT - 1))
+}
+
+/**
+ * Returns floating frame index in [0, FRAME_COUNT-1] for motion interpolation.
+ * @param {number} normalizedX
+ */
+export function getAtlasFrameProgressFromNormalizedX(normalizedX) {
+    const clamped = clamp(normalizedX, INPUT_MIN, INPUT_MAX)
+    const progress = (clamped - INPUT_MIN) / (INPUT_MAX - INPUT_MIN)
+    return progress * (FRAME_COUNT - 1)
 }
 
 /**

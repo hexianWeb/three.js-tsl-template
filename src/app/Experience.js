@@ -49,6 +49,7 @@ export default class Experience {
 
         if (this.debug.active) {
             this.worldCamera.debuggerInit(this.debug)
+            this.world.debuggerInit(this.debug)
         }
     }
 

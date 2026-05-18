@@ -12,9 +12,11 @@ export default class World {
     }
 
     /**
-     * @param {import('../utils/debug.js').default} _debug
+     * @param {import('../utils/debug.js').default} debug
      */
-    debuggerInit(_debug) {}
+    debuggerInit(debug) {
+        this.ktxTextureSequence.debuggerInit?.(debug)
+    }
 
     update() {
         this.ktxTextureSequence.update()
