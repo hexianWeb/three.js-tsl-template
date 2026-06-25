@@ -1,0 +1,105 @@
+import {
+  getActiveWindowKeys,
+  getRenderChunkCoord,
+  getRenderChunkKey,
+  getRenderChunkOrigin
+} from './chunkCoordinates.js'
+
+export default class ChunkManager {
+  constructor({
+    size = 32,
+    activeRadius = 1,
+    hysteresisCells = 4,
+    dwellSeconds = 0.25
+  } = {}) {
+    this.size = size
+    this.activeRadius = activeRadius
+    this.hysteresisCells = hysteresisCells
+    this.dwellSeconds = dwellSeconds
+    this.anchorCoord = null
+    this.activeKeys = []
+    this.candidateKey = null
+    this.candidateSeconds = 0
+  }
+
+  update(worldBlock, deltaSeconds = 0) {
+    const candidateCoord = getRenderChunkCoord(worldBlock.x, worldBlock.z, this.size)
+    const candidateKey = getRenderChunkKey(candidateCoord)
+
+    if (!this.anchorCoord) {
+      return this.setAnchor(candidateCoord)
+    }
+
+    const anchorKey = getRenderChunkKey(this.anchorCoord)
+    if (candidateKey === anchorKey) {
+      this.candidateKey = null
+      this.candidateSeconds = 0
+      return this.currentResult(false, [], [])
+    }
+
+    if (this.candidateKey === candidateKey) {
+      this.candidateSeconds += deltaSeconds
+    } else {
+      this.candidateKey = candidateKey
+      this.candidateSeconds = deltaSeconds
+    }
+
+    if (
+      this.isPastHysteresis(worldBlock, candidateCoord) ||
+      this.candidateSeconds >= this.dwellSeconds
+    ) {
+      return this.setAnchor(candidateCoord)
+    }
+
+    return this.currentResult(false, [], [])
+  }
+
+  setAnchor(anchorCoord) {
+    const previousKeys = this.activeKeys
+    this.anchorCoord = { ...anchorCoord }
+    this.activeKeys = getActiveWindowKeys(this.anchorCoord, this.activeRadius)
+    this.candidateKey = null
+    this.candidateSeconds = 0
+
+    const previousSet = new Set(previousKeys)
+    const nextSet = new Set(this.activeKeys)
+    const loadKeys = this.activeKeys.filter((key) => !previousSet.has(key))
+    const unloadKeys = previousKeys.filter((key) => !nextSet.has(key))
+    return this.currentResult(true, loadKeys, unloadKeys)
+  }
+
+  currentResult(changed, loadKeys, unloadKeys) {
+    return {
+      changed,
+      anchorCoord: { ...this.anchorCoord },
+      anchorKey: getRenderChunkKey(this.anchorCoord),
+      activeKeys: [...this.activeKeys],
+      loadKeys,
+      unloadKeys
+    }
+  }
+
+  isPastHysteresis(worldBlock, candidateCoord) {
+    const changedAxes = []
+    if (candidateCoord.x !== this.anchorCoord.x) {
+      changedAxes.push('x')
+    }
+    if (candidateCoord.z !== this.anchorCoord.z) {
+      changedAxes.push('z')
+    }
+
+    return changedAxes.every((axis) => {
+      const origin = getRenderChunkOrigin(candidateCoord, this.size)
+      const candidateValue = candidateCoord[axis]
+      const anchorValue = this.anchorCoord[axis]
+      const worldValue = worldBlock[axis]
+
+      if (candidateValue > anchorValue) {
+        return worldValue - origin[axis] >= this.hysteresisCells
+      }
+
+      const candidateMax = origin[axis] + this.size - 1
+      return candidateMax - worldValue + 1 >= this.hysteresisCells
+    })
+  }
+}
