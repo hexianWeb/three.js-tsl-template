@@ -38,10 +38,14 @@ export default class HeightfieldAO {
       return this
     }
 
-    const { width, depth, waterLevel } = this.config.terrain
+    const { waterLevel } = this.config.terrain
+    const { width, depth } = terrainMap
 
     const effectiveHeight = (x, z) => {
-      if (x < 0 || z < 0 || x >= width || z >= depth) {
+      const hasCell = typeof terrainMap.hasCell === 'function'
+        ? terrainMap.hasCell(x, z)
+        : x >= 0 && z >= 0 && x < width && z < depth
+      if (!hasCell) {
         return -1
       }
       const h = terrainMap.getHeight(x, z)

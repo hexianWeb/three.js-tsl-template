@@ -3,14 +3,17 @@ export default class BiomeMaskGenerator {
     this.config = config
   }
 
-  generate() {
-    const { width, depth } = this.config.terrain
+  generate(options = {}) {
+    const width = options.width ?? this.config.terrain.width
+    const depth = options.depth ?? this.config.terrain.depth
+    const originX = options.originX ?? 0
+    const originZ = options.originZ ?? 0
     const cells = []
 
     for (let z = 0; z < depth; z++) {
       const row = []
       for (let x = 0; x < width; x++) {
-        row.push(this.getCellBiome(x, z))
+        row.push(this.getCellBiome(originX + x, originZ + z))
       }
       cells.push(row)
     }
@@ -30,7 +33,8 @@ export default class BiomeMaskGenerator {
     }).filter((entry) => entry.score > 0)
 
     if (scores.length === 0) {
-      return { biomeId: 'forest', weights: { forest: 1 } }
+      const defaultBiome = this.config.biomes.defaultBiome ?? 'forest'
+      return { biomeId: defaultBiome, weights: { [defaultBiome]: 1 } }
     }
 
     scores.sort((a, b) => b.score - a.score)

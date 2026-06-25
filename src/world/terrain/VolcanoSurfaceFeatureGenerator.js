@@ -16,8 +16,11 @@ export default class VolcanoSurfaceFeatureGenerator {
     this.poolWarpNoise = createNoise2D(mulberry32(config.seed + 3001))
   }
 
-  apply(biomeCells, surfaceCells) {
-    const { width, depth } = this.config.terrain
+  apply(biomeCells, surfaceCells, options = {}) {
+    const depth = surfaceCells.length
+    const width = surfaceCells[0]?.length ?? 0
+    const sampleOriginX = options.sampleOriginX ?? 0
+    const sampleOriginZ = options.sampleOriginZ ?? 0
     const lavaConfig = this.getLavaConfig()
 
     for (let z = 0; z < depth; z++) {
@@ -33,7 +36,7 @@ export default class VolcanoSurfaceFeatureGenerator {
           continue
         }
 
-        if (this.isPoolCell(x, z, lavaConfig)) {
+        if (this.isPoolCell(sampleOriginX + x, sampleOriginZ + z, lavaConfig)) {
           surfaceCell.isLava = true
           surfaceCell.lavaType = 'pool'
         }
@@ -55,7 +58,7 @@ export default class VolcanoSurfaceFeatureGenerator {
       surfaceCell.slope <= lavaConfig.maxSlope
   }
 
-  isPoolCell(x, z, lavaConfig) {
+  isPoolCell(worldX, worldZ, lavaConfig) {
     if (lavaConfig.poolDensity <= 0) {
       return false
     }
@@ -64,8 +67,8 @@ export default class VolcanoSurfaceFeatureGenerator {
     }
 
     const cellScale = Math.max(1, lavaConfig.poolCellScale)
-    const px = x / cellScale
-    const pz = z / cellScale
+    const px = worldX / cellScale
+    const pz = worldZ / cellScale
     const cellX = Math.floor(px)
     const cellZ = Math.floor(pz)
     let nearestDistanceSq = Infinity
@@ -84,14 +87,15 @@ export default class VolcanoSurfaceFeatureGenerator {
 
     const nearestDistance = Math.sqrt(nearestDistanceSq)
     const warpScale = cellScale * 2.5
-    const edgeWarp = this.poolWarpNoise(x / warpScale, z / warpScale) * lavaConfig.poolEdgeWarp
+    const edgeWarp = this.poolWarpNoise(worldX / warpScale, worldZ / warpScale) * lavaConfig.poolEdgeWarp
     const poolValue = Math.max(0, Math.min(1, 1 - nearestDistance + edgeWarp))
 
     return poolValue > 1 - lavaConfig.poolDensity
   }
 
   assignPoolHeights(surfaceCells) {
-    const { width, depth } = this.config.terrain
+    const depth = surfaceCells.length
+    const width = surfaceCells[0]?.length ?? 0
     const visited = Array.from({ length: depth }, () => Array(width).fill(false))
 
     for (let z = 0; z < depth; z++) {

@@ -10,10 +10,14 @@ export default class LayeredTerrainBuilder {
 
   buildPlacements(terrainMap) {
     const placements = []
-    const { width, depth, waterLevel } = this.config.terrain
+    const { waterLevel } = this.config.terrain
+    const { width, depth } = terrainMap
 
     const effectiveHeight = (x, z, lavaAware = false) => {
-      if (x < 0 || z < 0 || x >= width || z >= depth) {
+      const hasCell = typeof terrainMap.hasCell === 'function'
+        ? terrainMap.hasCell(x, z)
+        : x >= 0 && z >= 0 && x < width && z < depth
+      if (!hasCell) {
         return -1
       }
       const surfaceCell = terrainMap.getSurfaceCell(x, z)
