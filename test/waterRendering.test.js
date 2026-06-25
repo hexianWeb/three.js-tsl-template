@@ -60,6 +60,8 @@ test('maintains one reusable water mesh and disposes owned resources', () => {
     { isWater: false }
   ]
   const terrainMap = {
+    width: 3,
+    depth: 1,
     getSurfaceCell(x) {
       return cells[x]
     }

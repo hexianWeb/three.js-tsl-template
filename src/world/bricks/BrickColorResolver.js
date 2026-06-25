@@ -2,9 +2,9 @@ import * as THREE from 'three/webgpu'
 import { random01 } from '../../utils/random.js'
 
 const HSL_JITTER = {
-  hue: 0.03,
-  saturation: 0.04,
-  lightness: 0.04
+  hue: 0.025,
+  saturation: 0.035,
+  lightness: 0.035
 }
 
 const LAYER_SEED = {
@@ -14,49 +14,98 @@ const LAYER_SEED = {
   shore: 19
 }
 
+const PALETTE_SIZE = 12
+
 export default class BrickColorResolver {
   constructor({ biomeRegistry, biomeBlender, config }) {
     this.biomeRegistry = biomeRegistry
     this.biomeBlender = biomeBlender
     this.config = config
-    this._color = new THREE.Color()
-    this._hsl = { h: 0, s: 0, l: 0 }
+
+    this._tmpColor = new THREE.Color()
+    this._tmpHsl = { h: 0, s: 0, l: 0 }
+    this._paletteCache = new Map()
   }
 
-  resolve({ biomeCell, surfaceCell, layer, x, y, z }) {
-    const biomeId = this.biomeBlender.pickDitheredBiomeId(biomeCell.weights, x, z, this.config.seed)
+  resolveToColor(targetColor, { biomeCell, surfaceCell, layer, x, y, z }) {
+    const biomeId = this.biomeBlender.pickDitheredBiomeId(
+      biomeCell.weights,
+      x,
+      z,
+      this.config.seed
+    )
+
     const colors = this.biomeRegistry.get(biomeId).terrain.colors
 
-    let baseHex
+    let colorKey
     if (layer === 'surface' && surfaceCell.isShore) {
-      baseHex = colors.shore
+      colorKey = 'shore'
     } else if (layer === 'surface') {
-      baseHex = colors.surface
+      colorKey = 'surface'
     } else if (layer === 'subsurface') {
-      baseHex = colors.subsurface
+      colorKey = 'subsurface'
     } else {
-      baseHex = colors.deep
+      colorKey = 'deep'
     }
 
-    return this.applyHslJitter(baseHex, x, y, z, layer)
+    if (colorKey === 'surface') {
+      const palette = this.getPalette(biomeId, colorKey, colors[colorKey])
+      const layerSalt = LAYER_SEED[colorKey] ?? 0
+      const index = Math.floor(
+        random01(x, z, this.config.seed + y + layerSalt) * palette.length
+      )
+      targetColor.copy(palette[index])
+    } else {
+      targetColor.set(colors[colorKey])
+    }
+
+    return targetColor
   }
 
-  applyHslJitter(baseHex, x, y, z, layer) {
-    const seed = this.config.seed
-    const layerSalt = LAYER_SEED[layer] ?? 0
+  getPalette(biomeId, colorKey, baseHex) {
+    const cacheKey = `${biomeId}:${colorKey}`
 
-    this._color.set(baseHex)
-    this._color.getHSL(this._hsl)
+    const cached = this._paletteCache.get(cacheKey)
+    if (cached) {
+      return cached
+    }
 
-    const hueJitter = (random01(x, y, seed + z + layerSalt) * 2 - 1) * HSL_JITTER.hue
-    const satJitter = (random01(z, x, seed + y + layerSalt + 17) * 2 - 1) * HSL_JITTER.saturation
-    const lightJitter = (random01(y, z, seed + x + layerSalt + 31) * 2 - 1) * HSL_JITTER.lightness
+    this._tmpColor.set(baseHex)
+    this._tmpColor.getHSL(this._tmpHsl)
 
-    this._hsl.h = (this._hsl.h + hueJitter + 1) % 1
-    this._hsl.s = THREE.MathUtils.clamp(this._hsl.s + satJitter, 0, 1)
-    this._hsl.l = THREE.MathUtils.clamp(this._hsl.l + lightJitter, 0, 1)
+    const baseH = this._tmpHsl.h
+    const baseS = this._tmpHsl.s
+    const baseL = this._tmpHsl.l
 
-    this._color.setHSL(this._hsl.h, this._hsl.s, this._hsl.l)
-    return `#${this._color.getHexString()}`
+    const palette = []
+    const layerSalt = LAYER_SEED[colorKey] ?? 0
+    const seed = this.config.seed + layerSalt
+
+    for (let i = 0; i < PALETTE_SIZE; i++) {
+      const h01 = random01(i, 11, seed + 101)
+      const s01 = random01(i, 23, seed + 203)
+      const l01 = random01(i, 37, seed + 307)
+
+      const h = (baseH + (h01 * 2 - 1) * HSL_JITTER.hue + 1) % 1
+      const s = THREE.MathUtils.clamp(
+        baseS + (s01 * 2 - 1) * HSL_JITTER.saturation,
+        0,
+        1
+      )
+      const l = THREE.MathUtils.clamp(
+        baseL + (l01 * 2 - 1) * HSL_JITTER.lightness,
+        0,
+        1
+      )
+
+      palette.push(new THREE.Color().setHSL(h, s, l))
+    }
+
+    this._paletteCache.set(cacheKey, palette)
+    return palette
+  }
+
+  clearCache() {
+    this._paletteCache.clear()
   }
 }

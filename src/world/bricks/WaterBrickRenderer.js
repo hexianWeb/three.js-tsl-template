@@ -5,11 +5,14 @@ export default class WaterBrickRenderer {
   constructor({
     config,
     brickGeometry,
-    waterNoiseTexture = null
+    waterNoiseTexture = null,
+    material = null,
+    ownsMaterial = true
   }) {
     this.config = config
     this.brickGeometry = brickGeometry
-    this.material = createWaterMaterial(config.water, waterNoiseTexture)
+    this.material = material ?? createWaterMaterial(config.water, waterNoiseTexture)
+    this.ownsMaterial = ownsMaterial
     this.group = new THREE.Group()
     this.group.name = 'WaterBricks'
     this.mesh = null
@@ -17,8 +20,8 @@ export default class WaterBrickRenderer {
   }
 
   build(terrainMap) {
-    const { width, depth, cellSize, layerHeight, waterLevel } =
-      this.config.terrain
+    const { cellSize, layerHeight, waterLevel } = this.config.terrain
+    const { width, depth } = terrainMap
     const cells = []
 
     for (let z = 0; z < depth; z++) {
@@ -65,7 +68,9 @@ export default class WaterBrickRenderer {
 
   dispose() {
     this.mesh?.dispose()
-    this.material.dispose()
+    if (this.ownsMaterial) {
+      this.material.dispose()
+    }
     this.group.parent?.remove(this.group)
     this.group.clear()
     this.mesh = null

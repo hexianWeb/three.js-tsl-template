@@ -67,6 +67,8 @@ test('builds flat lava pool bricks at the pool lava height', () => {
     [{ height: 6, lavaHeight, isLava: true }, { height: 7, isLava: false }]
   ]
   const terrainMap = {
+    width: 2,
+    depth: 2,
     getSurfaceCell(x, z) {
       return cells[z][x]
     }
@@ -96,6 +98,8 @@ test('removes terrain bricks at and above the lava pool height inside lava cells
   })
   const surfaceCell = { height: 4, lavaHeight, isWater: false, isLava: true }
   const terrainMap = {
+    width: 1,
+    depth: 1,
     getHeight() {
       return surfaceCell.height
     },
@@ -121,6 +125,8 @@ test('does not build negative terrain bricks when lava covers ground level', () 
   })
   const surfaceCell = { height: 0, lavaHeight: 0, isWater: false, isLava: true }
   const terrainMap = {
+    width: 1,
+    depth: 1,
     getHeight() {
       return surfaceCell.height
     },
@@ -161,6 +167,8 @@ test('fills terrain exposed by flat lava pools with volcano bricks', () => {
     isLava: true
   }
   const terrainMap = {
+    width: 3,
+    depth: 3,
     getHeight(x, z) {
       return surfaceCells[z][x].height
     },

@@ -2,11 +2,18 @@ import * as THREE from 'three/webgpu'
 import { createLegoMaterial } from '../../materials/tsl/legoMaterial.js'
 
 export default class TerrainBrickRenderer {
-  constructor({ config, brickGeometry }) {
+  constructor({
+    config,
+    brickGeometry,
+    material = null,
+    previewMaterial = null,
+    ownsMaterials = true
+  }) {
     this.config = config
     this.brickGeometry = brickGeometry
-    this.material = createLegoMaterial()
-    this.previewMaterial = new THREE.MeshBasicNodeMaterial()
+    this.material = material ?? createLegoMaterial()
+    this.previewMaterial = previewMaterial ?? new THREE.MeshBasicNodeMaterial()
+    this.ownsMaterials = ownsMaterials
     this.group = new THREE.Group()
     this.group.name = 'TerrainBricks'
     this.mesh = null
@@ -71,14 +78,14 @@ export default class TerrainBrickRenderer {
         const aoValue = ao.get(p.x, p.y, p.z)
         color.setRGB(aoValue, aoValue, aoValue)
       } else {
-        color.set(this._colorResolver.resolve({
+        this._colorResolver.resolveToColor(color, {
           biomeCell: p.biomeCell,
           surfaceCell: p.surfaceCell,
           layer: p.layer,
           x: p.x,
           y: p.y,
           z: p.z
-        }))
+        })
 
         if (aoEnabled) {
           color.multiplyScalar(ao.get(p.x, p.y, p.z))
@@ -95,8 +102,10 @@ export default class TerrainBrickRenderer {
 
   dispose() {
     this.mesh?.dispose()
-    this.material.dispose()
-    this.previewMaterial.dispose()
+    if (this.ownsMaterials) {
+      this.material.dispose()
+      this.previewMaterial.dispose()
+    }
     this.group.parent?.remove(this.group)
     this.group.clear()
     this.mesh = null
