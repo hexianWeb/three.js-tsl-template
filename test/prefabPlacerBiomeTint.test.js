@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three/webgpu'
 import PrefabPlacer from '../src/world/prefabs/PrefabPlacer.js'
+import { resolveTreeMaterial } from '../src/world/prefabs/treeMaterial.js'
 
 function createPlacer({ manifest, biomes, width = 2, depth = 1 }) {
   return new PrefabPlacer({
@@ -29,12 +30,17 @@ function createPlacer({ manifest, biomes, width = 2, depth = 1 }) {
 
 function createTerrainMap(biomeIds) {
   return {
+    width: biomeIds[0]?.length ?? 0,
+    depth: biomeIds.length,
     getBiomeCell(x, z) {
       const biomeId = biomeIds[z][x]
       return { biomeId, weights: { [biomeId]: 1 } }
     },
     getSurfaceCell() {
       return { height: 4, slope: 0, isWater: false, isShore: false, isLava: false }
+    },
+    toWorldBlock(x, z) {
+      return { x, z }
     }
   }
 }
@@ -150,6 +156,109 @@ test('collectTransforms stores deterministic color indices without splitting buc
   }
 })
 
+test('prepared prefab build can add one bucket per step', () => {
+  const manifest = {
+    first: {
+      category: 'flora',
+      placement: { surface: 'land' },
+      variants: [{ source: 'firstModel', weight: 1 }],
+      randomRotation: false
+    },
+    second: {
+      category: 'flora',
+      placement: { surface: 'land' },
+      variants: [{ source: 'secondModel', weight: 1 }],
+      randomRotation: false
+    }
+  }
+  const biomes = {
+    forest: { prefabs: [{ id: 'first', density: 1 }] },
+    desert: { prefabs: [{ id: 'second', density: 1 }] }
+  }
+  const placer = createPlacer({ manifest, biomes, width: 2, depth: 1 })
+  const sourceScene = new THREE.Group()
+  sourceScene.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial()))
+  placer.prefabRegistry.getVariantAsset = () => ({ scene: sourceScene })
+
+  const state = placer.prepareChunkBuild('0:0', createTerrainMap([['forest', 'desert']]))
+
+  assert.equal(placer.buildNextBucket(state), false)
+  assert.equal(placer.chunkGroups.get('0:0').children.length, 1)
+  assert.equal(placer.buildNextBucket(state), true)
+  assert.equal(placer.chunkGroups.get('0:0').children.length, 2)
+})
+
+test('buildChunk replaces only the requested chunk group', () => {
+  const manifest = {
+    first: {
+      category: 'flora',
+      placement: { surface: 'land' },
+      variants: [{ source: 'firstModel', weight: 1 }],
+      randomRotation: false
+    }
+  }
+  const biomes = {
+    forest: { prefabs: [{ id: 'first', density: 1 }] }
+  }
+  const placer = createPlacer({ manifest, biomes, width: 1, depth: 1 })
+  const sourceScene = new THREE.Group()
+  sourceScene.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial()))
+  placer.prefabRegistry.getVariantAsset = () => ({ scene: sourceScene })
+
+  placer.buildChunk('0:0', createTerrainMap([['forest']]))
+  placer.buildChunk('1:0', createTerrainMap([['forest']]))
+  const firstChunkGroup = placer.chunkGroups.get('0:0')
+
+  placer.buildChunk('1:0', createTerrainMap([['forest']]))
+
+  assert.equal(placer.chunkGroups.get('0:0'), firstChunkGroup)
+  assert.equal(placer.group.children.length, 2)
+})
+
+test('removeChunk disposes only meshes owned by that chunk', () => {
+  const placer = createPlacer({ manifest: {}, biomes: {}, width: 1, depth: 1 })
+  const firstMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial(), 1)
+  const secondMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial(), 1)
+  let firstDisposed = false
+  let secondDisposed = false
+  firstMesh.dispose = () => {
+    firstDisposed = true
+  }
+  secondMesh.dispose = () => {
+    secondDisposed = true
+  }
+  const firstGroup = new THREE.Group()
+  const secondGroup = new THREE.Group()
+  firstGroup.add(firstMesh)
+  secondGroup.add(secondMesh)
+  placer.chunkGroups.set('0:0', firstGroup)
+  placer.chunkGroups.set('1:0', secondGroup)
+  placer.group.add(firstGroup, secondGroup)
+
+  placer.removeChunk('0:0')
+
+  assert.equal(firstDisposed, true)
+  assert.equal(secondDisposed, false)
+  assert.equal(placer.chunkGroups.has('0:0'), false)
+  assert.equal(placer.chunkGroups.has('1:0'), true)
+  assert.deepEqual(placer.group.children, [secondGroup])
+})
+
+test('clearInstances does not dispose cached tree materials', () => {
+  const placer = createPlacer({ manifest: {}, biomes: {}, width: 1, depth: 1 })
+  const treeMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial())
+  treeMesh.name = 'leaf'
+  const material = resolveTreeMaterial(treeMesh, 'forest')
+  let disposed = false
+  material.dispose = () => {
+    disposed = true
+  }
+
+  placer.clearInstances()
+
+  assert.equal(disposed, false)
+})
+
 test('buildVariantInstances applies tint clones to instanced meshes', () => {
   const sourceMaterial = new THREE.MeshBasicMaterial({ color: '#ffffff' })
   const sourceScene = new THREE.Group()
@@ -184,6 +293,24 @@ test('buildVariantInstances preserves untinted source material', () => {
   )
 
   assert.equal(group.children[0].material, sourceMaterial)
+})
+
+test('buildVariantInstances caches source mesh descriptors per GLB scene', () => {
+  const sourceScene = new THREE.Group()
+  sourceScene.add(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial()))
+  const originalTraverse = sourceScene.traverse.bind(sourceScene)
+  let traverseCount = 0
+  sourceScene.traverse = (callback) => {
+    traverseCount += 1
+    return originalTraverse(callback)
+  }
+  const placer = createPlacer({ manifest: {}, biomes: {}, width: 1, depth: 1 })
+  const transforms = [{ position: [0, 0, 0], rotationY: 0 }]
+
+  placer.buildVariantInstances(sourceScene, transforms, {}, null)
+  placer.buildVariantInstances(sourceScene, transforms, {}, null)
+
+  assert.equal(traverseCount, 1)
 })
 
 test('buildVariantInstances applies palette colors to matching child instances', () => {

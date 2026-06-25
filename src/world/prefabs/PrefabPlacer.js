@@ -11,50 +11,89 @@ import {
     disposeInstanceColorMaterial
 } from './prefabInstanceColor.js'
 
+const sourceMeshCache = new WeakMap()
+
 export default class PrefabPlacer {
-    constructor({ config, biomeRegistry, prefabRegistry }) {
+    constructor({ config, biomeRegistry, prefabRegistry, ownsTreeMaterials = true }) {
         this.config = config
         this.biomeRegistry = biomeRegistry
         this.prefabRegistry = prefabRegistry
+        this.ownsTreeMaterials = ownsTreeMaterials
         this.group = new THREE.Group()
         this.group.name = 'BiomePrefabs'
+        this.chunkGroups = new Map()
         this.instanceColorConfigCache = new WeakMap()
         this.missingInstanceColorMeshWarnings = new Set()
     }
 
     build(terrainMap) {
-        this.clearInstances()
+        return this.buildChunk('default', terrainMap)
+    }
 
-        const buckets = this.collectTransforms(terrainMap)
+    buildChunk(chunkKey, terrainMap) {
+        const state = this.prepareChunkBuild(chunkKey, terrainMap)
 
-        for (const bucket of buckets.values()) {
-            const prefab = this.prefabRegistry.get(bucket.prefabId)
-            const gltf = this.prefabRegistry.getVariantAsset(bucket.prefabId, bucket.variantIndex)
-            if (!prefab || !gltf?.scene) {
-                continue
-            }
-            this.group.add(
-                this.buildVariantInstances(
-                    gltf.scene,
-                    bucket.transforms,
-                    prefab.entry,
-                    bucket.tint,
-                    bucket.prefabId,
-                    bucket.biomeId
-                )
-            )
+        while (!this.buildNextBucket(state)) {
+            // Synchronous path used by initial/immediate chunk builds.
         }
 
         return this.group
     }
 
+    prepareBuild(terrainMap) {
+        return this.prepareChunkBuild('default', terrainMap)
+    }
+
+    prepareChunkBuild(chunkKey, terrainMap) {
+        this.removeChunk(chunkKey)
+        const chunkGroup = new THREE.Group()
+        chunkGroup.name = `BiomePrefabs:${chunkKey}`
+        this.chunkGroups.set(chunkKey, chunkGroup)
+        this.group.add(chunkGroup)
+        return {
+            chunkKey,
+            chunkGroup,
+            buckets: [...this.collectTransforms(terrainMap).values()],
+            index: 0
+        }
+    }
+
+    buildNextBucket(state) {
+        if (!state || state.index >= state.buckets.length) {
+            return true
+        }
+
+        const bucket = state.buckets[state.index]
+        state.index += 1
+
+        const prefab = this.prefabRegistry.get(bucket.prefabId)
+        const gltf = this.prefabRegistry.getVariantAsset(bucket.prefabId, bucket.variantIndex)
+        if (prefab && gltf?.scene) {
+            state.chunkGroup.add(
+              this.buildVariantInstances(
+                gltf.scene,
+                bucket.transforms,
+                prefab.entry,
+                bucket.tint,
+                bucket.prefabId,
+                bucket.biomeId
+              )
+            )
+        }
+
+        return state.index >= state.buckets.length
+    }
+
     collectTransforms(terrainMap) {
         const buckets = new Map()
-        const { width, depth } = this.config.terrain
+        const { width, depth } = terrainMap
         const seed = this.config.seed
 
         for (let z = 0; z < depth; z++) {
             for (let x = 0; x < width; x++) {
+                const worldBlock = typeof terrainMap.toWorldBlock === 'function'
+                    ? terrainMap.toWorldBlock(x, z)
+                    : { x, z }
                 const biomeCell = terrainMap.getBiomeCell(x, z)
                 const biome = this.biomeRegistry.get(biomeCell.biomeId)
                 const surfaceCell = terrainMap.getSurfaceCell(x, z)
@@ -73,11 +112,11 @@ export default class PrefabPlacer {
                         continue
                     }
 
-                    if (placementRandom01(x, z, seed, rule.id) > rule.density) {
+                    if (placementRandom01(worldBlock.x, worldBlock.z, seed, rule.id) > rule.density) {
                         continue
                     }
 
-                    const variantIndex = pickVariantIndex(prefab.entry, x, z, seed)
+                    const variantIndex = pickVariantIndex(prefab.entry, worldBlock.x, worldBlock.z, seed)
                     const placementHeight = surfaceCell.isWater
                         ? this.config.terrain.waterLevel
                         : surfaceCell.height
@@ -87,13 +126,17 @@ export default class PrefabPlacer {
                         height: placementHeight,
                         manifestEntry: prefab.entry,
                         config: this.config,
-                        seed
+                        seed,
+                        randomX: worldBlock.x,
+                        randomZ: worldBlock.z,
+                        worldX: worldBlock.x,
+                        worldZ: worldBlock.z
                     })
                     const instanceColors = this.getInstanceColors(prefab.entry)
                     if (instanceColors) {
                         transform.instanceColorIndex = pickInstanceColorIndex(
-                            x,
-                            z,
+                            worldBlock.x,
+                            worldBlock.z,
                             seed,
                             rule.id,
                             instanceColors.palette.length
@@ -125,8 +168,6 @@ export default class PrefabPlacer {
     }
 
     buildVariantInstances(sourceScene, transforms, prefabEntry, tint, prefabId = 'unknown', biomeId = null) {
-        sourceScene.updateMatrixWorld(true)
-
         const variantGroup = new THREE.Group()
         const instanceColors = this.getInstanceColors(prefabEntry)
         let matchedInstanceColorMesh = false
@@ -137,10 +178,7 @@ export default class PrefabPlacer {
         const unitScale = new THREE.Vector3(1, 1, 1)
         const yAxis = new THREE.Vector3(0, 1, 0)
 
-        sourceScene.traverse((child) => {
-            if (!child.isMesh) {
-                return
-            }
+        for (const { mesh: child, matrixWorld } of this.getSourceMeshEntries(sourceScene)) {
 
             const usesInstanceColor = instanceColors
                 ? matchesInstanceColorMesh(child.name, instanceColors.meshNameSuffix)
@@ -157,20 +195,20 @@ export default class PrefabPlacer {
                     : resolvePrefabMaterial(child.material, tint)
             const mesh = new THREE.InstancedMesh(child.geometry, material, transforms.length)
             mesh.castShadow = true
-            mesh.receiveShadow = true
+            mesh.receiveShadow = false
             transforms.forEach((t, i) => {
                 position.fromArray(t.position)
                 quaternion.setFromAxisAngle(yAxis, t.rotationY)
                 instanceMatrix.compose(position, quaternion, unitScale)
-                composed.multiplyMatrices(instanceMatrix, child.matrixWorld)
+                composed.multiplyMatrices(instanceMatrix, matrixWorld)
                 mesh.setMatrixAt(i, composed)
                 if (isTree && biome) {
                     const treeColor = resolveTreeInstanceColor(
                         child,
                         biome,
-                        t.x ?? 0,
+                        t.worldX ?? t.x ?? 0,
                         t.y ?? 0,
-                        t.z ?? 0,
+                        t.worldZ ?? t.z ?? 0,
                         this.config.seed
                     )
                     if (treeColor) {
@@ -188,7 +226,7 @@ export default class PrefabPlacer {
                 mesh.instanceColor.needsUpdate = true
             }
             variantGroup.add(mesh)
-        })
+        }
 
         if (instanceColors && !matchedInstanceColorMesh) {
             const warningKey = `${prefabId}:${instanceColors.meshNameSuffix}`
@@ -201,6 +239,23 @@ export default class PrefabPlacer {
         }
 
         return variantGroup
+    }
+
+    getSourceMeshEntries(sourceScene) {
+        if (!sourceMeshCache.has(sourceScene)) {
+            sourceScene.updateMatrixWorld(true)
+            const entries = []
+            sourceScene.traverse((child) => {
+                if (child.isMesh) {
+                    entries.push({
+                        mesh: child,
+                        matrixWorld: child.matrixWorld.clone()
+                    })
+                }
+            })
+            sourceMeshCache.set(sourceScene, entries)
+        }
+        return sourceMeshCache.get(sourceScene)
     }
 
     getInstanceColors(prefabEntry) {
@@ -217,22 +272,41 @@ export default class PrefabPlacer {
     }
 
     clearInstances() {
-        const children = [...this.group.children]
-        for (const child of children) {
-            child.traverse((node) => {
-                if (node.isInstancedMesh) {
-                    disposeBiomeTintMaterial(node.material)
-                    disposeInstanceColorMaterial(node.material)
-                    node.dispose()
-                }
-            })
+        for (const key of [...this.chunkGroups.keys()]) {
+            this.removeChunk(key)
+        }
+        for (const child of [...this.group.children]) {
+            this.disposeChunkGroup(child)
             this.group.remove(child)
         }
-        disposeTreeMaterials()
+    }
+
+    removeChunk(chunkKey) {
+        const chunkGroup = this.chunkGroups.get(chunkKey)
+        if (!chunkGroup) {
+            return
+        }
+        this.disposeChunkGroup(chunkGroup)
+        this.group.remove(chunkGroup)
+        this.chunkGroups.delete(chunkKey)
+    }
+
+    disposeChunkGroup(chunkGroup) {
+        chunkGroup.traverse((node) => {
+            if (node.isInstancedMesh) {
+                disposeBiomeTintMaterial(node.material)
+                disposeInstanceColorMaterial(node.material)
+                node.dispose()
+            }
+        })
+        chunkGroup.clear()
     }
 
     dispose() {
         this.clearInstances()
+        if (this.ownsTreeMaterials) {
+            disposeTreeMaterials()
+        }
         this.group.parent?.remove(this.group)
     }
 }

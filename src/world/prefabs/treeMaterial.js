@@ -37,7 +37,7 @@ export function resolveTreeMaterial(mesh, biomeId) {
   return materialCache.get(cacheKey)
 }
 
-export function resolveTreeInstanceColor(mesh, biome, x, y, z, seed) {
+export function resolveTreeInstanceColor(mesh, biome, worldX, y, worldZ, seed) {
   const part = getTreePart(mesh)
   const colors = biome?.terrain?.colors
   if (!part || !colors) {
@@ -45,7 +45,7 @@ export function resolveTreeInstanceColor(mesh, biome, x, y, z, seed) {
   }
 
   const baseHex = part === 'root' ? colors.subsurface : colors.surface
-  return applyHslJitter(baseHex, x, y, z, seed, PART_SEED[part])
+  return applyHslJitter(baseHex, worldX, y, worldZ, seed, PART_SEED[part])
 }
 
 export function disposeTreeMaterials() {

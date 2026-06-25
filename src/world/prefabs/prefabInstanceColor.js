@@ -36,12 +36,12 @@ export function normalizeInstanceColors(config, warn = console.warn) {
   }
 }
 
-export function pickInstanceColorIndex(x, z, seed, prefabId, paletteLength) {
+export function pickInstanceColorIndex(worldX, worldZ, seed, prefabId, paletteLength) {
   if (paletteLength <= 0) {
     return null
   }
 
-  const value = random01(x, z, seed + hashString(`${prefabId}:instanceColor`))
+  const value = random01(worldX, worldZ, seed + hashString(`${prefabId}:instanceColor`))
   return Math.min(paletteLength - 1, Math.floor(value * paletteLength))
 }
 

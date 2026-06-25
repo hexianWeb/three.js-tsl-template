@@ -27,17 +27,28 @@ export function canPlacePrefab(rule, manifestEntry, biomeCell, surfaceCell) {
     return true
 }
 
-export function pickVariantIndex(manifestEntry, x, z, seed) {
+export function pickVariantIndex(manifestEntry, worldX, worldZ, seed) {
     const entries = manifestEntry.variants.map((variant, index) => ({ value: index, weight: variant.weight }))
-    return pickWeighted(entries, random01(x, z, seed + 131))
+    return pickWeighted(entries, random01(worldX, worldZ, seed + 131))
 }
 
-export function makePrefabTransform({ x, z, height, manifestEntry, config, seed }) {
+export function makePrefabTransform({
+    x,
+    z,
+    height,
+    manifestEntry,
+    config,
+    seed,
+    randomX = x,
+    randomZ = z,
+    worldX = x,
+    worldZ = z
+}) {
     const { cellSize, layerHeight } = config.terrain
     const { rotationStep } = config.placement
 
     const rotationY = manifestEntry.randomRotation
-        ? snapValue(random01(x, z, seed + 17) * Math.PI * 2, rotationStep)
+        ? snapValue(random01(randomX, randomZ, seed + 17) * Math.PI * 2, rotationStep)
         : 0
 
     return {
@@ -45,6 +56,8 @@ export function makePrefabTransform({ x, z, height, manifestEntry, config, seed 
         rotationY,
         x,
         y: height,
-        z
+        z,
+        worldX,
+        worldZ
     }
 }
