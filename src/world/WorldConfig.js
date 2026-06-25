@@ -8,6 +8,14 @@ export const worldConfig = {
   terrain: {
     width: 80,
     depth: 80,
+    renderChunk: {
+      size: 32,
+      halo: 1,
+      activeRadius: 1,
+      hysteresisCells: 4,
+      dwellSeconds: 0.25,
+      buildsPerFrame: 1
+    },
     maxHeight: 28,
     layerHeight: 0.095,
     cellSize: 0.2,
@@ -32,15 +40,16 @@ export const worldConfig = {
     }
   },
   biomes: {
+    defaultBiome: 'forest',
     regions: [
-      { id: 'forest', center: [24, 34], radius: 30, weight: 1 },
-      { id: 'autumnForest', center: [45, 28], radius: 28, weight: 1 },
-      { id: 'desert', center: [72, 42], radius: 30, weight: 1 },
-      { id: 'volcano', center: [58, 74], radius: 32, weight: 1 }
+      { id: 'forest', center: [0, 0], radius: 50, weight: 1 },
+      { id: 'autumnForest', center: [145, 145], radius: 50, weight: 1 },
+      { id: 'desert', center: [290, 80], radius: 50, weight: 1 },
+      { id: 'volcano', center: [435, 190], radius: 50, weight: 1 }
     ]
   },
   placement: {
-    enableTrees: true,
+    enableTrees: false,
     rotationStep: Math.PI / 2
   },
   player: {
