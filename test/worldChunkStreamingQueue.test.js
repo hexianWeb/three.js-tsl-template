@@ -13,7 +13,6 @@ function makeWorldHarness(chunkResult) {
         layerHeight: 1,
         renderChunk: {
           size: 32,
-          activeRadius: 1,
           buildsPerFrame: 1
         }
       }

@@ -9,9 +9,9 @@ export const worldConfig = {
     width: 80,
     depth: 80,
     renderChunk: {
-      size: 32,
+      size: 72,
       halo: 1,
-      activeRadius: 1,
+      quadrantThreshold: 0.75,
       hysteresisCells: 4,
       dwellSeconds: 0.25,
       buildsPerFrame: 1
@@ -49,6 +49,7 @@ export const worldConfig = {
     ]
   },
   placement: {
+    enablePrefabs: false,
     enableTrees: false,
     rotationStep: Math.PI / 2
   },

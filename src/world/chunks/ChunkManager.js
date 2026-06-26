@@ -2,18 +2,19 @@ import {
   getActiveWindowKeys,
   getRenderChunkCoord,
   getRenderChunkKey,
-  getRenderChunkOrigin
+  getRenderChunkOrigin,
+  toLocalCell
 } from './chunkCoordinates.js'
 
 export default class ChunkManager {
   constructor({
     size = 32,
-    activeRadius = 1,
+    quadrantThreshold = 0.75,
     hysteresisCells = 4,
     dwellSeconds = 0.25
   } = {}) {
     this.size = size
-    this.activeRadius = activeRadius
+    this.quadrantThreshold = quadrantThreshold
     this.hysteresisCells = hysteresisCells
     this.dwellSeconds = dwellSeconds
     this.anchorCoord = null
@@ -27,14 +28,14 @@ export default class ChunkManager {
     const candidateKey = getRenderChunkKey(candidateCoord)
 
     if (!this.anchorCoord) {
-      return this.setAnchor(candidateCoord)
+      return this.setAnchor(candidateCoord, worldBlock)
     }
 
     const anchorKey = getRenderChunkKey(this.anchorCoord)
     if (candidateKey === anchorKey) {
       this.candidateKey = null
       this.candidateSeconds = 0
-      return this.currentResult(false, [], [])
+      return this.setActiveKeys(this.getActiveKeys(this.anchorCoord, worldBlock))
     }
 
     if (this.candidateKey === candidateKey) {
@@ -48,24 +49,37 @@ export default class ChunkManager {
       this.isPastHysteresis(worldBlock, candidateCoord) ||
       this.candidateSeconds >= this.dwellSeconds
     ) {
-      return this.setAnchor(candidateCoord)
+      return this.setAnchor(candidateCoord, worldBlock)
     }
 
     return this.currentResult(false, [], [])
   }
 
-  setAnchor(anchorCoord) {
-    const previousKeys = this.activeKeys
+  setAnchor(anchorCoord, worldBlock) {
     this.anchorCoord = { ...anchorCoord }
-    this.activeKeys = getActiveWindowKeys(this.anchorCoord, this.activeRadius)
     this.candidateKey = null
     this.candidateSeconds = 0
+    return this.setActiveKeys(this.getActiveKeys(this.anchorCoord, worldBlock), true)
+  }
 
+  setActiveKeys(activeKeys, forceChanged = false) {
+    const previousKeys = this.activeKeys
+    this.activeKeys = activeKeys
     const previousSet = new Set(previousKeys)
     const nextSet = new Set(this.activeKeys)
     const loadKeys = this.activeKeys.filter((key) => !previousSet.has(key))
     const unloadKeys = previousKeys.filter((key) => !nextSet.has(key))
-    return this.currentResult(true, loadKeys, unloadKeys)
+    return this.currentResult(forceChanged || loadKeys.length > 0 || unloadKeys.length > 0, loadKeys, unloadKeys)
+  }
+
+  getActiveKeys(anchorCoord, worldBlock) {
+    const origin = getRenderChunkOrigin(anchorCoord, this.size)
+    return getActiveWindowKeys(
+      anchorCoord,
+      toLocalCell(origin, worldBlock.x, worldBlock.z),
+      this.size,
+      this.quadrantThreshold
+    )
   }
 
   currentResult(changed, loadKeys, unloadKeys) {

@@ -106,7 +106,9 @@ export default class World {
                 biomeBlender: this.biomeBlender,
                 config: this.config
             })
-            this.prefabRegistry = new PrefabRegistry(resources)
+            if (this.config.placement.enablePrefabs !== false) {
+                this.prefabRegistry = new PrefabRegistry(resources)
+            }
             this.chunkManager = new ChunkManager(this.config.terrain.renderChunk)
             this.sharedChunkMaterials = {
                 terrain: createLegoMaterial(),
@@ -189,33 +191,7 @@ export default class World {
             key,
             origin,
             cellSize: this.config.terrain.cellSize,
-            renderers: {
-                terrain: new TerrainBrickRenderer({
-                    config: this.config,
-                    brickGeometry: this.brickGeometry,
-                    material: this.sharedChunkMaterials.terrain,
-                    previewMaterial: this.sharedChunkMaterials.terrainPreview,
-                    ownsMaterials: false
-                }),
-                water: new WaterBrickRenderer({
-                    config: this.config,
-                    brickGeometry: this.brickGeometry,
-                    material: this.sharedChunkMaterials.water,
-                    ownsMaterial: false
-                }),
-                lava: new LavaBrickRenderer({
-                    config: this.config,
-                    brickGeometry: this.brickGeometry,
-                    material: this.sharedChunkMaterials.lava,
-                    ownsMaterial: false
-                }),
-                prefabs: new PrefabPlacer({
-                    config: this.config,
-                    biomeRegistry: this.biomeRegistry,
-                    prefabRegistry: this.prefabRegistry,
-                    ownsTreeMaterials: false
-                })
-            }
+            renderers: this.createRenderChunkRenderers()
         })
         if (profileMs) {
             profileMs['renderChunk.construct'] = performance.now() - phaseStart
@@ -251,6 +227,41 @@ export default class World {
         }
 
         return renderChunk
+    }
+
+    createRenderChunkRenderers() {
+        const renderers = {
+            terrain: new TerrainBrickRenderer({
+                config: this.config,
+                brickGeometry: this.brickGeometry,
+                material: this.sharedChunkMaterials.terrain,
+                previewMaterial: this.sharedChunkMaterials.terrainPreview,
+                ownsMaterials: false
+            }),
+            water: new WaterBrickRenderer({
+                config: this.config,
+                brickGeometry: this.brickGeometry,
+                material: this.sharedChunkMaterials.water,
+                ownsMaterial: false
+            }),
+            lava: new LavaBrickRenderer({
+                config: this.config,
+                brickGeometry: this.brickGeometry,
+                material: this.sharedChunkMaterials.lava,
+                ownsMaterial: false
+            })
+        }
+
+        if (this.config.placement.enablePrefabs !== false) {
+            renderers.prefabs = new PrefabPlacer({
+                config: this.config,
+                biomeRegistry: this.biomeRegistry,
+                prefabRegistry: this.prefabRegistry,
+                ownsTreeMaterials: false
+            })
+        }
+
+        return renderers
     }
 
     createRenderChunkBuildJob(key) {
@@ -313,33 +324,7 @@ export default class World {
                 key: job.key,
                 origin: job.origin,
                 cellSize: this.config.terrain.cellSize,
-                renderers: {
-                    terrain: new TerrainBrickRenderer({
-                        config: this.config,
-                        brickGeometry: this.brickGeometry,
-                        material: this.sharedChunkMaterials.terrain,
-                        previewMaterial: this.sharedChunkMaterials.terrainPreview,
-                        ownsMaterials: false
-                    }),
-                    water: new WaterBrickRenderer({
-                        config: this.config,
-                        brickGeometry: this.brickGeometry,
-                        material: this.sharedChunkMaterials.water,
-                        ownsMaterial: false
-                    }),
-                    lava: new LavaBrickRenderer({
-                        config: this.config,
-                        brickGeometry: this.brickGeometry,
-                        material: this.sharedChunkMaterials.lava,
-                        ownsMaterial: false
-                    }),
-                    prefabs: new PrefabPlacer({
-                        config: this.config,
-                        biomeRegistry: this.biomeRegistry,
-                        prefabRegistry: this.prefabRegistry,
-                        ownsTreeMaterials: false
-                    })
-                }
+                renderers: this.createRenderChunkRenderers()
             }))
             timed('render.terrain', () => {
                 job.renderChunk.addRendererGroup(
@@ -361,8 +346,12 @@ export default class World {
             timed('render.lava', () => {
                 job.renderChunk.addRendererGroup(job.renderChunk.renderers.lava?.build(job.terrainMap))
             })
-            job.renderChunk.addRendererGroup(job.renderChunk.renderers.prefabs?.group)
-            job.phase = 'prefabPrepare'
+            if (this.config.placement.enablePrefabs !== false) {
+                job.renderChunk.addRendererGroup(job.renderChunk.renderers.prefabs?.group)
+                job.phase = 'prefabPrepare'
+            } else {
+                job.phase = 'attach'
+            }
             return false
         }
 
@@ -531,7 +520,7 @@ export default class World {
         const anchorOrigin = getRenderChunkOrigin(anchorCoord, chunkConfig.size)
         const centerX = (anchorOrigin.x + chunkConfig.size * 0.5) * terrain.cellSize
         const centerZ = (anchorOrigin.z + chunkConfig.size * 0.5) * terrain.cellSize
-        const halfExtent = (chunkConfig.size * (chunkConfig.activeRadius * 2 + 1)) * terrain.cellSize * 0.6
+        const halfExtent = (chunkConfig.size * 2) * terrain.cellSize * 0.6
         this.experience.environment.configureShadows({
             centerX,
             centerZ,

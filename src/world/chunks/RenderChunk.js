@@ -36,8 +36,10 @@ export default class RenderChunk {
       this.renderers.water?.build(terrainMap)))
     this.addRendererGroup(timed('render.lava', () =>
       this.renderers.lava?.build(terrainMap)))
-    this.addRendererGroup(timed('render.prefabs', () =>
-      this.renderers.prefabs?.build(terrainMap)))
+    if (this.renderers.prefabs) {
+      this.addRendererGroup(timed('render.prefabs', () =>
+        this.renderers.prefabs.build(terrainMap)))
+    }
     return this.group
   }
 

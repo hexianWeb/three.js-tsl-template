@@ -4,9 +4,9 @@ import { worldConfig } from '../src/world/WorldConfig.js'
 
 test('defines first render chunk window config with halo sampling', () => {
   assert.deepEqual(worldConfig.terrain.renderChunk, {
-    size: 32,
+    size: 72,
     halo: 1,
-    activeRadius: 1,
+    quadrantThreshold: 0.75,
     hysteresisCells: 4,
     dwellSeconds: 0.25,
     buildsPerFrame: 1

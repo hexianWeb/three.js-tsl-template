@@ -21,10 +21,16 @@ export function getRenderChunkOrigin(coord, chunkSize) {
   }
 }
 
-export function getActiveWindowKeys(anchorCoord, activeRadius) {
+export function getActiveWindowKeys(anchorCoord, localCell, chunkSize, quadrantThreshold = 0.75) {
+  const xStep = localCell.x < chunkSize * quadrantThreshold ? -1 : 1
+  const zStep = localCell.z < chunkSize * quadrantThreshold ? -1 : 1
+  const minX = Math.min(anchorCoord.x, anchorCoord.x + xStep)
+  const maxX = Math.max(anchorCoord.x, anchorCoord.x + xStep)
+  const minZ = Math.min(anchorCoord.z, anchorCoord.z + zStep)
+  const maxZ = Math.max(anchorCoord.z, anchorCoord.z + zStep)
   const keys = []
-  for (let z = anchorCoord.z - activeRadius; z <= anchorCoord.z + activeRadius; z++) {
-    for (let x = anchorCoord.x - activeRadius; x <= anchorCoord.x + activeRadius; x++) {
+  for (let z = minZ; z <= maxZ; z++) {
+    for (let x = minX; x <= maxX; x++) {
       keys.push(getRenderChunkKey({ x, z }))
     }
   }

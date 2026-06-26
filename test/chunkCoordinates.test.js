@@ -28,11 +28,20 @@ test('builds origins for positive and negative chunk coordinates', () => {
   assert.deepEqual(getRenderChunkOrigin({ x: -2, z: 3 }, 32), { x: -64, z: 96 })
 })
 
-test('builds a deterministic 3x3 active window around an anchor chunk', () => {
-  assert.deepEqual(getActiveWindowKeys({ x: 4, z: 4 }, 1), [
-    '3:3', '4:3', '5:3',
-    '3:4', '4:4', '5:4',
-    '3:5', '4:5', '5:5'
+test('builds a 2x2 active window toward the player local quadrant', () => {
+  assert.deepEqual(getActiveWindowKeys({ x: 0, z: 0 }, { x: 0, z: 0 }, 64, 0.75), [
+    '-1:-1', '0:-1',
+    '-1:0', '0:0'
+  ])
+
+  assert.deepEqual(getActiveWindowKeys({ x: 0, z: 0 }, { x: 40, z: 40 }, 64, 0.75), [
+    '-1:-1', '0:-1',
+    '-1:0', '0:0'
+  ])
+
+  assert.deepEqual(getActiveWindowKeys({ x: 0, z: 0 }, { x: 63, z: 63 }, 64, 0.75), [
+    '0:0', '1:0',
+    '0:1', '1:1'
   ])
 })
 
