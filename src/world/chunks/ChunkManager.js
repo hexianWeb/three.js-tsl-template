@@ -23,19 +23,19 @@ export default class ChunkManager {
     this.candidateSeconds = 0
   }
 
-  update(worldBlock, deltaSeconds = 0) {
+  update(worldBlock, deltaSeconds = 0, movement = null) {
     const candidateCoord = getRenderChunkCoord(worldBlock.x, worldBlock.z, this.size)
     const candidateKey = getRenderChunkKey(candidateCoord)
 
     if (!this.anchorCoord) {
-      return this.setAnchor(candidateCoord, worldBlock)
+      return this.setAnchor(candidateCoord, worldBlock, movement)
     }
 
     const anchorKey = getRenderChunkKey(this.anchorCoord)
     if (candidateKey === anchorKey) {
       this.candidateKey = null
       this.candidateSeconds = 0
-      return this.setActiveKeys(this.getActiveKeys(this.anchorCoord, worldBlock))
+      return this.setActiveKeys(this.getActiveKeys(this.anchorCoord, worldBlock, movement))
     }
 
     if (this.candidateKey === candidateKey) {
@@ -49,17 +49,17 @@ export default class ChunkManager {
       this.isPastHysteresis(worldBlock, candidateCoord) ||
       this.candidateSeconds >= this.dwellSeconds
     ) {
-      return this.setAnchor(candidateCoord, worldBlock)
+      return this.setAnchor(candidateCoord, worldBlock, movement)
     }
 
     return this.currentResult(false, [], [])
   }
 
-  setAnchor(anchorCoord, worldBlock) {
+  setAnchor(anchorCoord, worldBlock, movement = null) {
     this.anchorCoord = { ...anchorCoord }
     this.candidateKey = null
     this.candidateSeconds = 0
-    return this.setActiveKeys(this.getActiveKeys(this.anchorCoord, worldBlock), true)
+    return this.setActiveKeys(this.getActiveKeys(this.anchorCoord, worldBlock, movement), true)
   }
 
   setActiveKeys(activeKeys, forceChanged = false) {
@@ -72,13 +72,14 @@ export default class ChunkManager {
     return this.currentResult(forceChanged || loadKeys.length > 0 || unloadKeys.length > 0, loadKeys, unloadKeys)
   }
 
-  getActiveKeys(anchorCoord, worldBlock) {
+  getActiveKeys(anchorCoord, worldBlock, movement = null) {
     const origin = getRenderChunkOrigin(anchorCoord, this.size)
     return getActiveWindowKeys(
       anchorCoord,
       toLocalCell(origin, worldBlock.x, worldBlock.z),
       this.size,
-      this.quadrantThreshold
+      this.quadrantThreshold,
+      movement
     )
   }
 

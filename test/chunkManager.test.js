@@ -9,7 +9,7 @@ const config = {
   dwellSeconds: 0.25
 }
 
-test('first update creates a 2x2 active window for the player quadrant', () => {
+test('first update loads corner chunks near both boundaries', () => {
   const manager = new ChunkManager(config)
   const result = manager.update({ x: 10, z: 10 }, 0.016)
 
@@ -17,32 +17,53 @@ test('first update creates a 2x2 active window for the player quadrant', () => {
   assert.deepEqual(result.anchorCoord, { x: 0, z: 0 })
   assert.equal(result.anchorKey, '0:0')
   assert.deepEqual(result.activeKeys, [
-    '-1:-1', '0:-1',
-    '-1:0', '0:0'
+    '0:0', '-1:0', '0:-1', '-1:-1'
   ])
   assert.deepEqual(result.loadKeys, result.activeKeys)
   assert.deepEqual(result.unloadKeys, [])
 })
 
-test('unchanged anchor and quadrant produces empty load and unload keys', () => {
+test('middle of chunk with no movement keeps only the anchor chunk', () => {
   const manager = new ChunkManager(config)
   manager.update({ x: 10, z: 10 }, 0.016)
-  const result = manager.update({ x: 11, z: 10 }, 0.016)
+  const result = manager.update({ x: 40, z: 40 }, 0.016)
+
+  assert.equal(result.changed, true)
+  assert.deepEqual(result.activeKeys, ['0:0'])
+  assert.deepEqual(result.loadKeys, [])
+  assert.deepEqual([...result.unloadKeys].sort(), ['-1:-1', '-1:0', '0:-1'].sort())
+})
+
+test('middle of chunk loads one forward chunk when flying straight', () => {
+  const manager = new ChunkManager(config)
+  manager.update({ x: 10, z: 10 }, 0.016)
+  const result = manager.update({ x: 40, z: 40 }, 0.016, { x: 2, z: 0 })
+
+  assert.equal(result.changed, true)
+  assert.deepEqual(result.activeKeys, ['0:0', '1:0'])
+  assert.deepEqual(result.loadKeys, ['1:0'])
+  assert.deepEqual([...result.unloadKeys].sort(), ['-1:-1', '-1:0', '0:-1'].sort())
+})
+
+test('unchanged anchor and active set produces empty load and unload keys', () => {
+  const manager = new ChunkManager(config)
+  manager.update({ x: 40, z: 40 }, 0.016, { x: 2, z: 0 })
+  const result = manager.update({ x: 41, z: 40 }, 0.016, { x: 2, z: 0 })
 
   assert.equal(result.changed, false)
   assert.deepEqual(result.loadKeys, [])
   assert.deepEqual(result.unloadKeys, [])
 })
 
-test('moving to another quadrant in the same chunk updates active keys', () => {
+test('moving near a boundary updates active keys toward that edge', () => {
   const manager = new ChunkManager(config)
   manager.update({ x: 10, z: 10 }, 0.016)
   const result = manager.update({ x: 48, z: 10 }, 0.016)
 
   assert.equal(result.changed, true)
   assert.deepEqual(result.anchorCoord, { x: 0, z: 0 })
-  assert.deepEqual(result.loadKeys, ['1:-1', '1:0'])
-  assert.deepEqual(result.unloadKeys, ['-1:-1', '-1:0'])
+  assert.deepEqual(result.loadKeys, ['1:0', '1:-1'])
+  assert.deepEqual([...result.unloadKeys].sort(), ['-1:-1', '-1:0'].sort())
 })
 
 test('shallow positive boundary jitter does not switch anchor', () => {

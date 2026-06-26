@@ -422,7 +422,11 @@ export default class World {
                 z: Math.floor(position.z / cellSize)
             }
             : { x: 0, z: 0 }
-        const result = this.chunkManager.update(worldBlock, this.experience.time.getDelta())
+        const velocity = this.playerAircraft?.state?.velocity
+        const movement = velocity && !forceFallbackOrigin
+            ? { x: velocity.x / cellSize, z: velocity.z / cellSize }
+            : null
+        const result = this.chunkManager.update(worldBlock, this.experience.time.getDelta(), movement)
         this.desiredActiveKeys = new Set(result.activeKeys)
 
         this.enqueueRenderChunkUnloads(result.unloadKeys)

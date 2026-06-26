@@ -21,19 +21,80 @@ export function getRenderChunkOrigin(coord, chunkSize) {
   }
 }
 
-export function getActiveWindowKeys(anchorCoord, localCell, chunkSize, quadrantThreshold = 0.75) {
-  const xStep = localCell.x < chunkSize * quadrantThreshold ? -1 : 1
-  const zStep = localCell.z < chunkSize * quadrantThreshold ? -1 : 1
-  const minX = Math.min(anchorCoord.x, anchorCoord.x + xStep)
-  const maxX = Math.max(anchorCoord.x, anchorCoord.x + xStep)
-  const minZ = Math.min(anchorCoord.z, anchorCoord.z + zStep)
-  const maxZ = Math.max(anchorCoord.z, anchorCoord.z + zStep)
-  const keys = []
-  for (let z = minZ; z <= maxZ; z++) {
-    for (let x = minX; x <= maxX; x++) {
-      keys.push(getRenderChunkKey({ x, z }))
+export function getDominantMovementAxis(movement, { minSpeed = 0.05 } = {}) {
+  if (!movement) {
+    return null
+  }
+
+  const blockVelocityX = movement.x ?? 0
+  const blockVelocityZ = movement.z ?? 0
+  const absX = Math.abs(blockVelocityX)
+  const absZ = Math.abs(blockVelocityZ)
+
+  if (absX < minSpeed && absZ < minSpeed) {
+    return null
+  }
+
+  if (absX >= absZ * 1.5 && absX >= minSpeed) {
+    return { dx: Math.sign(blockVelocityX), dz: 0 }
+  }
+
+  if (absZ >= absX * 1.5 && absZ >= minSpeed) {
+    return { dx: 0, dz: Math.sign(blockVelocityZ) }
+  }
+
+  return null
+}
+
+export function getActiveWindowKeys(anchorCoord, localCell, chunkSize, quadrantThreshold = 0.75, movement = null) {
+  const edgeSize = chunkSize * (1 - quadrantThreshold)
+  const nearLeft = localCell.x < edgeSize
+  const nearRight = localCell.x >= chunkSize - edgeSize
+  const nearNorth = localCell.z < edgeSize
+  const nearSouth = localCell.z >= chunkSize - edgeSize
+
+  const xSteps = new Set()
+  const zSteps = new Set()
+
+  if (nearLeft) {
+    xSteps.add(-1)
+  }
+  if (nearRight) {
+    xSteps.add(1)
+  }
+  if (nearNorth) {
+    zSteps.add(-1)
+  }
+  if (nearSouth) {
+    zSteps.add(1)
+  }
+
+  const dominantAxis = getDominantMovementAxis(movement)
+  if (dominantAxis) {
+    if (dominantAxis.dx !== 0 && !nearLeft && !nearRight) {
+      xSteps.add(dominantAxis.dx)
+    }
+    if (dominantAxis.dz !== 0 && !nearNorth && !nearSouth) {
+      zSteps.add(dominantAxis.dz)
     }
   }
+
+  const xArr = [...xSteps].sort((a, b) => a - b)
+  const zArr = [...zSteps].sort((a, b) => a - b)
+  const keys = [getRenderChunkKey(anchorCoord)]
+
+  for (const xStep of xArr) {
+    keys.push(getRenderChunkKey({ x: anchorCoord.x + xStep, z: anchorCoord.z }))
+  }
+  for (const zStep of zArr) {
+    keys.push(getRenderChunkKey({ x: anchorCoord.x, z: anchorCoord.z + zStep }))
+  }
+  for (const xStep of xArr) {
+    for (const zStep of zArr) {
+      keys.push(getRenderChunkKey({ x: anchorCoord.x + xStep, z: anchorCoord.z + zStep }))
+    }
+  }
+
   return keys
 }
 

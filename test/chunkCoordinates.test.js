@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   getActiveWindowKeys,
+  getDominantMovementAxis,
   getRenderChunkCoord,
   getRenderChunkKey,
   getRenderChunkOrigin,
@@ -28,21 +29,51 @@ test('builds origins for positive and negative chunk coordinates', () => {
   assert.deepEqual(getRenderChunkOrigin({ x: -2, z: 3 }, 32), { x: -64, z: 96 })
 })
 
-test('builds a 2x2 active window toward the player local quadrant', () => {
+test('loads corner chunks when near both boundaries', () => {
   assert.deepEqual(getActiveWindowKeys({ x: 0, z: 0 }, { x: 0, z: 0 }, 64, 0.75), [
-    '-1:-1', '0:-1',
-    '-1:0', '0:0'
-  ])
-
-  assert.deepEqual(getActiveWindowKeys({ x: 0, z: 0 }, { x: 40, z: 40 }, 64, 0.75), [
-    '-1:-1', '0:-1',
-    '-1:0', '0:0'
+    '0:0', '-1:0', '0:-1', '-1:-1'
   ])
 
   assert.deepEqual(getActiveWindowKeys({ x: 0, z: 0 }, { x: 63, z: 63 }, 64, 0.75), [
-    '0:0', '1:0',
-    '0:1', '1:1'
+    '0:0', '1:0', '0:1', '1:1'
   ])
+})
+
+test('loads only the anchor chunk in the middle when stationary', () => {
+  assert.deepEqual(getActiveWindowKeys({ x: 0, z: 0 }, { x: 40, z: 40 }, 64, 0.75), [
+    '0:0'
+  ])
+})
+
+test('loads one forward chunk when flying straight through the middle', () => {
+  assert.deepEqual(
+    getActiveWindowKeys({ x: 0, z: 0 }, { x: 40, z: 40 }, 64, 0.75, { x: 2, z: 0 }),
+    ['0:0', '1:0']
+  )
+  assert.deepEqual(
+    getActiveWindowKeys({ x: 0, z: 0 }, { x: 40, z: 40 }, 64, 0.75, { x: 0, z: -2 }),
+    ['0:0', '0:-1']
+  )
+})
+
+test('loads only one side chunk when near a single boundary', () => {
+  assert.deepEqual(getActiveWindowKeys({ x: 0, z: 0 }, { x: 63, z: 40 }, 64, 0.75), [
+    '0:0', '1:0'
+  ])
+})
+
+test('ignores diagonal movement for middle-zone preload', () => {
+  assert.deepEqual(
+    getActiveWindowKeys({ x: 0, z: 0 }, { x: 40, z: 40 }, 64, 0.75, { x: 2, z: 2 }),
+    ['0:0']
+  )
+})
+
+test('detects dominant straight movement axis', () => {
+  assert.deepEqual(getDominantMovementAxis({ x: 2, z: 0 }), { dx: 1, dz: 0 })
+  assert.deepEqual(getDominantMovementAxis({ x: 0, z: -3 }), { dx: 0, dz: -1 })
+  assert.equal(getDominantMovementAxis({ x: 2, z: 2 }), null)
+  assert.equal(getDominantMovementAxis({ x: 0, z: 0 }), null)
 })
 
 test('converts between local chunk cells and world blocks', () => {
