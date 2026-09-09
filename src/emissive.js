@@ -1,7 +1,7 @@
 import * as THREE from 'three/webgpu'
 import { uniform } from 'three/tsl'
 import { createEmissionUvMaterial, createEmissionUvOverlay } from './emissionUvDebug.js'
-import { createPortalEffect } from './portalEffect.js'
+import { createPortalEffect, preparePortalCoordinates } from './portalEffect.js'
 
 const EMISSIVE_MESH_NAMES = new Set(['Circle', 'Cube.011', 'Cube.014', 'Cube011', 'Cube014'])
 const EMISSIVE_MATERIAL_NAMES = new Set(['portalLight', 'lampLight'])
@@ -40,6 +40,7 @@ export function createEmissive(params) {
     }
 
     const kind = isPortalMesh(mesh) ? 'portal' : 'pole'
+    if (kind === 'portal') preparePortalCoordinates(mesh.geometry)
     mesh.castShadow = false
     mesh.receiveShadow = false
     mesh.material = kind === 'portal' ? portalMaterial : poleMaterial

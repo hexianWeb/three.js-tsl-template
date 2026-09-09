@@ -23,11 +23,11 @@ const params = {
   directIntensity: 2.5,
   dayNightAuto: true,
   dayNightTime: 0.32,
-  portalColor: '#43d9ff',
+  portalColor: '#7663ff',
   portalIntensity: 1.6,
   portalSpeed: 0.28,
-  fireflyCount: 40,
-  fireflySize: 0.11,
+  fireflyCount: 60,
+  fireflySize: 0.14,
   poleColor: '#ff4e18',
   poleIntensity: 1,
 }
@@ -171,12 +171,8 @@ async function init() {
     })
   })
 
-  const portalMesh = gltf.scene.getObjectByName('Circle')
-  const portalPosition = new THREE.Vector3()
-  portalMesh?.getWorldPosition(portalPosition)
-  fireflies = createFireflies({ scene, params, origin: portalPosition })
-
   const box = new THREE.Box3().setFromObject(gltf.scene)
+  fireflies = createFireflies({ scene, params, bounds: box })
   const center = box.getCenter(new THREE.Vector3())
   controls.target.copy(center)
   directionalLight.target.position.copy(center)
