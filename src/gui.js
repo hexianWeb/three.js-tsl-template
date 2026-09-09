@@ -1,6 +1,6 @@
 import { Pane } from 'tweakpane'
 
-export function setupGui({ params, onCaseChange }) {
+export function setupGui({ params, onCaseChange, onEmissionUvChange }) {
   const pane = new Pane({ title: 'Portal Bake' })
 
   pane
@@ -44,6 +44,23 @@ export function setupGui({ params, onCaseChange }) {
     max: 8,
     step: 0.01,
   })
+
+  const dayNight = pane.addFolder({ title: 'Day / Night (Case B)' })
+  dayNight.addBinding(params, 'dayNightAuto', { label: 'Auto' })
+  dayNight.addBinding(params, 'dayNightTime', {
+    label: 'Time',
+    min: 0,
+    max: 1,
+    step: 0.001,
+  })
+
+  const emissionUv = pane.addFolder({ title: 'Emission UV' })
+  emissionUv
+    .addButton({ title: 'Show UV (3D + 2D)' })
+    .on('click', () => onEmissionUvChange(true))
+  emissionUv
+    .addButton({ title: 'Show Emission' })
+    .on('click', () => onEmissionUvChange(false))
 
   const portal = pane.addFolder({ title: 'Portal Light' })
   portal.addBinding(params, 'portalColor', { label: 'Color' })

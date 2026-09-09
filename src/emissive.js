@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu'
 import { uniform } from 'three/tsl'
+import { createEmissionUvMaterial, createEmissionUvOverlay } from './emissionUvDebug.js'
 
 const EMISSIVE_MESH_NAMES = new Set(['Circle', 'Cube.011', 'Cube.014', 'Cube011', 'Cube014'])
 const EMISSIVE_MATERIAL_NAMES = new Set(['portalLight', 'lampLight'])
@@ -24,10 +25,15 @@ export function createEmissive(params) {
   const uPoleIntensity = uniform(params.poleIntensity)
 
   const portalMaterial = new THREE.MeshBasicNodeMaterial()
+  portalMaterial.name = 'portal-emission'
   portalMaterial.colorNode = uPortalColor.mul(uPortalIntensity)
 
   const poleMaterial = new THREE.MeshBasicNodeMaterial()
+  poleMaterial.name = 'pole-emission'
   poleMaterial.colorNode = uPoleColor.mul(uPoleIntensity)
+  const uvDebugMaterial = createEmissionUvMaterial()
+  const uvOverlay = createEmissionUvOverlay()
+  let uvDebugVisible = true
 
   function tryAttach(mesh) {
     if (!isEmissiveMesh(mesh)) {
@@ -37,7 +43,7 @@ export function createEmissive(params) {
     const kind = isPortalMesh(mesh) ? 'portal' : 'pole'
     mesh.castShadow = false
     mesh.receiveShadow = false
-    mesh.material = kind === 'portal' ? portalMaterial : poleMaterial
+    mesh.material = uvDebugMaterial
 
     const light = new THREE.PointLight(
       kind === 'portal' ? params.portalColor : params.poleColor,
@@ -48,6 +54,7 @@ export function createEmissive(params) {
     light.castShadow = false
     mesh.add(light)
     lights.push({ kind, mesh, light })
+    uvOverlay.addMesh(mesh)
     return true
   }
 
@@ -70,5 +77,15 @@ export function createEmissive(params) {
     }
   }
 
-  return { lights, tryAttach, sync, setLightsVisible }
+  function setUvDebug(visible) {
+    uvDebugVisible = visible
+    uvOverlay.setVisible(visible)
+    for (const { kind, mesh } of lights) {
+      mesh.material = uvDebugVisible
+        ? uvDebugMaterial
+        : kind === 'portal' ? portalMaterial : poleMaterial
+    }
+  }
+
+  return { lights, tryAttach, sync, setLightsVisible, setUvDebug }
 }

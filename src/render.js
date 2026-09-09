@@ -33,8 +33,11 @@ export function createRenderer() {
     renderer,
     controls,
     startLoop(scene, onFrame) {
-      renderer.setAnimationLoop(() => {
-        onFrame()
+      let previousTime = null
+      renderer.setAnimationLoop((time) => {
+        const deltaSeconds = previousTime === null ? 0 : (time - previousTime) / 1000
+        previousTime = time
+        onFrame(deltaSeconds)
         controls.update()
         renderer.render(scene, camera)
       })

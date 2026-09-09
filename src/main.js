@@ -2,6 +2,7 @@ import { EXRLoader } from 'three/addons/loaders/EXRLoader.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import * as THREE from 'three/webgpu'
 import { texture } from 'three/tsl'
+import { createDayNightCycle } from './dayNightCycle.js'
 import { createEmissive } from './emissive.js'
 import { createEnv } from './env.js'
 import { setupGui } from './gui.js'
@@ -19,6 +20,8 @@ const params = {
   exposure: 1,
   lightMapIntensity: Math.PI,
   directIntensity: 2.5,
+  dayNightAuto: true,
+  dayNightTime: 0.32,
   portalColor: '#ffffff',
   portalIntensity: 1,
   poleColor: '#ff4e18',
@@ -31,6 +34,7 @@ let indirectMap = null
 let fullBakeMaterial = null
 const hybridMaterials = new Map()
 const emissive = createEmissive(params)
+const dayNight = createDayNightCycle({ scene, light: directionalLight, params })
 
 function prepareExrTexture(exrTexture, channel) {
   exrTexture.colorSpace = THREE.LinearSRGBColorSpace
@@ -53,6 +57,7 @@ function applyCase(caseName) {
   directionalLight.intensity = params.directIntensity
 
   emissive.setLightsVisible(caseName !== 'A')
+  dayNight.update(0)
 
   if (caseName === 'A') {
     if (!fullBakeMaterial) {
@@ -87,6 +92,7 @@ function applyCase(caseName) {
 setupGui({
   params,
   onCaseChange: applyCase,
+  onEmissionUvChange: emissive.setUvDebug,
 })
 
 window.__portal = {
@@ -106,12 +112,12 @@ window.__portal = {
 async function init() {
   await renderer.init()
 
-  startLoop(scene, () => {
+  startLoop(scene, (deltaSeconds) => {
     renderer.toneMapping = params.toneMapping === 'agx'
       ? THREE.AgXToneMapping
       : THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = params.exposure
-    directionalLight.intensity = params.directIntensity
+    dayNight.update(deltaSeconds)
     emissive.sync()
     if (params.caseName !== 'A') {
       for (const hybrid of hybridMaterials.values()) {
