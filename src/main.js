@@ -1,146 +1,192 @@
-import { Inspector } from 'three/addons/inspector/Inspector.js'
-import { texture as tslTexture, uv, pass, renderOutput } from 'three/tsl'
+import { EXRLoader } from 'three/addons/loaders/EXRLoader.js'
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import * as THREE from 'three/webgpu'
-import { setupInspector } from './gui.js'
-import { startLoop } from './loop.js'
-import { createHexGridMaterial } from './hexGrid.js'
+import { texture } from 'three/tsl'
+import { createEmissive } from './emissive.js'
+import { createEnv } from './env.js'
+import { setupGui } from './gui.js'
+import { createLitMaterial, getSurfaceId } from './materials.js'
+import { createRenderer } from './render.js'
 
-import texture1Url from './UI/texture1.png'
-import texture2Url from './UI/texture2.png'
+const ASSET_ROOT = '/portal-lightmap-test'
 
-const canvas = document.querySelector('canvas.webgl')
+const { scene, directionalLight } = createEnv()
+const { camera, renderer, controls, startLoop } = createRenderer()
 
-const scene = new THREE.Scene()
-
-const sizes = {
-  width: window.innerWidth,
-  height: window.innerHeight,
+const params = {
+  caseName: 'A',
+  toneMapping: 'filmic',
+  exposure: 1,
+  lightMapIntensity: Math.PI,
+  directIntensity: 2.5,
+  portalColor: '#ffffff',
+  portalIntensity: 1,
+  poleColor: '#ff4e18',
+  poleIntensity: 1,
 }
 
-const timer = new THREE.Timer();
-timer.connect( document );
+const meshEntries = []
+let fullBakeMap = null
+let indirectMap = null
+let fullBakeMaterial = null
+const hybridMaterials = new Map()
+const emissive = createEmissive(params)
 
-// Orthographic camera for fullscreen display
-const aspect = sizes.width / sizes.height
-const frustumSize = 2
-const camera = new THREE.OrthographicCamera(
-  -frustumSize * aspect / 2,
-  frustumSize * aspect / 2,
-  frustumSize / 2,
-  -frustumSize / 2,
-  0.1,
-  100
-)
-camera.position.set(0, 0, 1)
-scene.add(camera)
+function prepareExrTexture(exrTexture, channel) {
+  exrTexture.colorSpace = THREE.LinearSRGBColorSpace
+  exrTexture.wrapS = THREE.ClampToEdgeWrapping
+  exrTexture.wrapT = THREE.ClampToEdgeWrapping
+  exrTexture.generateMipmaps = false
+  exrTexture.minFilter = THREE.LinearFilter
+  exrTexture.magFilter = THREE.LinearFilter
+  exrTexture.flipY = true
+  if (channel !== undefined) {
+    exrTexture.channel = channel
+  }
+  exrTexture.needsUpdate = true
+  return exrTexture
+}
 
-const renderer = new THREE.WebGPURenderer({
-  canvas,
-  forceWebGL: false,
+function applyCase(caseName) {
+  params.caseName = caseName
+  directionalLight.visible = caseName === 'B'
+  directionalLight.intensity = params.directIntensity
+
+  emissive.setLightsVisible(caseName !== 'A')
+
+  if (caseName === 'A') {
+    if (!fullBakeMaterial) {
+      return
+    }
+    for (const { mesh } of meshEntries) {
+      mesh.material = fullBakeMaterial
+    }
+    return
+  }
+
+  if (!indirectMap) {
+    console.error('Indirect map not loaded')
+    return
+  }
+
+  for (const { mesh } of meshEntries) {
+    const surfaceId = getSurfaceId(mesh.name)
+    let hybrid = hybridMaterials.get(surfaceId)
+    if (!hybrid) {
+      hybrid = createLitMaterial(mesh.name)
+      hybrid.lightMap = indirectMap
+      hybridMaterials.set(surfaceId, hybrid)
+    }
+    hybrid.lightMap = indirectMap
+    hybrid.lightMapIntensity = params.lightMapIntensity
+    hybrid.needsUpdate = true
+    mesh.material = hybrid
+  }
+}
+
+setupGui({
+  params,
+  onCaseChange: applyCase,
 })
-renderer.setSize(sizes.width, sizes.height)
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-renderer.setClearColor('#222')
 
-const inspector = new Inspector()
-renderer.inspector = inspector
+window.__portal = {
+  scene,
+  camera,
+  params,
+  meshEntries,
+  emissiveLights: emissive.lights,
+  get maps() {
+    return {
+      full: fullBakeMap && [fullBakeMap.image.width, fullBakeMap.image.height],
+      indirect: indirectMap && [indirectMap.image.width, indirectMap.image.height],
+    }
+  },
+}
 
-const postProcessing = new THREE.RenderPipeline(renderer)
-postProcessing.outputColorTransform = false
+async function init() {
+  await renderer.init()
 
-const scenePass = pass(scene, camera)
-const outputPass = renderOutput(scenePass)
-postProcessing.outputNode = outputPass
+  startLoop(scene, () => {
+    renderer.toneMapping = params.toneMapping === 'agx'
+      ? THREE.AgXToneMapping
+      : THREE.ACESFilmicToneMapping
+    renderer.toneMappingExposure = params.exposure
+    directionalLight.intensity = params.directIntensity
+    emissive.sync()
+    if (params.caseName !== 'A') {
+      for (const hybrid of hybridMaterials.values()) {
+        hybrid.lightMapIntensity = params.lightMapIntensity
+      }
+    }
+  })
 
-// Load textures with proper async handling
-const textureLoader = new THREE.TextureLoader()
-const textures = {}
+  const gltfLoader = new GLTFLoader()
+  const exrLoader = new EXRLoader()
 
-const textureUrls = { texture1: texture1Url, texture2: texture2Url }
+  const gltf = await gltfLoader.loadAsync(`${ASSET_ROOT}/portal_scene.glb`)
+  scene.add(gltf.scene)
+  gltf.scene.updateMatrixWorld(true)
 
-function loadTexture(name) {
-  return new Promise((resolve) => {
-    textures[name] = textureLoader.load(textureUrls[name], (tex) => {
-      tex.colorSpace = THREE.SRGBColorSpace
-      resolve(tex)
+  if (gltf.cameras[0]) {
+    const bakedCamera = gltf.cameras[0]
+    bakedCamera.updateWorldMatrix(true, false)
+    camera.fov = bakedCamera.fov
+    camera.near = bakedCamera.near
+    camera.far = Math.max(bakedCamera.far, 100)
+    bakedCamera.getWorldPosition(camera.position)
+    bakedCamera.getWorldQuaternion(camera.quaternion)
+    camera.updateProjectionMatrix()
+  }
+
+  gltf.scene.traverse((obj) => {
+    if (!obj.isMesh) {
+      return
+    }
+    const { geometry } = obj
+    if (geometry.attributes.uv1 && !geometry.attributes.uv2) {
+      geometry.setAttribute('uv2', geometry.attributes.uv1)
+    }
+
+    if (emissive.tryAttach(obj)) {
+      return
+    }
+
+    obj.castShadow = true
+    obj.receiveShadow = true
+    meshEntries.push({
+      mesh: obj,
+      original: obj.material,
     })
   })
+
+  const box = new THREE.Box3().setFromObject(gltf.scene)
+  const center = box.getCenter(new THREE.Vector3())
+  controls.target.copy(center)
+  directionalLight.target.position.copy(center)
+
+  window.__portal.meshCount = meshEntries.length
+  window.__portal.box = box.getSize(new THREE.Vector3()).toArray()
+
+  fullBakeMap = prepareExrTexture(
+    await exrLoader.loadAsync(`${ASSET_ROOT}/lightmaps/portal_full_bake.exr`),
+  )
+  fullBakeMaterial = new THREE.MeshBasicNodeMaterial()
+  fullBakeMaterial.colorNode = texture(fullBakeMap)
+  applyCase('A')
+
+  indirectMap = prepareExrTexture(
+    await exrLoader.loadAsync(`${ASSET_ROOT}/lightmaps/portal_indirect_bake.exr`),
+    1,
+  )
+  indirectMap.colorSpace = THREE.LinearSRGBColorSpace
+  window.__portal.mapsReady = true
 }
 
-// Load both textures first, then create hexGrid material
-const texturesLoaded = Promise.all([
-  loadTexture('texture1'),
-  loadTexture('texture2')
-]).then(([tex1, tex2]) => {
-  return { tex1, tex2 }
-})
-
-// Base material for image textures
-const imageMaterial = new THREE.MeshBasicNodeMaterial()
-
-// Fullscreen quad
-const geometry = new THREE.PlaneGeometry(frustumSize * aspect, frustumSize)
-const quad = new THREE.Mesh(geometry, imageMaterial)
-scene.add(quad)
-
-function switchToImageTexture(tex) {
-  quad.material = imageMaterial
-  imageMaterial.colorNode = tslTexture(tex).rgb
-  imageMaterial.needsUpdate = true
-}
-
-// GUI setup
-let currentMode = 'texture1'
-let hexGrid = null
-
-function switchToHexGrid() {
-  if (!hexGrid) return
-  quad.material = hexGrid.material
-  hexGrid.material.needsUpdate = true
-}
-
-function onTextureChange(mode) {
-  currentMode = mode
-  if (mode === 'hexGrid') {
-    switchToHexGrid()
-  } else if (textures[mode]) {
-    switchToImageTexture(textures[mode])
-  } else {
-    loadTexture(mode).then(switchToImageTexture)
-  }
-}
-
-// Start rendering with texture1, then initialize hexGrid once textures are ready
-loadTexture('texture1').then((tex) => {
-  switchToImageTexture(tex)
-  startLoop({ renderer, postProcessing })
-})
-
-// Initialize hexGrid material and GUI once textures are loaded
-texturesLoaded.then(({ tex1, tex2 }) => {
-  hexGrid = createHexGridMaterial(tex1, tex2)
-  hexGrid.aspect.value = aspect
-  setupInspector(inspector, onTextureChange, hexGrid)
-})
-
-window.addEventListener('resize', () => {
-  sizes.width = window.innerWidth
-  sizes.height = window.innerHeight
-
-  const newAspect = sizes.width / sizes.height
-  camera.left = -frustumSize * newAspect / 2
-  camera.right = frustumSize * newAspect / 2
-  camera.updateProjectionMatrix()
-
-  // Update hex grid aspect ratio
-  if (hexGrid) {
-    hexGrid.aspect.value = newAspect
-  }
-
-  // Resize quad to fill screen
-  quad.geometry.dispose()
-  quad.geometry = new THREE.PlaneGeometry(frustumSize * newAspect, frustumSize)
-
-  renderer.setSize(sizes.width, sizes.height)
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+init().catch((error) => {
+  console.error(error)
+  window.__portal.error = error?.stack || String(error)
+  const el = document.createElement('pre')
+  el.textContent = error?.stack || String(error)
+  el.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:20;color:#ff8b8b;background:#000c;padding:12px;max-width:80vw;white-space:pre-wrap;font:12px/1.4 monospace;'
+  document.body.appendChild(el)
 })

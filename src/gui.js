@@ -1,118 +1,67 @@
-/**
- * Inspector panel for texture switching.
- */
-export function setupInspector(inspector, onTextureChange, hexGrid) {
-  const params = {
-    texture: 'texture1',
-  }
+import { Pane } from 'tweakpane'
 
-  const group = inspector.createParameters('Texture')
-  group
-    .add(params, 'texture', { texture1: 'texture1', texture2: 'texture2', hexGrid: 'hexGrid' })
-    .name('Select Texture')
-    .listen()
+export function setupGui({ params, onCaseChange }) {
+  const pane = new Pane({ title: 'Portal Bake' })
 
-  // Hex grid controls
-  const hexParams = {
-    hexScale: hexGrid.hexScale.value,
-    lineWidth: hexGrid.lineWidth.value,
-    displayMode: hexGrid.displayMode.value,
-    distancePow: hexGrid.distancePow.value,
-  }
+  pane
+    .addBinding(params, 'caseName', {
+      label: 'Case',
+      options: {
+        'A Full Bake': 'A',
+        'B Lightmap + Direct': 'B',
+        'C Lightmap only': 'C',
+      },
+    })
+    .on('change', (event) => {
+      onCaseChange(event.value)
+    })
 
-  const hexGroup = inspector.createParameters('Hex Grid')
-  hexGroup
-    .addSlider(hexParams, 'hexScale', 0.02, 0.3, 0.005)
-    .name('Scale')
-    .listen()
+  pane.addBinding(params, 'toneMapping', {
+    label: 'Tone Mapping',
+    options: {
+      AgX: 'agx',
+      Filmic: 'filmic',
+    },
+  })
 
-  hexGroup
-    .addSlider(hexParams, 'lineWidth', 0.001, 0.1, 0.001)
-    .name('Line Width')
-    .listen()
+  pane.addBinding(params, 'exposure', {
+    label: 'Exposure',
+    min: 0.1,
+    max: 3,
+    step: 0.01,
+  })
 
-  hexGroup
-    .add(hexParams, 'displayMode', { Lines: 0, 'Distance Field': 1 })
-    .name('Display Mode')
-    .listen()
+  pane.addBinding(params, 'lightMapIntensity', {
+    label: 'Lightmap Intensity',
+    min: 0,
+    max: 4,
+    step: 0.01,
+  })
 
-  hexGroup
-    .addSlider(hexParams, 'distancePow', 0.1, 5.0, 0.05)
-    .name('Distance Pow')
-    .listen()
+  pane.addBinding(params, 'directIntensity', {
+    label: 'Direct Light',
+    min: 0,
+    max: 8,
+    step: 0.01,
+  })
 
-  // Distortion controls
-  const distortParams = {
-    distortionStrength: hexGrid.distortionStrength.value,
-    distortionPower: hexGrid.distortionPower.value,
-  }
+  const portal = pane.addFolder({ title: 'Portal Light' })
+  portal.addBinding(params, 'portalColor', { label: 'Color' })
+  portal.addBinding(params, 'portalIntensity', {
+    label: 'Intensity',
+    min: 0.1,
+    max: 3,
+    step: 0.01,
+  })
 
-  const distortGroup = inspector.createParameters('Barrel Distortion')
-  distortGroup
-    .addSlider(distortParams, 'distortionStrength', -1, 1.0, 0.01)
-    .name('Strength')
-    .listen()
+  const poles = pane.addFolder({ title: 'Pole Lights' })
+  poles.addBinding(params, 'poleColor', { label: 'Color' })
+  poles.addBinding(params, 'poleIntensity', {
+    label: 'Intensity',
+    min: 0.1,
+    max: 3,
+    step: 0.01,
+  })
 
-  distortGroup
-    .addSlider(distortParams, 'distortionPower', 0.5, 3.0, 0.05)
-    .name('Power')
-    .listen()
-
-  const transitionParams = {
-    process: hexGrid.transition.value
-  }
-
-  const transitionGroup = inspector.createParameters('transitionGroup')
-  transitionGroup.addSlider(transitionParams, 'process', 0, 1.0, 0.01)
-  .name('Process')
-  .listen()
-
-  // Poll for changes
-  let lastValue = params.texture
-  let lastScale = hexParams.hexScale
-  let lastWidth = hexParams.lineWidth
-  let lastMode = hexParams.displayMode
-  let lastDistPow = hexParams.distancePow
-  let lastStrength = distortParams.distortionStrength
-  let lastPower = distortParams.distortionPower
-  let lastProcess = transitionParams.process
-
-  function checkChange() {
-    if (params.texture !== lastValue) {
-      lastValue = params.texture
-      onTextureChange(params.texture)
-    }
-    if (hexParams.hexScale !== lastScale) {
-      lastScale = hexParams.hexScale
-      hexGrid.hexScale.value = lastScale
-    }
-    if (hexParams.lineWidth !== lastWidth) {
-      lastWidth = hexParams.lineWidth
-      hexGrid.lineWidth.value = lastWidth
-    }
-    if (hexParams.displayMode !== lastMode) {
-      lastMode = hexParams.displayMode
-      hexGrid.displayMode.value = lastMode
-    }
-    if (hexParams.distancePow !== lastDistPow) {
-      lastDistPow = hexParams.distancePow
-      hexGrid.distancePow.value = lastDistPow
-    }
-    if (distortParams.distortionStrength !== lastStrength) {
-      lastStrength = distortParams.distortionStrength
-      hexGrid.distortionStrength.value = lastStrength
-    }
-    if (distortParams.distortionPower !== lastPower) {
-      lastPower = distortParams.distortionPower
-      hexGrid.distortionPower.value = lastPower
-    }
-    if (transitionParams.process !== lastProcess) {
-      lastProcess = transitionParams.process
-      hexGrid.transition.value = lastProcess 
-    }
-    requestAnimationFrame(checkChange)
-  }
-  checkChange()
-
-  return group
+  return pane
 }
