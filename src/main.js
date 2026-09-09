@@ -5,6 +5,7 @@ import { texture } from 'three/tsl'
 import { createDayNightCycle } from './dayNightCycle.js'
 import { createEmissive } from './emissive.js'
 import { createEnv } from './env.js'
+import { createFireflies } from './fireflies.js'
 import { setupGui } from './gui.js'
 import { createLitMaterial, getSurfaceId } from './materials.js'
 import { createRenderer } from './render.js'
@@ -22,8 +23,11 @@ const params = {
   directIntensity: 2.5,
   dayNightAuto: true,
   dayNightTime: 0.32,
-  portalColor: '#ffffff',
-  portalIntensity: 1,
+  portalColor: '#43d9ff',
+  portalIntensity: 1.6,
+  portalSpeed: 0.28,
+  fireflyCount: 40,
+  fireflySize: 0.11,
   poleColor: '#ff4e18',
   poleIntensity: 1,
 }
@@ -35,6 +39,7 @@ let fullBakeMaterial = null
 const hybridMaterials = new Map()
 const emissive = createEmissive(params)
 const dayNight = createDayNightCycle({ scene, light: directionalLight, params })
+let fireflies = null
 
 function prepareExrTexture(exrTexture, channel) {
   exrTexture.colorSpace = THREE.LinearSRGBColorSpace
@@ -56,7 +61,7 @@ function applyCase(caseName) {
   directionalLight.visible = caseName === 'B'
   directionalLight.intensity = params.directIntensity
 
-  emissive.setLightsVisible(caseName !== 'A')
+  emissive.setLightsVisible(caseName === 'B')
   dayNight.update(0)
 
   if (caseName === 'A') {
@@ -118,7 +123,8 @@ async function init() {
       : THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = params.exposure
     dayNight.update(deltaSeconds)
-    emissive.sync()
+    emissive.sync(deltaSeconds)
+    fireflies?.sync()
     if (params.caseName !== 'A') {
       for (const hybrid of hybridMaterials.values()) {
         hybrid.lightMapIntensity = params.lightMapIntensity
@@ -164,6 +170,11 @@ async function init() {
       original: obj.material,
     })
   })
+
+  const portalMesh = gltf.scene.getObjectByName('Circle')
+  const portalPosition = new THREE.Vector3()
+  portalMesh?.getWorldPosition(portalPosition)
+  fireflies = createFireflies({ scene, params, origin: portalPosition })
 
   const box = new THREE.Box3().setFromObject(gltf.scene)
   const center = box.getCenter(new THREE.Vector3())

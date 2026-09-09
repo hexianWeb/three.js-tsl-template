@@ -67,7 +67,27 @@ export function setupGui({ params, onCaseChange, onEmissionUvChange }) {
   portal.addBinding(params, 'portalIntensity', {
     label: 'Intensity',
     min: 0.1,
-    max: 3,
+    max: 4,
+    step: 0.01,
+  })
+  portal.addBinding(params, 'portalSpeed', {
+    label: 'Flow Speed',
+    min: 0.05,
+    max: 1,
+    step: 0.01,
+  })
+
+  const fireflies = pane.addFolder({ title: 'Fireflies' })
+  fireflies.addBinding(params, 'fireflyCount', {
+    label: 'Count',
+    min: 0,
+    max: 80,
+    step: 1,
+  })
+  fireflies.addBinding(params, 'fireflySize', {
+    label: 'Size',
+    min: 0.02,
+    max: 0.3,
     step: 0.01,
   })
 

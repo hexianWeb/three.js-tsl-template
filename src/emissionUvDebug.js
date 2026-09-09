@@ -74,7 +74,7 @@ export function createEmissionUvOverlay() {
 
   const overlay = document.createElement('section')
   overlay.setAttribute('aria-label', 'Emission UV preview')
-  overlay.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:10;display:flex;gap:10px;padding:10px;background:#05070de6;border:1px solid #55e7ff66;border-radius:6px;color:#fff;font:12px/1.2 monospace;pointer-events:none;'
+  overlay.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:10;display:none;gap:10px;padding:10px;background:#05070de6;border:1px solid #55e7ff66;border-radius:6px;color:#fff;font:12px/1.2 monospace;pointer-events:none;'
   document.body.appendChild(overlay)
 
   const addedMeshes = new Set()

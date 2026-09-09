@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu'
 import { uniform } from 'three/tsl'
 import { createEmissionUvMaterial, createEmissionUvOverlay } from './emissionUvDebug.js'
+import { createPortalEffect } from './portalEffect.js'
 
 const EMISSIVE_MESH_NAMES = new Set(['Circle', 'Cube.011', 'Cube.014', 'Cube011', 'Cube014'])
 const EMISSIVE_MATERIAL_NAMES = new Set(['portalLight', 'lampLight'])
@@ -19,21 +20,19 @@ function isPortalMesh(mesh) {
 export function createEmissive(params) {
   const lights = []
 
-  const uPortalColor = uniform(new THREE.Color(params.portalColor))
-  const uPortalIntensity = uniform(params.portalIntensity)
   const uPoleColor = uniform(new THREE.Color(params.poleColor))
   const uPoleIntensity = uniform(params.poleIntensity)
 
-  const portalMaterial = new THREE.MeshBasicNodeMaterial()
-  portalMaterial.name = 'portal-emission'
-  portalMaterial.colorNode = uPortalColor.mul(uPortalIntensity)
+  const portalEffect = createPortalEffect(params)
+  const portalMaterial = portalEffect.material
 
   const poleMaterial = new THREE.MeshBasicNodeMaterial()
   poleMaterial.name = 'pole-emission'
   poleMaterial.colorNode = uPoleColor.mul(uPoleIntensity)
   const uvDebugMaterial = createEmissionUvMaterial()
   const uvOverlay = createEmissionUvOverlay()
-  let uvDebugVisible = true
+  let uvDebugVisible = false
+  let elapsedSeconds = 0
 
   function tryAttach(mesh) {
     if (!isEmissiveMesh(mesh)) {
@@ -43,7 +42,7 @@ export function createEmissive(params) {
     const kind = isPortalMesh(mesh) ? 'portal' : 'pole'
     mesh.castShadow = false
     mesh.receiveShadow = false
-    mesh.material = uvDebugMaterial
+    mesh.material = kind === 'portal' ? portalMaterial : poleMaterial
 
     const light = new THREE.PointLight(
       kind === 'portal' ? params.portalColor : params.poleColor,
@@ -58,16 +57,19 @@ export function createEmissive(params) {
     return true
   }
 
-  function sync() {
-    uPortalColor.value.set(params.portalColor)
-    uPortalIntensity.value = params.portalIntensity
+  function sync(deltaSeconds = 0) {
+    elapsedSeconds += deltaSeconds
     uPoleColor.value.set(params.poleColor)
     uPoleIntensity.value = params.poleIntensity
+    portalEffect.sync()
 
     for (const { kind, light } of lights) {
       const isPortal = kind === 'portal'
       light.color.set(isPortal ? params.portalColor : params.poleColor)
-      light.intensity = isPortal ? params.portalIntensity : params.poleIntensity
+      const portalPulse = 0.84 + (Math.sin(elapsedSeconds * Math.PI * 2 / 3.5) * 0.5 + 0.5) * 0.16
+      light.intensity = isPortal
+        ? params.portalIntensity * portalPulse
+        : params.poleIntensity
     }
   }
 
