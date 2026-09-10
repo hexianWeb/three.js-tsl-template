@@ -29,14 +29,14 @@ export function createRenderer() {
     camera,
     renderer,
     controls,
-    startLoop(scene, onFrame) {
+    startLoop(scene, onFrame, renderFrame = () => renderer.render(scene, camera)) {
       let previousTime = null
       renderer.setAnimationLoop((time) => {
         const deltaSeconds = previousTime === null ? 0 : (time - previousTime) / 1000
         previousTime = time
         onFrame(deltaSeconds)
         controls.update()
-        renderer.render(scene, camera)
+        renderFrame()
       })
     },
   }

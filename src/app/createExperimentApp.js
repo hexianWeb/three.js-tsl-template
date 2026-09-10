@@ -5,6 +5,7 @@ import { createDayNightCycle } from '../lighting/dayNightCycle.js'
 import { createLightProbeGridSystem } from '../lighting/createLightProbeGridSystem.js'
 import { createLightingRig } from '../lighting/createLightingRig.js'
 import { createRenderer } from '../rendering/createRenderer.js'
+import { createSsgiPipeline } from '../rendering/createSsgiPipeline.js'
 import { loadLightmaps, loadModelVariants } from '../scene/loadExperimentAssets.js'
 import { prepareSceneVariants } from '../scene/prepareSceneVariants.js'
 import { setupGui } from '../ui/setupGui.js'
@@ -61,6 +62,7 @@ export async function createExperimentApp() {
   }
 
   const initialProbeBake = bakeLightProbes()
+  const ssgiPipeline = createSsgiPipeline({ renderer, scene, camera, params })
   const pane = setupGui({
     params,
     onCaseChange: controller.applyCase,
@@ -74,6 +76,9 @@ export async function createExperimentApp() {
       : THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = params.exposure
     controller.update(deltaSeconds)
+  }, () => {
+    if (controller.activeCase.ssgi && params.ssgiEnabled) ssgiPipeline.render()
+    else renderer.render(scene, camera)
   })
 
   const debugApi = {

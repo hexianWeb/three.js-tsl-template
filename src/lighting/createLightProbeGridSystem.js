@@ -1,6 +1,7 @@
 import { LightProbeGridHelper } from 'three/addons/helpers/LightProbeGridHelper.js'
 import { LightProbeGrid } from 'three/addons/lighting/LightProbeGrid.js'
 import * as THREE from 'three/webgpu'
+import { vec3 } from 'three/tsl'
 
 export const PROBE_GRID_CONFIG = Object.freeze({
   padding: 0.2,
@@ -101,6 +102,12 @@ export function createLightProbeGridSystem({
 
       if (!helper) {
         helper = new LightProbeGridHelper(grid, PROBE_GRID_CONFIG.helperSize)
+        // The helper's custom fragment bypasses NodeMaterial's MRT setup.
+        // Use outputNode so both the direct renderer and SSGI's color/normal/
+        // diffuse attachments retain the probe's original SH visualization.
+        helper.material.outputNode = helper.material.fragmentNode
+        helper.material.fragmentNode = null
+        helper.material.colorNode = vec3(0)
         helper.name = 'CaseE-LightProbeGridHelper'
         scene.add(helper)
       }

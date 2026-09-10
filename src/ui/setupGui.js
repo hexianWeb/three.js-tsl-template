@@ -16,7 +16,7 @@ export function setupGui({
     })
     .on('change', (event) => onCaseChange(event.value))
 
-  const presentation = pane.addFolder({ title: 'Shared Presentation (A-E)' })
+  const presentation = pane.addFolder({ title: 'Shared Presentation (A-F)', expanded: false })
   presentation.addBinding(params, 'toneMapping', {
     label: 'Tone Mapping',
     options: {
@@ -81,7 +81,7 @@ export function setupGui({
     step: 0.01,
   })
 
-  const caseLighting = pane.addFolder({ title: 'Case-controlled Lighting' })
+  const caseLighting = pane.addFolder({ title: 'Case-controlled Lighting', expanded: false })
   caseLighting.addBinding(params, 'lightMapIntensity', {
     label: 'Lightmap',
     min: 0,
@@ -95,7 +95,17 @@ export function setupGui({
     step: 0.01,
   })
 
-  const probes = pane.addFolder({ title: 'Light Probe Grid (Case E)' })
+  const ssgi = pane.addFolder({ title: 'SSGI (Case F)' })
+  ssgi.addBinding(params, 'ssgiEnabled', { label: 'Enable SSGI' })
+  ssgi.addBinding(params, 'ssgiView', { label: 'View', options: {
+    Combined: 'combined', 'SSGI Indirect': 'indirect', Occlusion: 'ao',
+  } })
+  ssgi.addBinding(params, 'ssgiIntensity', { label: 'Bounce Intensity', min: 0, max: 10, step: 0.05 })
+  ssgi.addBinding(params, 'ssgiAoIntensity', { label: 'AO Intensity', min: 0, max: 4, step: 0.05 })
+  ssgi.addBinding(params, 'ssgiRadius', { label: 'Radius', min: 0.1, max: 10, step: 0.1 })
+  ssgi.addBinding(params, 'ssgiThickness', { label: 'Thickness', min: 0.01, max: 2, step: 0.01 })
+
+  const probes = pane.addFolder({ title: 'Light Probe Grid (E / F)' })
   probes.addBinding(params, 'probeIntensity', {
     label: 'GI Intensity',
     min: 0,

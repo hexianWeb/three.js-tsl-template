@@ -1,6 +1,12 @@
 export function createExperimentParams() {
   return {
-    caseId: 'A',
+    caseId: 'F',
+    ssgiEnabled: true,
+    ssgiIntensity: 1,
+    ssgiAoIntensity: 1,
+    ssgiRadius: 2,
+    ssgiThickness: 0.15,
+    ssgiView: 'combined',
     toneMapping: 'filmic',
     exposure: 1,
     lightMapIntensity: Math.PI,

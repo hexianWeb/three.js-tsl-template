@@ -1,6 +1,6 @@
 # GI Ablation Study
 
-The demo renders one portal scene through five GI/surface-lighting strategies.
+The demo renders one portal scene through six GI/surface-lighting strategies.
 Portal emission, lantern flames, fireflies, camera, tone mapping, exposure, and
 the black background belong to the shared presentation layer.
 
@@ -13,6 +13,18 @@ the black background belong to the shared presentation layer.
 | C | baked | indirect EXR | off | off |
 | D | unbaked PBR | no lightmap | on | on |
 | E | unbaked PBR | realtime LightProbeGrid | on | on |
+| F (default) | unbaked PBR | LightProbeGrid + SSGI | on | on |
+
+Case F adds Three.js SSGINode with spatial, depth/normal-aware denoising.
+Toggle `Enable SSGI` for an immediate comparison with probe lighting alone.
+The SSGI folder exposes bounce intensity, AO strength, world-space radius,
+surface thickness, and combined / indirect-only / occlusion views.
+The composition is `beauty * AO + SSGI * albedo` in linear space before tone mapping.
+This is an artistic hybrid, not an energy-conserving replacement of probe GI:
+the screen-space input already contains probe lighting, so high SSGI strengths
+can over-brighten it. Offscreen geometry cannot contribute to SSGI; probes retain
+their last baked lighting until `Rebake Probes` is pressed. Spatial filtering
+avoids temporal ghosting but can retain noise and adds GPU cost in Case F.
 
 The exact executable definitions live in
 [`src/experiment/caseDefinitions.js`](src/experiment/caseDefinitions.js).

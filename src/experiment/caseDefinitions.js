@@ -57,6 +57,17 @@ export const CASE_DEFINITIONS = Object.freeze({
     lightProbeGrid: true,
     supportsSunAnimation: true,
   }),
+  F: defineCase({
+    id: 'F',
+    label: 'F Light Probe Grid + SSGI',
+    sceneVariant: 'unbaked',
+    surfaceStrategy: 'normalPbr',
+    directionalLight: true,
+    emissiveLights: true,
+    lightProbeGrid: true,
+    ssgi: true,
+    supportsSunAnimation: true,
+  }),
 })
 
 export const SHARED_PRESENTATION = Object.freeze({
