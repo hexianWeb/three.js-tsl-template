@@ -27,7 +27,10 @@ const params = {
   portalIntensity: 1.6,
   portalSpeed: 0.28,
   poleColor: '#ff4e18',
-  poleIntensity: 1,
+  poleIntensity: 3,
+  poleFlameHeight: 1,
+  poleFlameWidth: 1.5,
+  poleFlameCore: 0.55,
 }
 
 const meshEntries = []

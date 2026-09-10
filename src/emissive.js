@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu'
-import { uniform } from 'three/tsl'
+import { float, uniform } from 'three/tsl'
+import { createCandleFlame } from './candleFlame.js'
 import { createEmissionUvMaterial, createEmissionUvOverlay } from './emissionUvDebug.js'
 import { createPortalEffect, preparePortalCoordinates } from './portalEffect.js'
 
@@ -19,6 +20,7 @@ function isPortalMesh(mesh) {
 
 export function createEmissive(params) {
   const lights = []
+  const candles = []
 
   const uPoleColor = uniform(new THREE.Color(params.poleColor))
   const uPoleIntensity = uniform(params.poleIntensity)
@@ -26,9 +28,6 @@ export function createEmissive(params) {
   const portalEffect = createPortalEffect(params)
   const portalMaterial = portalEffect.material
 
-  const poleMaterial = new THREE.MeshBasicNodeMaterial()
-  poleMaterial.name = 'pole-emission'
-  poleMaterial.colorNode = uPoleColor.mul(uPoleIntensity)
   const uvDebugMaterial = createEmissionUvMaterial()
   const uvOverlay = createEmissionUvOverlay()
   let uvDebugVisible = false
@@ -43,17 +42,42 @@ export function createEmissive(params) {
     if (kind === 'portal') preparePortalCoordinates(mesh.geometry)
     mesh.castShadow = false
     mesh.receiveShadow = false
-    mesh.material = kind === 'portal' ? portalMaterial : poleMaterial
+    let candle = null
+    let poleFlicker = null
+    let emissionMaterial = portalMaterial
+    if (kind === 'portal') {
+      mesh.material = emissionMaterial
+    }
+    else {
+      poleFlicker = uniform(1)
+      emissionMaterial = new THREE.MeshBasicNodeMaterial()
+      emissionMaterial.name = 'pole-emission'
+      emissionMaterial.colorNode = uPoleColor.mul(uPoleIntensity).mul(poleFlicker)
+      emissionMaterial.opacityNode = float(0.58)
+      emissionMaterial.transparent = true
+      emissionMaterial.blending = THREE.AdditiveBlending
+      emissionMaterial.depthWrite = false
+      mesh.material = emissionMaterial
+      mesh.renderOrder = 1
+      candle = createCandleFlame({
+        mesh,
+        index: candles.length,
+        params,
+        uPoleColor,
+        uPoleIntensity,
+      })
+      candles.push(candle)
+    }
 
     const light = new THREE.PointLight(
       kind === 'portal' ? params.portalColor : params.poleColor,
       kind === 'portal' ? params.portalIntensity : params.poleIntensity,
     )
-    light.distance = 12
+    light.distance = kind === 'portal' ? 12 : 1.8
     light.decay = 2
     light.castShadow = false
     mesh.add(light)
-    lights.push({ kind, mesh, light })
+    lights.push({ kind, mesh, light, candle, poleFlicker, emissionMaterial })
     uvOverlay.addMesh(mesh)
     return true
   }
@@ -64,13 +88,18 @@ export function createEmissive(params) {
     uPoleIntensity.value = params.poleIntensity
     portalEffect.sync()
 
-    for (const { kind, light } of lights) {
+    for (const { kind, light, candle, poleFlicker } of lights) {
       const isPortal = kind === 'portal'
       light.color.set(isPortal ? params.portalColor : params.poleColor)
       const portalPulse = 0.84 + (Math.sin(elapsedSeconds * Math.PI * 2 / 3.5) * 0.5 + 0.5) * 0.16
-      light.intensity = isPortal
-        ? params.portalIntensity * portalPulse
-        : params.poleIntensity
+      if (isPortal) {
+        light.intensity = params.portalIntensity * portalPulse
+      }
+      else {
+        const flicker = candle.update(elapsedSeconds)
+        poleFlicker.value = flicker.shell
+        light.intensity = params.poleIntensity * flicker.light
+      }
     }
   }
 
@@ -83,10 +112,11 @@ export function createEmissive(params) {
   function setUvDebug(visible) {
     uvDebugVisible = visible
     uvOverlay.setVisible(visible)
-    for (const { kind, mesh } of lights) {
+    for (const { mesh, candle, emissionMaterial } of lights) {
       mesh.material = uvDebugVisible
         ? uvDebugMaterial
-        : kind === 'portal' ? portalMaterial : poleMaterial
+        : emissionMaterial
+      candle?.setVisible(!visible)
     }
   }
 

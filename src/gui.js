@@ -86,6 +86,24 @@ export function setupGui({ params, onCaseChange, onEmissionUvChange }) {
     max: 3,
     step: 0.01,
   })
+  poles.addBinding(params, 'poleFlameHeight', {
+    label: 'Flame Height',
+    min: 0.5,
+    max: 1.6,
+    step: 0.01,
+  })
+  poles.addBinding(params, 'poleFlameWidth', {
+    label: 'Flame Width',
+    min: 0.5,
+    max: 1.6,
+    step: 0.01,
+  })
+  poles.addBinding(params, 'poleFlameCore', {
+    label: 'Core Size',
+    min: 0.3,
+    max: 0.8,
+    step: 0.01,
+  })
 
   return pane
 }
