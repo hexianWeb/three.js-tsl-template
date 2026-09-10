@@ -69,7 +69,7 @@ function displayName(name) {
 
 export function createEmissionUvOverlay() {
   if (typeof document === 'undefined') {
-    return { addMesh() {}, setVisible() {} }
+    return { addMesh() {}, setActiveVariant() {}, setVisible() {} }
   }
 
   const overlay = document.createElement('section')
@@ -78,9 +78,17 @@ export function createEmissionUvOverlay() {
   document.body.appendChild(overlay)
 
   const addedMeshes = new Set()
+  const cards = []
+  let activeVariant = 'baked'
+
+  function syncCards() {
+    for (const { card, variantId } of cards) {
+      card.style.display = variantId === activeVariant ? 'block' : 'none'
+    }
+  }
 
   return {
-    addMesh(mesh) {
+    addMesh(mesh, variantId) {
       if (addedMeshes.has(mesh)) return
       addedMeshes.add(mesh)
 
@@ -99,6 +107,12 @@ export function createEmissionUvOverlay() {
 
       card.append(label, canvas)
       overlay.appendChild(card)
+      cards.push({ card, variantId })
+      syncCards()
+    },
+    setActiveVariant(variantId) {
+      activeVariant = variantId
+      syncCards()
     },
     setVisible(visible) {
       overlay.style.display = visible ? 'flex' : 'none'

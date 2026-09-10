@@ -1,4 +1,5 @@
 import * as THREE from 'three/webgpu'
+import { texture } from 'three/tsl'
 
 export const LIGHTMAP_INTENSITY = Math.PI
 
@@ -56,15 +57,9 @@ export function normalizeName(name) {
 
 export function getSurfaceId(meshName) {
   const name = normalizeName(meshName)
-  if (GRASS_MESHES.has(name)) {
-    return 'grass'
-  }
-  if (WOOD_MESHES.has(name)) {
-    return 'wood'
-  }
-  if (METAL_MESHES.has(name)) {
-    return 'metal'
-  }
+  if (GRASS_MESHES.has(name)) return 'grass'
+  if (WOOD_MESHES.has(name)) return 'wood'
+  if (METAL_MESHES.has(name)) return 'metal'
   return 'rock'
 }
 
@@ -72,9 +67,41 @@ export function createLitMaterial(meshName) {
   const id = getSurfaceId(meshName)
   const profile = materialProfiles[id]
   const material = new THREE.MeshStandardNodeMaterial()
-  material.name = id
+  material.name = `indirect-${id}`
   material.color = new THREE.Color().setRGB(...profile.color, THREE.LinearSRGBColorSpace)
   material.roughness = profile.roughness
   material.metalness = profile.metalness
   return material
+}
+
+export function createFullBakeMaterial(lightmap) {
+  const material = new THREE.MeshBasicNodeMaterial()
+  material.name = 'full-bake-surface'
+  material.colorNode = texture(lightmap)
+  return material
+}
+
+export function createIndirectMaterialLibrary(lightmap) {
+  const materials = new Map()
+
+  return {
+    materials,
+    get(meshName, intensity) {
+      const surfaceId = getSurfaceId(meshName)
+      let material = materials.get(surfaceId)
+      if (!material) {
+        material = createLitMaterial(meshName)
+        material.lightMap = lightmap
+        materials.set(surfaceId, material)
+      }
+      material.lightMapIntensity = intensity
+      material.needsUpdate = true
+      return material
+    },
+    setIntensity(intensity) {
+      for (const material of materials.values()) {
+        material.lightMapIntensity = intensity
+      }
+    },
+  }
 }

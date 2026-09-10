@@ -1,11 +1,20 @@
 import * as THREE from 'three/webgpu'
 
-export function createEnv() {
-  const scene = new THREE.Scene()
-  scene.background = new THREE.Color('#111111')
+export const REFERENCE_LIGHT = Object.freeze({
+  color: 0xffc08a,
+  intensity: 2.5,
+  position: Object.freeze([-5.16, 4.08, 4.58]),
+})
 
-  const directionalLight = new THREE.DirectionalLight(0xffc08a, 2.5)
-  directionalLight.position.set(-5.16, 4.08, 4.58)
+export function createLightingRig() {
+  const scene = new THREE.Scene()
+  scene.background = new THREE.Color('#000000')
+
+  const directionalLight = new THREE.DirectionalLight(
+    REFERENCE_LIGHT.color,
+    REFERENCE_LIGHT.intensity,
+  )
+  directionalLight.position.fromArray(REFERENCE_LIGHT.position)
   directionalLight.castShadow = true
   directionalLight.shadow.mapSize.set(4096, 4096)
   directionalLight.shadow.camera.near = 0.5
@@ -15,8 +24,7 @@ export function createEnv() {
   directionalLight.shadow.camera.top = 10
   directionalLight.shadow.camera.bottom = -10
   directionalLight.shadow.normalBias = 0.02
-  scene.add(directionalLight)
-  scene.add(directionalLight.target)
+  scene.add(directionalLight, directionalLight.target)
 
   return { scene, directionalLight }
 }

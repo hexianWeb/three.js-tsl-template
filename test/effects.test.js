@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as THREE from 'three/webgpu'
-import { createEmissive } from '../src/emissive.js'
+import { createEmissiveSystem } from '../src/effects/emissive/createEmissiveSystem.js'
 
 test('portal has full-face effect coordinates without changing baked UVs', () => {
   const geometry = new THREE.CircleGeometry(0.72, 32)
@@ -9,8 +9,8 @@ test('portal has full-face effect coordinates without changing baked UVs', () =>
   const atlas = geometry.attributes.uv.array.slice()
   const mesh = new THREE.Mesh(geometry)
   mesh.name = 'Circle'
-  createEmissive({ portalColor: '#438dff', portalIntensity: 1.6, portalSpeed: 0.28,
-    poleColor: '#ff4e18', poleIntensity: 1 }).tryAttach(mesh)
+  createEmissiveSystem({ portalColor: '#438dff', portalIntensity: 1.6, portalSpeed: 0.28,
+    poleColor: '#ff4e18', poleIntensity: 1 }).tryAttach(mesh, 'baked')
   const effect = geometry.getAttribute('portalUv')
   assert.ok(effect)
   assert.deepEqual(geometry.attributes.uv.array, atlas)

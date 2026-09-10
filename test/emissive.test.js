@@ -2,8 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as THREE from 'three/webgpu'
 
-import { calculateCandleFlicker, calculateFlameDistortion } from '../src/candleFlame.js'
-import { createEmissive } from '../src/emissive.js'
+import {
+  calculateCandleFlicker,
+  calculateFlameDistortion,
+} from '../src/effects/emissive/createCandleFlame.js'
+import { createEmissiveSystem } from '../src/effects/emissive/createEmissiveSystem.js'
 
 const params = {
   portalColor: '#ffffff',
@@ -17,11 +20,11 @@ const params = {
 }
 
 test('emissive meshes start in emission view and can switch to UV debug', () => {
-  const emissive = createEmissive(params)
+  const emissive = createEmissiveSystem(params)
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(), new THREE.MeshBasicMaterial())
   mesh.name = 'Circle'
 
-  assert.equal(emissive.tryAttach(mesh), true)
+  assert.equal(emissive.tryAttach(mesh, 'baked'), true)
   assert.equal(mesh.material.name, 'portal-emission')
 
   emissive.setUvDebug(true)
@@ -32,11 +35,11 @@ test('emissive meshes start in emission view and can switch to UV debug', () => 
 })
 
 test('GLTF-normalized lantern names are included in the UV debug view', () => {
-  const emissive = createEmissive(params)
+  const emissive = createEmissiveSystem(params)
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial())
   mesh.name = 'Cube011'
 
-  assert.equal(emissive.tryAttach(mesh), true)
+  assert.equal(emissive.tryAttach(mesh, 'baked'), true)
   assert.equal(mesh.material.name, 'pole-emission')
   assert.equal(mesh.getObjectByName('CandleFlame-1')?.visible, true)
 
@@ -46,10 +49,10 @@ test('GLTF-normalized lantern names are included in the UV debug view', () => {
   const anchoredX = flame.position.x
   params.poleFlameHeight = 1.4
   params.poleFlameWidth = 1.2
-  emissive.sync(0)
+  emissive.update(0)
   assert.ok(outer.scale.y > initialScale.y)
   assert.ok(outer.scale.x > initialScale.x)
-  emissive.sync(0.25)
+  emissive.update(0.25)
   assert.equal(flame.position.x, anchoredX)
 
   emissive.setUvDebug(true)
@@ -58,6 +61,39 @@ test('GLTF-normalized lantern names are included in the UV debug view', () => {
   emissive.setUvDebug(false)
   assert.equal(mesh.material.name, 'pole-emission')
   assert.equal(mesh.getObjectByName('CandleFlame-1')?.visible, true)
+})
+
+test('normal variant identifies emissive meshes by material instead of baked mesh names', () => {
+  const emissive = createEmissiveSystem(params)
+  const metal = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial())
+  metal.name = 'Cube014'
+  metal.material.name = 'metal'
+  const lantern = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial())
+  lantern.name = 'Cube015'
+  lantern.material.name = 'lampLight'
+
+  assert.equal(emissive.tryAttach(metal, 'normal'), false)
+  assert.equal(emissive.tryAttach(lantern, 'normal'), true)
+  assert.equal(lantern.material.name, 'pole-emission')
+})
+
+test('local lights are enabled only on the active scene variant', () => {
+  const emissive = createEmissiveSystem(params)
+  const bakedPortal = new THREE.Mesh(new THREE.CircleGeometry(), new THREE.MeshBasicMaterial())
+  bakedPortal.name = 'Circle'
+  const normalPortal = new THREE.Mesh(new THREE.CircleGeometry(), new THREE.MeshBasicMaterial())
+  normalPortal.name = 'Circle'
+  normalPortal.material.name = 'portalLight'
+
+  emissive.tryAttach(bakedPortal, 'baked')
+  emissive.tryAttach(normalPortal, 'normal')
+  emissive.setLocalLightsEnabled(true)
+  assert.equal(emissive.attachments[0].light.visible, true)
+  assert.equal(emissive.attachments[1].light.visible, false)
+
+  emissive.setActiveVariant('normal')
+  assert.equal(emissive.attachments[0].light.visible, false)
+  assert.equal(emissive.attachments[1].light.visible, true)
 })
 
 test('candle flicker stays restrained and differs between lantern phases', () => {

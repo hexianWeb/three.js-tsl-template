@@ -24,10 +24,11 @@ export function preparePortalCoordinates(geometry) {
   const position = geometry.getAttribute('position')
   const point = new THREE.Vector3()
   const coordinates = new Float32Array(position.count * 2)
-  for (let i = 0; i < position.count; i++) {
-    point.fromBufferAttribute(position, i)
+  for (let index = 0; index < position.count; index += 1) {
+    point.fromBufferAttribute(position, index)
     axes.forEach((axis, component) => {
-      coordinates[i * 2 + component] = (point[axis] - bounds.min[axis]) / Math.max(size[axis], 1e-6)
+      coordinates[index * 2 + component]
+        = (point[axis] - bounds.min[axis]) / Math.max(size[axis], 1e-6)
     })
   }
   geometry.setAttribute('portalUv', new THREE.BufferAttribute(coordinates, 2))
@@ -51,7 +52,7 @@ export function createPortalEffect(params) {
   const detailNoise = mx_noise_float(vec3(warped.mul(11), animatedTime.negate()))
   // Journey-inspired turbulent clouds with a luminous perimeter.
   const flow = broadNoise.mul(0.75).add(detailNoise.mul(0.25)).mul(0.5).add(0.5)
-  const edge = smoothstep(0.64, 1, radial.add(broadNoise.mul(0.13)))
+  const edge = smoothstep(0.8, 1, radial.add(broadNoise.mul(0.13)))
   const clouds = smoothstep(0.32, 0.72, flow)
   const darkColor = uColor.mul(0.09).add(color('#170932'))
   const cloudColor = mix(darkColor, uColor, clouds)

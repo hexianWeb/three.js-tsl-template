@@ -33,11 +33,19 @@ export function calculateDayNightState(time, directIntensity) {
 }
 
 export function createDayNightCycle({ scene, light, params }) {
-  const defaultBackground = scene.background?.clone() || new THREE.Color('#111111')
-  const defaultLightColor = light.color.clone()
-  const defaultLightPosition = light.position.clone()
+  const referenceColor = light.color.clone()
+  const referencePosition = light.position.clone()
+  let animated = false
+
   if (!scene.background?.isColor) {
-    scene.background = defaultBackground.clone()
+    scene.background = new THREE.Color('#000000')
+  }
+
+  function applyReferenceLight() {
+    light.color.copy(referenceColor)
+    light.position.copy(referencePosition)
+    light.intensity = params.directIntensity
+    scene.background.set(0x000000)
   }
 
   function applyCurrentTime() {
@@ -54,18 +62,20 @@ export function createDayNightCycle({ scene, light, params }) {
   }
 
   return {
+    setAnimated(value) {
+      animated = value === true
+    },
     update(deltaSeconds) {
-      if (params.caseName !== 'B') {
-        scene.background.copy(defaultBackground)
-        light.color.copy(defaultLightColor)
-        light.position.copy(defaultLightPosition)
+      if (!animated) {
+        applyReferenceLight()
         return
       }
 
-      if (params.dayNightAuto) {
-        params.dayNightTime = (params.dayNightTime + deltaSeconds / DAY_DURATION_SECONDS) % 1
-      }
+      params.dayNightTime = (params.dayNightTime + deltaSeconds / DAY_DURATION_SECONDS) % 1
       applyCurrentTime()
+    },
+    get animated() {
+      return animated
     },
   }
 }

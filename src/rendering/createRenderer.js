@@ -6,10 +6,7 @@ export function createRenderer() {
   const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100)
   camera.position.set(5.78, 5.26, 6.63)
 
-  const renderer = new THREE.WebGPURenderer({
-    canvas,
-    antialias: true,
-  })
+  const renderer = new THREE.WebGPURenderer({ canvas, antialias: true })
   renderer.setSize(window.innerWidth, window.innerHeight)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.toneMapping = THREE.ACESFilmicToneMapping

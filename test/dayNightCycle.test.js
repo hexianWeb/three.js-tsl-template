@@ -5,7 +5,7 @@ import * as THREE from 'three/webgpu'
 import {
   calculateDayNightState,
   createDayNightCycle,
-} from '../src/dayNightCycle.js'
+} from '../src/lighting/dayNightCycle.js'
 
 function assertColorClose(actual, expected) {
   actual.forEach((value, index) => {
@@ -36,12 +36,11 @@ test('midnight keeps only a small cool moon light', () => {
   assert.deepEqual(state.lightColor, [0.32, 0.42, 0.68])
 })
 
-test('controller applies the selected time and advances only while automatic playback is enabled', () => {
+test('controller stays on the reference light until non-evaluation animation is enabled', () => {
   const scene = new THREE.Scene()
   const light = new THREE.DirectionalLight()
+  light.position.set(-5.16, 4.08, 4.58)
   const params = {
-    caseName: 'B',
-    dayNightAuto: false,
     dayNightTime: 0.5,
     directIntensity: 4,
   }
@@ -50,9 +49,10 @@ test('controller applies the selected time and advances only while automatic pla
   cycle.update(15)
   assert.equal(params.dayNightTime, 0.5)
   assert.equal(light.intensity, 4)
+  assert.deepEqual(light.position.toArray(), [-5.16, 4.08, 4.58])
   assert.equal(scene.background.getHexString(), '000000')
 
-  params.dayNightAuto = true
+  cycle.setAnimated(true)
   cycle.update(15)
   assert.equal(params.dayNightTime, 0)
   assert.equal(light.intensity, 0.32)

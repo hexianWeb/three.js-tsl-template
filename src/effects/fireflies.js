@@ -44,7 +44,6 @@ export function createFireflies({ scene, params = fireflyParams }) {
       .mul(params.amplitude)
 
     position.y.addAssign(offsetY)
-
     return position
   })()
   material.scaleNode = vec2(float(params.size).mul(instanceScale))
@@ -52,7 +51,6 @@ export function createFireflies({ scene, params = fireflyParams }) {
   const centeredUv = uv().sub(0.5)
   const distanceToCenter = centeredUv.length()
   const strength = float(0.05).div(distanceToCenter).sub(0.1).max(0)
-
   material.colorNode = color(params.color)
   material.opacityNode = strength
   material.transparent = true
@@ -65,6 +63,5 @@ export function createFireflies({ scene, params = fireflyParams }) {
   fireflies.name = 'Fireflies'
   fireflies.frustumCulled = false
   scene.add(fireflies)
-
   return fireflies
 }
