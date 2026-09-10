@@ -30,7 +30,6 @@ export function createEmissiveSystem(params) {
   let localLightsEnabled = false
   let activeVariant = 'baked'
   let uvDebugVisible = false
-  let elapsedSeconds = 0
 
   function syncLocalLightVisibility() {
     for (const attachment of attachments) {
@@ -97,10 +96,10 @@ export function createEmissiveSystem(params) {
     return true
   }
 
-  function update(deltaSeconds = 0) {
-    elapsedSeconds += deltaSeconds
+  function update(elapsedSeconds = 0) {
     uPoleColor.value.set(params.poleColor)
     uPoleIntensity.value = params.poleIntensity
+    portalEffect.setElapsed(elapsedSeconds)
     portalEffect.sync()
 
     for (const { kind, light, candle, poleFlicker } of attachments) {

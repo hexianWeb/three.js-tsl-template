@@ -1,16 +1,31 @@
-import { RenderPipeline } from 'three/webgpu'
+import { Layers, RenderPipeline } from 'three/webgpu'
 import { diffuseColor, mrt, normalView, output, pass, uniform, vec4 } from 'three/tsl'
 import { ssgi } from 'three/addons/tsl/display/SSGINode.js'
 import { denoise } from 'three/addons/tsl/display/DenoiseNode.js'
 import { ao } from 'three/addons/tsl/display/GTAONode.js'
+import { FIREFLY_LAYER } from '../effects/fireflies.js'
+
+function createLayerMask(channel) {
+  const layers = new Layers()
+  layers.set(channel)
+  return layers
+}
 
 export function createSsgiPipeline({ renderer, scene, camera, params }) {
   const scenePass = pass(scene, camera)
   scenePass.setMRT(mrt({ output, normal: normalView, diffuse: diffuseColor }))
+  scenePass.setLayers(createLayerMask(0))
+  const fireflyPass = pass(scene, camera, {
+    depthTexture: scenePass.renderTarget.depthTexture,
+    autoClearDepth: false,
+  })
+  fireflyPass.setLayers(createLayerMask(FIREFLY_LAYER))
+  fireflyPass.opaque = false
   const beauty = scenePass.getTextureNode('output')
   const depth = scenePass.getTextureNode('depth')
   const normal = scenePass.getTextureNode('normal')
   const albedo = scenePass.getTextureNode('diffuse')
+  const overlay = fireflyPass.getTextureNode('output')
   const gi = ssgi(beauty, depth, normal, camera)
   // Spatial filtering avoids history leaking when switching experiment cases.
   gi.useTemporalFiltering = false
@@ -37,7 +52,8 @@ export function createSsgiPipeline({ renderer, scene, camera, params }) {
     key, vec4(value.rgb.mul(occlusion), value.a),
   ]))
   const gtaoOnly = vec4(occlusion, occlusion, occlusion, 1)
-  const pipeline = new RenderPipeline(renderer, views.combined)
+  const withFireflies = (base) => vec4(base.rgb.add(overlay.rgb), base.a)
+  const pipeline = new RenderPipeline(renderer, withFireflies(views.combined))
   let currentView = 'combined'
 
   return {
@@ -51,12 +67,14 @@ export function createSsgiPipeline({ renderer, scene, camera, params }) {
       gtaoIntensity.value = params.gtaoIntensity
       const view = params.ssgiEnabled ? params.ssgiView : 'beauty'
       const useGtao = definition.gtao === true && params.gtaoEnabled
-      const key = `${view}:${useGtao}:${useGtao && params.gtaoShowOnly}`
+      const showFireflies = (view === 'combined' || view === 'beauty') && !(useGtao && params.gtaoShowOnly)
+      const key = `${view}:${useGtao}:${useGtao && params.gtaoShowOnly}:${showFireflies}`
       if (currentView !== key) {
         currentView = key
-        pipeline.outputNode = useGtao
+        const base = useGtao
           ? (params.gtaoShowOnly ? gtaoOnly : gtaoViews[view] ?? gtaoViews.combined)
           : views[view] ?? views.combined
+        pipeline.outputNode = showFireflies ? withFireflies(base) : base
         pipeline.needsUpdate = true
       }
       pipeline.render()

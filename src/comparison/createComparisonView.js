@@ -1,5 +1,5 @@
 import { CASE_DEFINITIONS } from '../experiment/caseDefinitions.js'
-import { CHANNEL, isCameraState, isCaseId } from './protocol.js'
+import { CHANNEL, CLOCK_QUERY, isCameraState, isCaseId } from './protocol.js'
 
 export function createComparisonView() {
   document.querySelector('canvas.webgl').remove()
@@ -26,9 +26,10 @@ export function createComparisonView() {
           <iframe id="right-frame" title="右侧 GI 场景"></iframe>
         </section>
       </div>
-      <footer>拖动任一侧旋转，滚轮缩放。参数同步不包含 Case、探针重烘焙及 UV 调试操作；两侧动画独立计时。双视图会增加 GPU 开销。</footer>
+      <footer>拖动任一侧旋转，滚轮缩放。参数同步不包含 Case、探针重烘焙及 UV 调试操作；两侧共用同一动画时钟。双视图会增加 GPU 开销。</footer>
     </main>`
 
+  const clockEpoch = Date.now()
   const syncCamera = document.querySelector('#sync-camera')
   const syncParams = document.querySelector('#sync-params')
   const showControls = document.querySelector('#show-controls')
@@ -77,7 +78,7 @@ export function createComparisonView() {
   })
   for (const side of sides) {
     side.select.addEventListener('change', () => setCase(side))
-    side.frame.src = `?view=single&embed=1&case=${side.select.value}`
+    side.frame.src = `?view=single&embed=1&case=${side.select.value}&${CLOCK_QUERY}=${clockEpoch}`
   }
   document.querySelector('#swap-cases').addEventListener('click', () => {
     const previous = sides[0].select.value

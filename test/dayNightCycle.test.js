@@ -54,6 +54,6 @@ test('controller stays on the reference light until non-evaluation animation is 
 
   cycle.setAnimated(true)
   cycle.update(15)
-  assert.equal(params.dayNightTime, 0)
-  assert.equal(light.intensity, 0.32)
+  assert.equal(params.dayNightTime, 0.5)
+  assert.equal(light.intensity, 4)
 })

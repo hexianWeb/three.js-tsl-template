@@ -1,5 +1,5 @@
 import { CASE_DEFINITIONS } from './experiment/caseDefinitions.js'
-import { CHANNEL } from './comparison/protocol.js'
+import { CHANNEL, CLOCK_QUERY, parseClockEpoch } from './comparison/protocol.js'
 
 function showStartupError(error) {
   console.error(error)
@@ -20,7 +20,11 @@ async function start() {
     const { createExperimentApp } = await import('./app/createExperimentApp.js')
     const embedded = query.get('embed') === '1' && window.parent !== window
     const caseId = Object.hasOwn(CASE_DEFINITIONS, query.get('case')) ? query.get('case') : 'F'
-    const app = await createExperimentApp({ caseId, embedded })
+    const app = await createExperimentApp({
+      caseId,
+      embedded,
+      clockEpoch: parseClockEpoch(query.get(CLOCK_QUERY)) ?? undefined,
+    })
     if (embedded) {
       const { connectEmbeddedExperiment } = await import('./comparison/connectEmbeddedExperiment.js')
       connectEmbeddedExperiment(app)

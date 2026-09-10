@@ -78,8 +78,9 @@ pan and zoom are linked by default; shared parameters can be linked too. Use
 
 The bridge only accepts same-origin messages from its parent/known child windows.
 Each view owns its WebGPU resources and SSGI buffers. The pair costs more GPU work
-and performs two startup probe bakes. Rebake and UV-debug buttons are local actions;
-animation clocks are independent, so leave sun animation off for static ablations.
+and performs two startup probe bakes. Rebake and UV-debug buttons are local actions.
+Both views share one wall-clock epoch, so sun, lanterns, portal pulse, and fireflies
+stay aligned even if one iframe finishes loading later.
 
 ```bash
 npm install

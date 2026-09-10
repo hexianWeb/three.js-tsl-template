@@ -1,21 +1,32 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { createAnimationClock } from '../src/app/createAnimationClock.js'
 import { createExperimentParams } from '../src/app/params.js'
-import { applySharedParams, getSharedParams, isCameraState, isCaseId } from '../src/comparison/protocol.js'
+import { applySharedParams, getSharedParams, isCameraState, isCaseId, parseClockEpoch } from '../src/comparison/protocol.js'
 
-test('parameter sync keeps independent cases and animation clocks intact', () => {
-  const left = { ...createExperimentParams(), caseId: 'E', exposure: 2, showProbeHelper: true }
+test('parameter sync keeps independent cases intact and shares the animation clock state', () => {
+  const left = { ...createExperimentParams(), caseId: 'E', exposure: 2, showProbeHelper: true, dayNightTime: 0.2 }
   const right = { ...createExperimentParams(), caseId: 'F', dayNightTime: 0.6 }
   applySharedParams(right, getSharedParams(left))
   assert.equal(right.exposure, 2)
   assert.equal(right.showProbeHelper, true)
   assert.equal(right.caseId, 'F')
-  assert.equal(right.dayNightTime, 0.6)
+  assert.equal(right.dayNightTime, 0.2)
   applySharedParams(right, { exposure: NaN, probeIntensity: 'oops', caseId: 'A', unknown: true })
   assert.equal(right.exposure, 2)
   assert.equal(right.probeIntensity, 1)
   assert.equal(right.caseId, 'F')
   assert.equal(Object.hasOwn(right, 'unknown'), false)
+})
+
+test('shared wall-clock epoch keeps both views on the same elapsed time', () => {
+  const epoch = Date.now() - 4000
+  const left = createAnimationClock(epoch)
+  const right = createAnimationClock(epoch)
+  assert.ok(Math.abs(left.elapsed() - right.elapsed()) < 0.02)
+  assert.ok(left.elapsed() >= 3.9)
+  assert.equal(parseClockEpoch('1234'), 1234)
+  assert.equal(parseClockEpoch('nope'), null)
 })
 
 test('camera and case messages reject invalid projection states and inherited keys', () => {

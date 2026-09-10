@@ -5,9 +5,9 @@ import { createFireflies, fireflyParams } from './fireflies.js'
  * Presentation layer shared by every experiment case. Case switching may only
  * change the local-light contribution, never these visible effects.
  */
-export function createSharedEffects({ scene, params }) {
+export function createSharedEffects({ scene, camera, params }) {
   const emissive = createEmissiveSystem(params)
-  const fireflies = createFireflies({ scene, params: fireflyParams })
+  const fireflies = createFireflies({ scene, camera, params: fireflyParams })
 
   return {
     emissive,
@@ -16,6 +16,9 @@ export function createSharedEffects({ scene, params }) {
     setActiveVariant: emissive.setActiveVariant,
     setLocalLightsEnabled: emissive.setLocalLightsEnabled,
     setUvDebug: emissive.setUvDebug,
-    update: emissive.update,
+    update(elapsedSeconds) {
+      emissive.update(elapsedSeconds)
+      fireflies.setElapsed(elapsedSeconds)
+    },
   }
 }

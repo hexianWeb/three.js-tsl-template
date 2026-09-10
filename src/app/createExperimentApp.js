@@ -10,14 +10,16 @@ import { loadLightmaps, loadModelVariants } from '../scene/loadExperimentAssets.
 import { prepareSceneVariants } from '../scene/prepareSceneVariants.js'
 import { setupGui } from '../ui/setupGui.js'
 import { createTechnologyTitle } from '../ui/createTechnologyTitle.js'
+import { createAnimationClock } from './createAnimationClock.js'
 import { createExperimentParams } from './params.js'
 
-export async function createExperimentApp({ caseId = 'F', embedded = false } = {}) {
+export async function createExperimentApp({ caseId = 'F', embedded = false, clockEpoch } = {}) {
   const params = createExperimentParams()
   params.caseId = caseId
+  const clock = createAnimationClock(clockEpoch)
   const { scene, directionalLight } = createLightingRig()
   const { camera, renderer, controls, startLoop } = createRenderer()
-  const sharedEffects = createSharedEffects({ scene, params })
+  const sharedEffects = createSharedEffects({ scene, camera, params })
   const dayNight = createDayNightCycle({ scene, light: directionalLight, params })
 
   await renderer.init()
@@ -73,12 +75,12 @@ export async function createExperimentApp({ caseId = 'F', embedded = false } = {
   })
 
   const technologyTitle = createTechnologyTitle()
-  startLoop(scene, (deltaSeconds) => {
+  startLoop(scene, () => {
     renderer.toneMapping = params.toneMapping === 'agx'
       ? THREE.AgXToneMapping
       : THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = params.exposure
-    controller.update(deltaSeconds)
+    controller.update(clock.elapsed())
     technologyTitle.update(controller.activeCase, params)
   }, () => {
     if ((controller.activeCase.ssgi && params.ssgiEnabled)

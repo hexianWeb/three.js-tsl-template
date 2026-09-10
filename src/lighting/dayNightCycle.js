@@ -65,13 +65,13 @@ export function createDayNightCycle({ scene, light, params }) {
     setAnimated(value) {
       animated = value === true
     },
-    update(deltaSeconds) {
+    update(elapsedSeconds = 0) {
       if (!animated) {
         applyReferenceLight()
         return
       }
 
-      params.dayNightTime = (params.dayNightTime + deltaSeconds / DAY_DURATION_SECONDS) % 1
+      params.dayNightTime = ((elapsedSeconds / DAY_DURATION_SECONDS) % 1 + 1) % 1
       applyCurrentTime()
     },
     get animated() {

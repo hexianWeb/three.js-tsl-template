@@ -6,7 +6,6 @@ import {
   mx_noise_float,
   oscSine,
   smoothstep,
-  time,
   uniform,
   vec2,
   vec3,
@@ -38,11 +37,12 @@ export function createPortalEffect(params) {
   const uColor = uniform(new THREE.Color(params.portalColor))
   const uIntensity = uniform(params.portalIntensity)
   const uSpeed = uniform(params.portalSpeed)
+  const uTime = uniform(0)
 
   const coordinates = attribute('portalUv', 'vec2')
   const centered = coordinates.sub(0.5)
   const radial = centered.length().mul(2)
-  const animatedTime = time.mul(uSpeed)
+  const animatedTime = uTime.mul(uSpeed)
   const warp = vec2(
     mx_noise_float(vec3(centered.mul(3), animatedTime)),
     mx_noise_float(vec3(centered.mul(3).add(7.3), animatedTime.negate())),
@@ -56,7 +56,7 @@ export function createPortalEffect(params) {
   const clouds = smoothstep(0.32, 0.72, flow)
   const darkColor = uColor.mul(0.09).add(color('#170932'))
   const cloudColor = mix(darkColor, uColor, clouds)
-  const breath = oscSine(time.div(3.5)).mul(0.16).add(0.84)
+  const breath = oscSine(uTime.div(3.5)).mul(0.16).add(0.84)
 
   const material = new THREE.MeshBasicNodeMaterial()
   material.name = 'portal-emission'
@@ -69,6 +69,9 @@ export function createPortalEffect(params) {
 
   return {
     material,
+    setElapsed(seconds) {
+      uTime.value = seconds
+    },
     sync() {
       uColor.value.set(params.portalColor)
       uIntensity.value = params.portalIntensity

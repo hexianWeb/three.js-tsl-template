@@ -4,7 +4,7 @@ import {
   float,
   Fn,
   instancedBufferAttribute,
-  time,
+  uniform,
   uv,
   vec2,
 } from 'three/tsl'
@@ -16,7 +16,10 @@ export const fireflyParams = {
   color: '#ffe89a',
 }
 
-export function createFireflies({ scene, params = fireflyParams }) {
+/** Additive overlay; must stay off the default layer so SSGI/GTAO G-buffers ignore the quads. */
+export const FIREFLY_LAYER = 1
+
+export function createFireflies({ scene, camera, params = fireflyParams }) {
   const positions = new Float32Array(params.count * 3)
   const scales = new Float32Array(params.count)
 
@@ -32,12 +35,13 @@ export function createFireflies({ scene, params = fireflyParams }) {
   const scaleAttribute = new THREE.InstancedBufferAttribute(scales, 1)
   const instancePosition = instancedBufferAttribute(positionAttribute)
   const instanceScale = instancedBufferAttribute(scaleAttribute)
+  const uTime = uniform(0)
 
   const material = new THREE.SpriteNodeMaterial()
   material.name = 'fireflies'
   material.positionNode = Fn(() => {
     const position = instancePosition.toVar()
-    const offsetY = time
+    const offsetY = uTime
       .add(instancePosition.x.mul(100))
       .sin()
       .mul(instanceScale)
@@ -62,6 +66,11 @@ export function createFireflies({ scene, params = fireflyParams }) {
   const fireflies = new THREE.InstancedMesh(geometry, material, params.count)
   fireflies.name = 'Fireflies'
   fireflies.frustumCulled = false
+  fireflies.layers.set(FIREFLY_LAYER)
+  camera?.layers.enable(FIREFLY_LAYER)
+  fireflies.setElapsed = (seconds) => {
+    uTime.value = seconds
+  }
   scene.add(fireflies)
   return fireflies
 }

@@ -58,12 +58,12 @@ export function createExperimentController({
 
   return {
     applyCase,
-    update(deltaSeconds) {
+    update(elapsedSeconds) {
       if (!activeCase) return
 
       syncSunMode()
-      dayNight.update(deltaSeconds)
-      sharedEffects.update(deltaSeconds)
+      dayNight.update(elapsedSeconds)
+      sharedEffects.update(elapsedSeconds)
       lightProbeGrid.update()
 
       if (activeCase.surfaceStrategy === 'indirectLightmap') {
