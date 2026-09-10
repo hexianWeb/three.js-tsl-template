@@ -10,6 +10,7 @@ export function setupGui({ params, onCaseChange, onEmissionUvChange }) {
         'A Full Bake': 'A',
         'B Lightmap + Direct': 'B',
         'C Lightmap only': 'C',
+        'D Normal (No Bake)': 'D',
       },
     })
     .on('change', (event) => {
@@ -74,20 +75,6 @@ export function setupGui({ params, onCaseChange, onEmissionUvChange }) {
     label: 'Flow Speed',
     min: 0.05,
     max: 1,
-    step: 0.01,
-  })
-
-  const fireflies = pane.addFolder({ title: 'Fireflies' })
-  fireflies.addBinding(params, 'fireflyCount', {
-    label: 'Count',
-    min: 0,
-    max: 80,
-    step: 1,
-  })
-  fireflies.addBinding(params, 'fireflySize', {
-    label: 'Size',
-    min: 0.02,
-    max: 0.3,
     step: 0.01,
   })
 

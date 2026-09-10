@@ -34,6 +34,8 @@ export function calculateDayNightState(time, directIntensity) {
 
 export function createDayNightCycle({ scene, light, params }) {
   const defaultBackground = scene.background?.clone() || new THREE.Color('#111111')
+  const defaultLightColor = light.color.clone()
+  const defaultLightPosition = light.position.clone()
   if (!scene.background?.isColor) {
     scene.background = defaultBackground.clone()
   }
@@ -55,6 +57,8 @@ export function createDayNightCycle({ scene, light, params }) {
     update(deltaSeconds) {
       if (params.caseName !== 'B') {
         scene.background.copy(defaultBackground)
+        light.color.copy(defaultLightColor)
+        light.position.copy(defaultLightPosition)
         return
       }
 

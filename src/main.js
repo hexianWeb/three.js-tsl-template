@@ -5,7 +5,7 @@ import { texture } from 'three/tsl'
 import { createDayNightCycle } from './dayNightCycle.js'
 import { createEmissive } from './emissive.js'
 import { createEnv } from './env.js'
-import { createFireflies } from './fireflies.js'
+import { createFireflies, fireflyParams } from './fireflies.js'
 import { setupGui } from './gui.js'
 import { createLitMaterial, getSurfaceId } from './materials.js'
 import { createRenderer } from './render.js'
@@ -26,20 +26,19 @@ const params = {
   portalColor: '#7663ff',
   portalIntensity: 1.6,
   portalSpeed: 0.28,
-  fireflyCount: 60,
-  fireflySize: 0.14,
   poleColor: '#ff4e18',
   poleIntensity: 1,
 }
 
 const meshEntries = []
+let bakedSceneRoot = null
+let normalSceneRoot = null
 let fullBakeMap = null
 let indirectMap = null
 let fullBakeMaterial = null
 const hybridMaterials = new Map()
 const emissive = createEmissive(params)
 const dayNight = createDayNightCycle({ scene, light: directionalLight, params })
-let fireflies = null
 
 function prepareExrTexture(exrTexture, channel) {
   exrTexture.colorSpace = THREE.LinearSRGBColorSpace
@@ -58,11 +57,24 @@ function prepareExrTexture(exrTexture, channel) {
 
 function applyCase(caseName) {
   params.caseName = caseName
-  directionalLight.visible = caseName === 'B'
+  const isNormalRender = caseName === 'D'
+
+  if (bakedSceneRoot) {
+    bakedSceneRoot.visible = !isNormalRender
+  }
+  if (normalSceneRoot) {
+    normalSceneRoot.visible = isNormalRender
+  }
+
+  directionalLight.visible = caseName === 'B' || isNormalRender
   directionalLight.intensity = params.directIntensity
 
   emissive.setLightsVisible(caseName === 'B')
   dayNight.update(0)
+
+  if (isNormalRender) {
+    return
+  }
 
   if (caseName === 'A') {
     if (!fullBakeMaterial) {
@@ -124,8 +136,7 @@ async function init() {
     renderer.toneMappingExposure = params.exposure
     dayNight.update(deltaSeconds)
     emissive.sync(deltaSeconds)
-    fireflies?.sync()
-    if (params.caseName !== 'A') {
+    if (params.caseName === 'B' || params.caseName === 'C') {
       for (const hybrid of hybridMaterials.values()) {
         hybrid.lightMapIntensity = params.lightMapIntensity
       }
@@ -135,9 +146,16 @@ async function init() {
   const gltfLoader = new GLTFLoader()
   const exrLoader = new EXRLoader()
 
-  const gltf = await gltfLoader.loadAsync(`${ASSET_ROOT}/portal_scene.glb`)
-  scene.add(gltf.scene)
-  gltf.scene.updateMatrixWorld(true)
+  const [gltf, normalGltf] = await Promise.all([
+    gltfLoader.loadAsync(`${ASSET_ROOT}/portal_scene.glb`),
+    gltfLoader.loadAsync(`${ASSET_ROOT}/portal_none_bake.glb`),
+  ])
+  bakedSceneRoot = gltf.scene
+  normalSceneRoot = normalGltf.scene
+  normalSceneRoot.visible = false
+  scene.add(bakedSceneRoot, normalSceneRoot)
+  bakedSceneRoot.updateMatrixWorld(true)
+  normalSceneRoot.updateMatrixWorld(true)
 
   if (gltf.cameras[0]) {
     const bakedCamera = gltf.cameras[0]
@@ -171,8 +189,17 @@ async function init() {
     })
   })
 
-  const box = new THREE.Box3().setFromObject(gltf.scene)
-  fireflies = createFireflies({ scene, params, bounds: box })
+  normalSceneRoot.traverse((obj) => {
+    if (!obj.isMesh) {
+      return
+    }
+
+    obj.castShadow = true
+    obj.receiveShadow = true
+  })
+
+  const box = new THREE.Box3().setFromObject(bakedSceneRoot)
+  createFireflies({ scene, params: fireflyParams })
   const center = box.getCenter(new THREE.Vector3())
   controls.target.copy(center)
   directionalLight.target.position.copy(center)
