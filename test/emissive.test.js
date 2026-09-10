@@ -63,7 +63,7 @@ test('GLTF-normalized lantern names are included in the UV debug view', () => {
   assert.equal(mesh.getObjectByName('CandleFlame-1')?.visible, true)
 })
 
-test('normal variant identifies emissive meshes by material instead of baked mesh names', () => {
+test('unbaked variant identifies emissive meshes by material instead of baked mesh names', () => {
   const emissive = createEmissiveSystem(params)
   const metal = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial())
   metal.name = 'Cube014'
@@ -72,8 +72,8 @@ test('normal variant identifies emissive meshes by material instead of baked mes
   lantern.name = 'Cube015'
   lantern.material.name = 'lampLight'
 
-  assert.equal(emissive.tryAttach(metal, 'normal'), false)
-  assert.equal(emissive.tryAttach(lantern, 'normal'), true)
+  assert.equal(emissive.tryAttach(metal, 'unbaked'), false)
+  assert.equal(emissive.tryAttach(lantern, 'unbaked'), true)
   assert.equal(lantern.material.name, 'pole-emission')
 })
 
@@ -81,17 +81,17 @@ test('local lights are enabled only on the active scene variant', () => {
   const emissive = createEmissiveSystem(params)
   const bakedPortal = new THREE.Mesh(new THREE.CircleGeometry(), new THREE.MeshBasicMaterial())
   bakedPortal.name = 'Circle'
-  const normalPortal = new THREE.Mesh(new THREE.CircleGeometry(), new THREE.MeshBasicMaterial())
-  normalPortal.name = 'Circle'
-  normalPortal.material.name = 'portalLight'
+  const unbakedPortal = new THREE.Mesh(new THREE.CircleGeometry(), new THREE.MeshBasicMaterial())
+  unbakedPortal.name = 'Circle'
+  unbakedPortal.material.name = 'portalLight'
 
   emissive.tryAttach(bakedPortal, 'baked')
-  emissive.tryAttach(normalPortal, 'normal')
+  emissive.tryAttach(unbakedPortal, 'unbaked')
   emissive.setLocalLightsEnabled(true)
   assert.equal(emissive.attachments[0].light.visible, true)
   assert.equal(emissive.attachments[1].light.visible, false)
 
-  emissive.setActiveVariant('normal')
+  emissive.setActiveVariant('unbaked')
   assert.equal(emissive.attachments[0].light.visible, false)
   assert.equal(emissive.attachments[1].light.visible, true)
 })

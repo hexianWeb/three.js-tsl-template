@@ -1,6 +1,6 @@
 # GI Ablation Study
 
-The demo renders one portal scene through four GI/surface-lighting strategies.
+The demo renders one portal scene through five GI/surface-lighting strategies.
 Portal emission, lantern flames, fireflies, camera, tone mapping, exposure, and
 the black background belong to the shared presentation layer.
 
@@ -11,7 +11,8 @@ the black background belong to the shared presentation layer.
 | A | baked | full-bake EXR | off | off |
 | B | baked | indirect EXR | on | on |
 | C | baked | indirect EXR | off | off |
-| D | normal PBR | no lightmap | on | on |
+| D | unbaked PBR | no lightmap | on | on |
+| E | unbaked PBR | realtime LightProbeGrid | on | on |
 
 The exact executable definitions live in
 [`src/experiment/caseDefinitions.js`](src/experiment/caseDefinitions.js).
@@ -32,13 +33,20 @@ src/
   ui/                             Tweakpane controls
 ```
 
+Case E auto-fits a 9 x 5 x 9 probe grid to the unbaked scene, then performs one
+GPU-resident bake at startup. The helper is hidden by default; the GUI exposes
+`Show Probes`, `GI Intensity`, a 0-3 `Bounces` control, and `Rebake Probes`.
+Changing the bounce count is intentionally deferred until rebaking; the debug
+status reports both the configured value and the value used by the last bake.
+
 `Animate Sun` is off by default. Turning it on is a presentation demo rather
 than a controlled ablation because the baked A/C cases cannot respond to time.
 
-The baked and normal GLBs are separate technical representations of the same
+The baked and unbaked GLBs are separate technical representations of the same
 source scene: the baked export contains lightmap UVs but no normals, while the
-normal PBR export contains normals but no lightmap UVs. The `scene/` layer hides
-that asset detail from the experiment controller.
+unbaked PBR export contains normals but no lightmap UVs. The logical `unbaked`
+variant currently loads `portal_none_bake.glb`; the `scene/` layer hides that
+asset detail from the experiment controller.
 
 ## Commands
 

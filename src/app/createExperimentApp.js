@@ -2,6 +2,7 @@ import * as THREE from 'three/webgpu'
 import { createSharedEffects } from '../effects/createSharedEffects.js'
 import { createExperimentController } from '../experiment/createExperimentController.js'
 import { createDayNightCycle } from '../lighting/dayNightCycle.js'
+import { createLightProbeGridSystem } from '../lighting/createLightProbeGridSystem.js'
 import { createLightingRig } from '../lighting/createLightingRig.js'
 import { createRenderer } from '../rendering/createRenderer.js'
 import { loadLightmaps, loadModelVariants } from '../scene/loadExperimentAssets.js'
@@ -28,6 +29,13 @@ export async function createExperimentApp() {
     sharedEffects,
   })
   const lightmaps = await loadLightmaps()
+  const lightProbeGrid = createLightProbeGridSystem({
+    scene,
+    renderer,
+    bounds: preparedScene.boundsByVariant.unbaked,
+    params,
+    sharedEffects,
+  })
   const controller = createExperimentController({
     params,
     roots: preparedScene.roots,
@@ -36,13 +44,28 @@ export async function createExperimentApp() {
     directionalLight,
     dayNight,
     sharedEffects,
+    lightProbeGrid,
   })
 
   controller.applyCase(params.caseId)
+
+  function bakeLightProbes() {
+    const previousCaseId = controller.activeCase?.id ?? params.caseId
+    controller.applyCase('E')
+    try {
+      return lightProbeGrid.bake()
+    }
+    finally {
+      controller.applyCase(previousCaseId)
+    }
+  }
+
+  const initialProbeBake = bakeLightProbes()
   const pane = setupGui({
     params,
     onCaseChange: controller.applyCase,
     onEmissionUvChange: sharedEffects.setUvDebug,
+    onRebakeProbes: bakeLightProbes,
   })
 
   startLoop(scene, (deltaSeconds) => {
@@ -65,6 +88,8 @@ export async function createExperimentApp() {
     meshCount: preparedScene.bakedSurfaceMeshes.length,
     emissiveLights: sharedEffects.emissive.attachments,
     fireflies: sharedEffects.fireflies,
+    lightProbeGrid,
+    initialProbeBake,
     mapsReady: true,
     pane,
     maps: {
@@ -72,6 +97,9 @@ export async function createExperimentApp() {
       indirect: [lightmaps.indirect.image.width, lightmaps.indirect.image.height],
     },
     box: preparedScene.bounds.getSize(new THREE.Vector3()).toArray(),
+    get probeStatus() {
+      return lightProbeGrid.status
+    },
   }
   window.__portal = debugApi
   return debugApi

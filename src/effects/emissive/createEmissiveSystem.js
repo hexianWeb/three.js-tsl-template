@@ -8,7 +8,7 @@ const EMISSIVE_MESH_NAMES = new Set(['Circle', 'Cube.011', 'Cube.014', 'Cube011'
 const EMISSIVE_MATERIAL_NAMES = new Set(['portalLight', 'lampLight'])
 
 function isEmissiveMesh(mesh, variantId) {
-  if (variantId === 'normal') {
+  if (variantId === 'unbaked') {
     return EMISSIVE_MATERIAL_NAMES.has(mesh.material?.name)
   }
   return EMISSIVE_MESH_NAMES.has(mesh.name)
@@ -146,5 +146,8 @@ export function createEmissiveSystem(params) {
     setLocalLightsEnabled,
     setUvDebug,
     setActiveVariant,
+    get uvDebugVisible() {
+      return uvDebugVisible
+    },
   }
 }

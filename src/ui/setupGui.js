@@ -1,7 +1,12 @@
 import { Pane } from 'tweakpane'
 import { getCaseOptions } from '../experiment/caseDefinitions.js'
 
-export function setupGui({ params, onCaseChange, onEmissionUvChange }) {
+export function setupGui({
+  params,
+  onCaseChange,
+  onEmissionUvChange,
+  onRebakeProbes,
+}) {
   const pane = new Pane({ title: 'GI Ablation Study' })
 
   pane
@@ -11,7 +16,7 @@ export function setupGui({ params, onCaseChange, onEmissionUvChange }) {
     })
     .on('change', (event) => onCaseChange(event.value))
 
-  const presentation = pane.addFolder({ title: 'Shared Presentation (A-D)' })
+  const presentation = pane.addFolder({ title: 'Shared Presentation (A-E)' })
   presentation.addBinding(params, 'toneMapping', {
     label: 'Tone Mapping',
     options: {
@@ -89,6 +94,24 @@ export function setupGui({ params, onCaseChange, onEmissionUvChange }) {
     max: 8,
     step: 0.01,
   })
+
+  const probes = pane.addFolder({ title: 'Light Probe Grid (Case E)' })
+  probes.addBinding(params, 'probeIntensity', {
+    label: 'GI Intensity',
+    min: 0,
+    max: 3,
+    step: 0.01,
+  })
+  probes.addBinding(params, 'probeBounces', {
+    label: 'Bounces (Rebake)',
+    min: 0,
+    max: 3,
+    step: 1,
+  })
+  probes.addBinding(params, 'showProbeHelper', { label: 'Show Probes' })
+  probes
+    .addButton({ title: 'Rebake Probes' })
+    .on('click', onRebakeProbes)
 
   const dynamicDemo = pane.addFolder({ title: 'Sun Animation (Non-evaluation)' })
   dynamicDemo.addBinding(params, 'animateSun', { label: 'Animate Sun' })

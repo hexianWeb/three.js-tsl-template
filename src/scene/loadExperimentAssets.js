@@ -19,11 +19,11 @@ export function prepareExrTexture(exrTexture, channel) {
 
 export async function loadModelVariants() {
   const loader = new GLTFLoader()
-  const [baked, normal] = await Promise.all([
+  const [baked, unbaked] = await Promise.all([
     loader.loadAsync(`${ASSET_ROOT}/portal_scene.glb`),
     loader.loadAsync(`${ASSET_ROOT}/portal_none_bake.glb`),
   ])
-  return { baked, normal }
+  return { baked, unbaked }
 }
 
 export async function loadLightmaps() {

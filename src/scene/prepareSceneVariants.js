@@ -39,7 +39,7 @@ export function prepareSceneVariants({
 }) {
   const roots = {
     baked: modelVariants.baked.scene,
-    normal: modelVariants.normal.scene,
+    unbaked: modelVariants.unbaked.scene,
   }
   const bakedSurfaceMeshes = []
 
@@ -50,17 +50,21 @@ export function prepareSceneVariants({
   }
 
   prepareRoot(roots.baked, 'baked', sharedEffects, bakedSurfaceMeshes)
-  prepareRoot(roots.normal, 'normal', sharedEffects, bakedSurfaceMeshes)
+  prepareRoot(roots.unbaked, 'unbaked', sharedEffects, bakedSurfaceMeshes)
   applyBakedCamera(modelVariants.baked.cameras[0], camera)
 
-  const bounds = new THREE.Box3().setFromObject(roots.baked)
-  const center = bounds.getCenter(new THREE.Vector3())
+  const boundsByVariant = {
+    baked: new THREE.Box3().setFromObject(roots.baked),
+    unbaked: new THREE.Box3().setFromObject(roots.unbaked),
+  }
+  const center = boundsByVariant.baked.getCenter(new THREE.Vector3())
   controls.target.copy(center)
   directionalLight.target.position.copy(center)
 
   return {
     roots,
     bakedSurfaceMeshes,
-    bounds,
+    bounds: boundsByVariant.baked,
+    boundsByVariant,
   }
 }

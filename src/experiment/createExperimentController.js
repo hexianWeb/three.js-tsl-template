@@ -12,6 +12,7 @@ export function createExperimentController({
   directionalLight,
   dayNight,
   sharedEffects,
+  lightProbeGrid,
 }) {
   const fullBakeMaterial = createFullBakeMaterial(lightmaps.fullBake)
   const indirectMaterials = createIndirectMaterialLibrary(lightmaps.indirect)
@@ -48,6 +49,7 @@ export function createExperimentController({
     directionalLight.visible = definition.directionalLight
     sharedEffects.setActiveVariant(definition.sceneVariant)
     sharedEffects.setLocalLightsEnabled(definition.emissiveLights)
+    lightProbeGrid.setEnabled(definition.lightProbeGrid)
     syncSunMode()
     dayNight.update(0)
 
@@ -62,6 +64,7 @@ export function createExperimentController({
       syncSunMode()
       dayNight.update(deltaSeconds)
       sharedEffects.update(deltaSeconds)
+      lightProbeGrid.update()
 
       if (activeCase.surfaceStrategy === 'indirectLightmap') {
         indirectMaterials.setIntensity(params.lightMapIntensity)

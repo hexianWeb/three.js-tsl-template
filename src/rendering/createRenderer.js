@@ -12,7 +12,7 @@ export function createRenderer() {
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.toneMappingExposure = 1
   renderer.shadowMap.enabled = true
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  renderer.shadowMap.type = THREE.PCFShadowMap
 
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.enableDamping = true
