@@ -31,6 +31,7 @@ test('case manifest keeps the GI ablation matrix readable in one place', () => {
       { id: 'D', scene: 'unbaked', surface: 'normalPbr', direct: true, local: true, probes: false },
       { id: 'E', scene: 'unbaked', surface: 'normalPbr', direct: true, local: true, probes: true },
       { id: 'F', scene: 'unbaked', surface: 'normalPbr', direct: true, local: true, probes: true },
+      { id: 'G', scene: 'unbaked', surface: 'normalPbr', direct: true, local: true, probes: true },
     ],
   )
   assert.equal(SHARED_PRESENTATION.emissiveAppearance, true)
@@ -124,4 +125,10 @@ test('controller changes only the capabilities declared by each case', () => {
   assert.equal(state.probes.at(-1), true)
   controller.applyCase('E')
   assert.equal(controller.activeCase.ssgi === true, false)
+  controller.applyCase('G')
+  assert.equal(controller.activeCase.ssgi, true)
+  assert.equal(controller.activeCase.gtao, true)
+  assert.equal(state.probes.at(-1), true)
+  controller.applyCase('F')
+  assert.equal(controller.activeCase.gtao === true, false)
 })

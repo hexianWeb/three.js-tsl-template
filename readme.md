@@ -1,6 +1,6 @@
 # GI Ablation Study
 
-The demo renders one portal scene through six GI/surface-lighting strategies.
+The demo renders one portal scene through seven GI/surface-lighting strategies.
 Portal emission, lantern flames, fireflies, camera, tone mapping, exposure, and
 the black background belong to the shared presentation layer.
 
@@ -14,6 +14,14 @@ the black background belong to the shared presentation layer.
 | D | unbaked PBR | no lightmap | on | on |
 | E | unbaked PBR | realtime LightProbeGrid | on | on |
 | F (default) | unbaked PBR | LightProbeGrid + SSGI | on | on |
+| G | unbaked PBR | LightProbeGrid + SSGI + GTAO | on | on |
+
+Case G multiplies F's output by a separately denoised GTAO term. F's existing
+SSGI AO stays enabled, so this is an additional occlusion experiment and can
+darken contacts further. The GTAO folder provides enable, strength, radius,
+thickness and GTAO-only diagnostics. Disabling GTAO returns to F's rendering.
+Large bottom-right titles identify the active techniques in both embedded and
+single views and reflect disabled effects and diagnostic views.
 
 Case F adds Three.js SSGINode with spatial, depth/normal-aware denoising.
 Toggle `Enable SSGI` for an immediate comparison with probe lighting alone.
@@ -61,6 +69,17 @@ variant currently loads `portal_none_bake.glb`; the `scene/` layer hides that
 asset detail from the experiment controller.
 
 ## Commands
+
+The default page is a same-page E/F comparison with two isolated iframe renderers.
+Each side can select any A–F case without reloading or rebaking. Camera rotation,
+pan and zoom are linked by default; shared parameters can be linked too. Use
+`参数面板` to show both Tweakpanes, or `交换左右` to swap the selected cases.
+`单视图` opens the original renderer (`?view=single&case=F`).
+
+The bridge only accepts same-origin messages from its parent/known child windows.
+Each view owns its WebGPU resources and SSGI buffers. The pair costs more GPU work
+and performs two startup probe bakes. Rebake and UV-debug buttons are local actions;
+animation clocks are independent, so leave sun animation off for static ablations.
 
 ```bash
 npm install

@@ -9,10 +9,12 @@ import { createSsgiPipeline } from '../rendering/createSsgiPipeline.js'
 import { loadLightmaps, loadModelVariants } from '../scene/loadExperimentAssets.js'
 import { prepareSceneVariants } from '../scene/prepareSceneVariants.js'
 import { setupGui } from '../ui/setupGui.js'
+import { createTechnologyTitle } from '../ui/createTechnologyTitle.js'
 import { createExperimentParams } from './params.js'
 
-export async function createExperimentApp() {
+export async function createExperimentApp({ caseId = 'F', embedded = false } = {}) {
   const params = createExperimentParams()
+  params.caseId = caseId
   const { scene, directionalLight } = createLightingRig()
   const { camera, renderer, controls, startLoop } = createRenderer()
   const sharedEffects = createSharedEffects({ scene, params })
@@ -70,20 +72,25 @@ export async function createExperimentApp() {
     onRebakeProbes: bakeLightProbes,
   })
 
+  const technologyTitle = createTechnologyTitle()
   startLoop(scene, (deltaSeconds) => {
     renderer.toneMapping = params.toneMapping === 'agx'
       ? THREE.AgXToneMapping
       : THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = params.exposure
     controller.update(deltaSeconds)
+    technologyTitle.update(controller.activeCase, params)
   }, () => {
-    if (controller.activeCase.ssgi && params.ssgiEnabled) ssgiPipeline.render()
+    if ((controller.activeCase.ssgi && params.ssgiEnabled)
+      || (controller.activeCase.gtao && params.gtaoEnabled)) ssgiPipeline.render(controller.activeCase)
     else renderer.render(scene, camera)
   })
+  pane.hidden = embedded
 
   const debugApi = {
     scene,
     camera,
+    controls,
     renderer,
     directionalLight,
     params,

@@ -16,7 +16,7 @@ export function setupGui({
     })
     .on('change', (event) => onCaseChange(event.value))
 
-  const presentation = pane.addFolder({ title: 'Shared Presentation (A-F)', expanded: false })
+  const presentation = pane.addFolder({ title: 'Shared Presentation (A-G)', expanded: false })
   presentation.addBinding(params, 'toneMapping', {
     label: 'Tone Mapping',
     options: {
@@ -95,7 +95,7 @@ export function setupGui({
     step: 0.01,
   })
 
-  const ssgi = pane.addFolder({ title: 'SSGI (Case F)' })
+  const ssgi = pane.addFolder({ title: 'SSGI (F / G)' })
   ssgi.addBinding(params, 'ssgiEnabled', { label: 'Enable SSGI' })
   ssgi.addBinding(params, 'ssgiView', { label: 'View', options: {
     Combined: 'combined', 'SSGI Indirect': 'indirect', Occlusion: 'ao',
@@ -105,7 +105,14 @@ export function setupGui({
   ssgi.addBinding(params, 'ssgiRadius', { label: 'Radius', min: 0.1, max: 10, step: 0.1 })
   ssgi.addBinding(params, 'ssgiThickness', { label: 'Thickness', min: 0.01, max: 2, step: 0.01 })
 
-  const probes = pane.addFolder({ title: 'Light Probe Grid (E / F)' })
+  const gtao = pane.addFolder({ title: 'GTAO (Case G)' })
+  gtao.addBinding(params, 'gtaoEnabled', { label: 'Enable GTAO' })
+  gtao.addBinding(params, 'gtaoIntensity', { label: 'GTAO Strength', min: 0, max: 3, step: 0.05 })
+  gtao.addBinding(params, 'gtaoRadius', { label: 'GTAO Radius', min: 0.01, max: 2, step: 0.01 })
+  gtao.addBinding(params, 'gtaoThickness', { label: 'GTAO Thickness', min: 0.01, max: 2, step: 0.01 })
+  gtao.addBinding(params, 'gtaoShowOnly', { label: 'GTAO Only' })
+
+  const probes = pane.addFolder({ title: 'Light Probe Grid (E / F / G)' })
   probes.addBinding(params, 'probeIntensity', {
     label: 'GI Intensity',
     min: 0,
