@@ -3,6 +3,7 @@ export function getTechnologyTitle(definition, params) {
     A: 'Full Bake', B: 'Indirect Lightmap + Direct Light',
     C: 'Indirect Lightmap', D: 'PBR + Direct Light',
     E: 'Light Probe Grid', F: 'Light Probe Grid', G: 'Light Probe Grid',
+    H: 'Indirect Lightmap + Light Probe Grid + Direct Light',
   }
   let title = technologies[definition.id]
   if (definition.ssgi && params.ssgiEnabled) title += ' + SSGI'

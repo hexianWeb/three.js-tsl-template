@@ -16,7 +16,7 @@ export function setupGui({
     })
     .on('change', (event) => onCaseChange(event.value))
 
-  const presentation = pane.addFolder({ title: 'Shared Presentation (A-G)', expanded: false })
+  const presentation = pane.addFolder({ title: 'Shared Presentation (A-H)', expanded: false })
   presentation.addBinding(params, 'toneMapping', {
     label: 'Tone Mapping',
     options: {
@@ -112,7 +112,7 @@ export function setupGui({
   gtao.addBinding(params, 'gtaoThickness', { label: 'GTAO Thickness', min: 0.01, max: 2, step: 0.01 })
   gtao.addBinding(params, 'gtaoShowOnly', { label: 'GTAO Only' })
 
-  const probes = pane.addFolder({ title: 'Light Probe Grid (E / F / G)' })
+  const probes = pane.addFolder({ title: 'Light Probe Grid (E / F / G / H)' })
   probes.addBinding(params, 'probeIntensity', {
     label: 'GI Intensity',
     min: 0,

@@ -68,6 +68,16 @@ unbaked PBR export contains normals but no lightmap UVs. The logical `unbaked`
 variant currently loads `portal_none_bake.glb`; the `scene/` layer hides that
 asset detail from the experiment controller.
 
+Static files are served from `static/` and grouped by asset type:
+
+```text
+static/
+  models/portal-lightmap-test/              runtime GLB models
+  textures/lightmaps/portal-lightmap-test/  baked EXR lightmaps
+  hdr/                                      reserved for environment files
+  sources/portal-lightmap-test/             Blender source files
+```
+
 ## Commands
 
 The default page is a same-page E/F comparison with two isolated iframe renderers.

@@ -2,7 +2,10 @@ import { EXRLoader } from 'three/addons/loaders/EXRLoader.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import * as THREE from 'three/webgpu'
 
-export const ASSET_ROOT = '/portal-lightmap-test'
+export const STATIC_ASSET_PATHS = Object.freeze({
+  models: '/models/portal-lightmap-test',
+  lightmaps: '/textures/lightmaps/portal-lightmap-test',
+})
 
 export function prepareExrTexture(exrTexture, channel) {
   exrTexture.colorSpace = THREE.LinearSRGBColorSpace
@@ -20,8 +23,8 @@ export function prepareExrTexture(exrTexture, channel) {
 export async function loadModelVariants() {
   const loader = new GLTFLoader()
   const [baked, unbaked] = await Promise.all([
-    loader.loadAsync(`${ASSET_ROOT}/portal_scene.glb`),
-    loader.loadAsync(`${ASSET_ROOT}/portal_none_bake.glb`),
+    loader.loadAsync(`${STATIC_ASSET_PATHS.models}/portal_scene.glb`),
+    loader.loadAsync(`${STATIC_ASSET_PATHS.models}/portal_none_bake.glb`),
   ])
   return { baked, unbaked }
 }
@@ -29,10 +32,10 @@ export async function loadModelVariants() {
 export async function loadLightmaps() {
   const loader = new EXRLoader()
   const fullBake = prepareExrTexture(
-    await loader.loadAsync(`${ASSET_ROOT}/lightmaps/portal_full_bake.exr`),
+    await loader.loadAsync(`${STATIC_ASSET_PATHS.lightmaps}/portal_full_bake.exr`),
   )
   const indirect = prepareExrTexture(
-    await loader.loadAsync(`${ASSET_ROOT}/lightmaps/portal_indirect_bake.exr`),
+    await loader.loadAsync(`${STATIC_ASSET_PATHS.lightmaps}/portal_indirect_bake.exr`),
     1,
   )
   return { fullBake, indirect }

@@ -80,6 +80,16 @@ export const CASE_DEFINITIONS = Object.freeze({
     gtao: true,
     supportsSunAnimation: true,
   }),
+  H: defineCase({
+    id: 'H',
+    label: 'H Lightmap + Light Probe Grid + Direct',
+    sceneVariant: 'baked',
+    surfaceStrategy: 'indirectLightmap',
+    directionalLight: true,
+    emissiveLights: false,
+    lightProbeGrid: true,
+    supportsSunAnimation: true,
+  }),
 })
 
 export const SHARED_PRESENTATION = Object.freeze({
