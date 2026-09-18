@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu'
 import Experience from '../Experience.js'
+import ModelInspector from './ModelInspector.js'
 
 const REQUIRED_NODES = {
   phoneRoot: 'PHONE_ROOT',
@@ -27,6 +28,10 @@ export default class ModelAdapter {
     this.fitModel()
     this.scene.add(this.presentationRoot)
     this.debugInit()
+    this.inspector = new ModelInspector({
+      presentationRoot: this.presentationRoot,
+      nodes: this.nodes,
+    })
   }
 
   resolveNodes() {
@@ -154,7 +159,12 @@ export default class ModelAdapter {
     }).on('change', ({ value }) => this.setWireframe(value))
   }
 
+  update() {
+    this.inspector.update()
+  }
+
   destroy() {
+    this.inspector?.destroy()
     const geometries = new Set()
     const materials = new Set()
     const textures = new Set()

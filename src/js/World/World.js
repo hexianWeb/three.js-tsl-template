@@ -39,6 +39,10 @@ export default class World {
     this.product = new ModelAdapter(gltf.scene)
   }
 
+  update() {
+    this.product.update()
+  }
+
   destroy() {
     this.product?.destroy()
     this.scene.remove(this.hemisphereLight, this.keyLight, this.fillLight)

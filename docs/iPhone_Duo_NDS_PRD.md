@@ -948,6 +948,15 @@ Tweakpane 只用于开发调试，生产构建默认隐藏。
 - Pause / Resume NDS Runtime
 - 模拟 Keyboard / Gamepad Action
 
+### Coordinate Inspector
+
+- 世界原点坐标轴与 XZ 网格
+- 红 X、绿 Y、蓝 Z 轴向图例
+- PresentationRoot 与关键 GLB 节点选择
+- 所选节点局部坐标轴与世界包围盒
+- 全部关键部件坐标轴开关
+- 局部 / 世界 Position 与 Rotation 实时只读值
+
 ---
 
 ## 28. 核心计算参考

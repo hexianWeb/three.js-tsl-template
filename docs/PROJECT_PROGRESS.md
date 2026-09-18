@@ -1,7 +1,7 @@
 # iPhone Duo WebGPU 项目进度
 
 > 最后更新：2026-09-18  
-> 当前阶段：Phase 1 — 工程骨架与模型适配  
+> 当前阶段：Phase 1.5 — 坐标检查基建
 > 当前状态：代码与功能检查完成，等待用户视觉校验
 
 ## 1. 进度摘要
@@ -25,6 +25,7 @@ Git 提交：未执行
 |---|---|---|---|
 | Phase 0 | PRD、GLB 调研、代码规则 | 已完成 | PRD 已扩充，项目规则已固化 |
 | Phase 1 | Experience 架构、资源加载、模型适配 | 等待视觉校验 | 构建、语法、节点与资源检查已通过 |
+| Phase 1.5 | 模型坐标轴与 Transform 检查器 | 已完成 | 为任务二的铰链轴向校准提供基建 |
 | Phase 2 | BottomRig、HingePivot、折叠原型 | 未开始 | 目标为 `8° → 110°` |
 | Phase 3 | Controller Reveal / Assembly | 未开始 | 以 GLB 当前相对变换为安装终点 |
 | Phase 4 | Intro、Camera Shot、Ready / Play | 未开始 | 计划使用 GSAP，尚未安装 |
@@ -67,10 +68,10 @@ Git 提交：未执行
 
 | 项目 | 数量 |
 |---|---:|
-| JavaScript 文件 | 13 |
-| JavaScript 行数 | 535 |
-| `src/js` 架构模块 | 12 |
-| `src` 内全部文件 | 15 |
+| JavaScript 文件 | 14 |
+| JavaScript 行数 | 750 |
+| `src/js` 架构模块 | 13 |
+| `src` 内全部文件 | 16 |
 
 ### 3.4 模型加载与适配
 
@@ -103,6 +104,17 @@ Bottom_Display_Plane
 - 资源或场景初始化失败时显示错误原因。
 - 销毁时停止 AnimationLoop、移除事件并释放模型 GPU 资源。
 
+### 3.6 坐标检查基建
+
+- 新增 `ModelInspector` Class，并接入 World 更新与销毁生命周期。
+- 坐标轴遵循 Three.js 约定：红色 X、绿色 Y、蓝色 Z。
+- 支持显示世界原点坐标轴与 XZ 网格。
+- 支持从 PresentationRoot 和 8 个关键 GLB 节点中选择检查对象。
+- 支持显示所选节点的局部坐标轴和世界包围盒。
+- 支持一次显示全部关键部件的坐标轴。
+- Tweakpane 实时显示所选节点的局部 / 世界 Position 与 Rotation。
+- Transform 读数以 10 Hz 刷新，3D Helper 继续逐帧跟随，避免面板无意义高频刷新。
+
 ## 4. 验证记录
 
 | 检查 | 结果 |
@@ -119,6 +131,7 @@ Bottom_Display_Plane
 | GLB Mesh | 17 |
 | GLB 材质 | 10 |
 | 必要节点校验 | 8 / 8 通过 |
+| 坐标检查基建构建 | 通过 |
 
 构建存在一个非阻塞警告：Three.js WebGPU 相关入口打包后主 JavaScript Chunk 约为 962 kB、gzip 后约 253 kB，超过 Vite 默认 500 kB 提示阈值。当前阶段不做过早拆包，等 NDS Runtime 选型后统一规划按需加载。
 
@@ -133,6 +146,9 @@ Bottom_Display_Plane
 - GLB 材质颜色、透明度、金属感和屏幕表面是否正常。
 - OrbitControls 的旋转、缩放和拖动是否顺手。
 - Tweakpane 的 Position、Rotation、Scale 与 Wireframe 是否生效。
+- `Coordinate Inspector` 的红 X、绿 Y、蓝 Z 是否清晰可辨。
+- 切换关键节点时，局部 / 世界坐标读数和包围盒是否跟随变化。
+- `All part axes` 是否能显示各关键部件的方向。
 - 页面 Loading 是否能在模型加载完成后消失。
 
 视觉校验发现的问题只需要记录现象和期望结果；基础 Transform 可以先在 Tweakpane 中试出合适数值，再固化到默认配置。
