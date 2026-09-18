@@ -1,0 +1,178 @@
+import * as THREE from 'three/webgpu'
+import Experience from '../Experience.js'
+
+const REQUIRED_NODES = {
+  phoneRoot: 'PHONE_ROOT',
+  bottomHalf: 'BottomHalf_NO_CAM',
+  topHalf: 'TopHalf_CAM',
+  hinge: 'Hinge',
+  controllerAssembly: 'CONTROLLER_ASSEMBLY_ROOT',
+  controllerRoot: 'Controller_ROOT',
+  topScreen: 'Top_Screen_Plane',
+  bottomDisplay: 'Bottom_Display_Plane',
+}
+
+export default class ModelAdapter {
+  constructor(model) {
+    this.experience = new Experience()
+    this.scene = this.experience.scene
+    this.debug = this.experience.debug
+    this.model = model
+    this.presentationRoot = new THREE.Group()
+    this.presentationRoot.name = 'PresentationRoot'
+    this.presentationRoot.add(this.model)
+
+    this.resolveNodes()
+    this.configureMeshes()
+    this.fitModel()
+    this.scene.add(this.presentationRoot)
+    this.debugInit()
+  }
+
+  resolveNodes() {
+    this.nodes = {}
+    const missingNodes = []
+
+    Object.entries(REQUIRED_NODES).forEach(([key, nodeName]) => {
+      const node = this.model.getObjectByName(nodeName)
+
+      if (node) {
+        this.nodes[key] = node
+      }
+      else {
+        missingNodes.push(nodeName)
+      }
+    })
+
+    if (missingNodes.length > 0) {
+      throw new Error(`GLB 缺少必要节点：${missingNodes.join('、')}`)
+    }
+  }
+
+  configureMeshes() {
+    this.meshes = []
+
+    this.model.traverse((child) => {
+      if (!child.isMesh) return
+
+      child.castShadow = true
+      child.receiveShadow = true
+      this.meshes.push(child)
+    })
+  }
+
+  fitModel() {
+    this.model.updateMatrixWorld(true)
+
+    const bounds = new THREE.Box3().setFromObject(this.model)
+    const size = bounds.getSize(new THREE.Vector3())
+    const center = bounds.getCenter(new THREE.Vector3())
+    const maxDimension = Math.max(size.x, size.y, size.z)
+
+    if (!Number.isFinite(maxDimension) || maxDimension <= 0) {
+      throw new Error('无法从 iPhone GLB 计算有效包围盒。')
+    }
+
+    // 保留模型内部节点变换，只在视觉根节点外统一居中与缩放。
+    this.model.position.sub(center)
+    this.fitScale = 3.2 / maxDimension
+    this.params = {
+      positionX: 0,
+      positionY: 0,
+      positionZ: 0,
+      rotationX: 0,
+      rotationY: 0,
+      rotationZ: 0,
+      scale: this.fitScale,
+      wireframe: false,
+      nodeStatus: `${Object.keys(this.nodes).length} / ${Object.keys(REQUIRED_NODES).length}`,
+    }
+
+    this.applyTransform()
+  }
+
+  applyTransform() {
+    this.presentationRoot.position.set(
+      this.params.positionX,
+      this.params.positionY,
+      this.params.positionZ,
+    )
+    this.presentationRoot.rotation.set(
+      THREE.MathUtils.degToRad(this.params.rotationX),
+      THREE.MathUtils.degToRad(this.params.rotationY),
+      THREE.MathUtils.degToRad(this.params.rotationZ),
+    )
+    this.presentationRoot.scale.setScalar(this.params.scale)
+  }
+
+  setWireframe(enabled) {
+    this.meshes.forEach((mesh) => {
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      materials.forEach((material) => {
+        material.wireframe = enabled
+        material.needsUpdate = true
+      })
+    })
+  }
+
+  debugInit() {
+    const folder = this.debug.ui.addFolder({ title: 'Product Model' })
+    folder.addBinding(this.params, 'nodeStatus', {
+      label: 'Required nodes',
+      readonly: true,
+    })
+
+    const transformFolder = folder.addFolder({ title: 'Transform' })
+    const positionKeys = ['positionX', 'positionY', 'positionZ']
+    const rotationKeys = ['rotationX', 'rotationY', 'rotationZ']
+
+    positionKeys.forEach((key) => {
+      transformFolder.addBinding(this.params, key, {
+        label: key,
+        min: -3,
+        max: 3,
+        step: 0.01,
+      }).on('change', () => this.applyTransform())
+    })
+    rotationKeys.forEach((key) => {
+      transformFolder.addBinding(this.params, key, {
+        label: key,
+        min: -180,
+        max: 180,
+        step: 1,
+      }).on('change', () => this.applyTransform())
+    })
+    transformFolder.addBinding(this.params, 'scale', {
+      label: 'scale',
+      min: this.fitScale * 0.25,
+      max: this.fitScale * 3,
+      step: this.fitScale * 0.01,
+    }).on('change', () => this.applyTransform())
+
+    folder.addBinding(this.params, 'wireframe', {
+      label: 'Wireframe',
+    }).on('change', ({ value }) => this.setWireframe(value))
+  }
+
+  destroy() {
+    const geometries = new Set()
+    const materials = new Set()
+    const textures = new Set()
+
+    this.meshes.forEach((mesh) => {
+      geometries.add(mesh.geometry)
+      const meshMaterials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      meshMaterials.forEach((material) => {
+        materials.add(material)
+        Object.values(material).forEach((value) => {
+          if (value?.isTexture) textures.add(value)
+        })
+      })
+    })
+
+    textures.forEach(texture => texture.dispose())
+    materials.forEach(material => material.dispose())
+    geometries.forEach(geometry => geometry.dispose())
+    this.scene.remove(this.presentationRoot)
+  }
+}

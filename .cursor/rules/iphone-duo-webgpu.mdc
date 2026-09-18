@@ -1,0 +1,213 @@
+---
+description: iPhone Duo NDS WebGPU 项目的架构、代码风格、模型适配、调试与资源约定。修改本仓库的 JS、TSL、场景、输入、动画或资源代码时自动应用。
+globs: "**/*.{js,jsx,ts,tsx,mjs,css,html,json,md}"
+alwaysApply: true
+---
+
+# iPhone Duo NDS WebGPU 项目规则
+
+## 1. 当前工程事实
+
+- 构建工具为 Vite，源码根目录是 `src/`。
+- 静态公共目录是 `public/`，由 `vite.config.js` 的 `publicDir: '../public'` 指定。
+- `static/` 不是本项目的公共资源目录，不要主动迁移或写入资源。
+- 当前使用 JavaScript ESM；除非用户明确要求，不要擅自迁移 TypeScript。
+- Three.js 统一从 `three/webgpu` 导入，TSL 节点统一从 `three/tsl` 导入。
+- Renderer 使用 `THREE.WebGPURenderer`，不以 WebGL 回退作为默认实现。
+- 材质以 Node Material / TSL 为主，不要改回传统 GLSL `ShaderMaterial` 方案。
+- 调试面板使用 Tweakpane，不使用 lil-gui 或 dat.GUI。
+- `public/iphone.glb` 是当前产品模型；后续静态资源由用户补充，不主动迁移或重命名。
+- 产品定义与模型适配以 `docs/iPhone_Duo_NDS_PRD.md` 为准。
+
+在改动前先检查当前文件与依赖，不要假定 Vue、Pinia、mitt、GSAP、测试框架或 GLTFLoader 已经安装。
+
+## 2. 代码风格
+
+- 保持现有格式：2 空格缩进、单引号、无分号、ES Module。
+- Class、文件中的 Class 组件使用大驼峰命名；变量、方法和实例使用小驼峰。
+- 一个文件聚焦一个主要职责，避免在 `main.js` 中继续堆叠场景逻辑。
+- 为坐标系、矩阵、四元数、TSL 节点、阻尼参数和兼容性处理添加中文注释。
+- 注释解释“为什么”和约束，不逐行翻译代码。
+- 不使用晦涩缩写；产品节点名可以保留 GLB 原名，但集中映射。
+- 不做与当前任务无关的格式化、重命名或依赖升级。
+
+## 3. Experience 单例
+
+全局入口使用 `Experience` 单例。首次启动允许传入 Canvas，后续 Class 组件通过 `new Experience()` 获取同一实例。
+
+```js
+export default class Experience {
+  static instance
+
+  constructor(canvas) {
+    if (Experience.instance) return Experience.instance
+    Experience.instance = this
+
+    this.canvas = canvas
+  }
+}
+```
+
+`Experience` 负责全局生命周期与共享服务：
+
+- Canvas
+- Scene
+- Sizes
+- Time
+- Resources
+- Camera
+- Renderer
+- Debug
+- State / EventBus
+- World
+
+约束：
+
+- 只有 `Experience` 可以创建和持有全局服务。
+- 组件只保存自身需要的依赖，例如 `scene`、`resources` 或 `debug`，不要复制整个全局状态。
+- 不在模块顶层创建隐藏的 Three.js 实例或浏览器事件监听。
+- `Experience.destroy()` 必须停止动画循环并调用子模块的 `destroy()`。
+- HMR 销毁路径必须与正常销毁路径一致。
+
+## 4. Class 组件生命周期
+
+所有 3D 功能模块采用 Class 组件。按需实现以下方法：
+
+```text
+constructor()  获取依赖并建立初始状态
+set*()         创建对象或拆分复杂初始化步骤
+debugInit()    创建本组件的 Tweakpane 调试项
+update()       逐帧更新
+resize()       尺寸或 DPR 变化响应
+destroy()      移除监听并释放 GPU / DOM 资源
+```
+
+- `World` 负责实例化并调用产品级组件。
+- `Experience` 负责调用 `World.update()`、`World.resize()` 与 `World.destroy()`。
+- 子组件的生命周期由直接父组件主动调用，不依赖隐式全局遍历。
+- 没有逐帧逻辑的组件不要创建空 `update()`。
+- 事件监听、Timer、AnimationLoop、Tweakpane Binding 和 GPU 资源必须有对应清理逻辑。
+
+## 5. 推荐目录
+
+```text
+src/
+├─ main.js
+├─ js/
+│  ├─ Experience.js
+│  ├─ sources.js
+│  ├─ Utils/
+│  │  ├─ Sizes.js
+│  │  ├─ Time.js
+│  │  ├─ Resources.js
+│  │  ├─ State.js
+│  │  └─ EventBus.js
+│  ├─ Core/
+│  │  ├─ Renderer.js
+│  │  ├─ Camera.js
+│  │  └─ Debug.js
+│  └─ World/
+│     ├─ World.js
+│     ├─ ModelAdapter.js
+│     ├─ ProductRig.js
+│     ├─ HingeController.js
+│     ├─ ControllerAssembly.js
+│     ├─ IntroDirector.js
+│     ├─ ScreenManager.js
+│     ├─ NDSRuntime.js
+│     ├─ InputManager.js
+│     └─ ControllerFeedback.js
+├─ shaders/
+└─ style.css
+```
+
+目录是目标结构，不要求一次性创建空文件。只有对应功能开始实现时才新增模块。
+
+## 6. 资源管理
+
+- 模型、纹理、环境贴图、音频等加载资源统一在 `src/js/sources.js` 声明。
+- `Resources` 根据资源类型选择 Loader，并提供加载进度、完成和失败状态。
+- Class 组件通过稳定资源名访问 `resources.items`，不要在各组件内重复写 URL。
+- `public/` 中的 URL 从站点根路径引用，例如 `/iphone.glb`。
+- NDS ROM 是否进入资源清单要等许可证和加载方案确认后再决定。
+- 不修改、压缩、替换或提交用户新增的大型资源，除非任务明确要求。
+- 加载失败必须进入可见错误状态，不允许只在 Console 中静默失败。
+
+## 7. 状态与事件通信
+
+当前项目不使用 Vue 和 Pinia，不要仅为复刻参考仓库而引入它们。
+
+- 持续状态放在独立 `State` Class，例如 Intro 状态、当前模式、加载状态与产品角度。
+- 即时通知使用 `EventBus`，例如资源完成、Intro 完成、Play 请求和模拟器错误。
+- 需要 mitt 时先加入明确依赖；在依赖尚未安装时不要写假 import。
+- UI 不直接修改 Three.js Mesh、Material 或 Camera。
+- UI 通过 State 或 EventBus 表达意图，由对应 Class 组件处理。
+- InputManager 只输出语义 Action，不直接操作按钮 Mesh 或模拟器内部键码。
+
+## 8. WebGPU、TSL 与材质
+
+- 使用 `three/webgpu` 和 `three/tsl` 的当前 API，避免混用 `three` 入口中的 WebGL 类型。
+- Node Material 的可调节点值使用 `uniform()`，由组件持有并在调试面板中更新。
+- TSL 表达式使用节点方法链，不用 JavaScript 运算符假装 GPU 运算。
+- 可复用的 TSL 逻辑放入 `src/shaders/`，按功能拆分并从 JavaScript 导入。
+- 不因旧规则提到 GLSL 而引入 `vite-glsl-plugin`；本项目只有真实出现 GLSL/WGSL 字符串需求时才评估。
+- Renderer 初始化失败、`navigator.gpu` 不存在和 Device Loss 必须进入明确的 UI 状态。
+- 控制 DPR 上限；模拟器与 3D 同时运行时优先保证输入和屏幕内容稳定。
+- 释放 Geometry、Material、Texture、RenderTarget、Renderer 和外部 Canvas 引用。
+
+## 9. Tweakpane 调试
+
+- 调试入口统一由 `Debug` Class 创建和销毁。
+- 每个需要调参的 3D Class 实现 `debugInit()`，只创建本组件 Folder。
+- 颜色使用颜色控件；数值提供合理的 `min`、`max` 和 `step`。
+- TSL uniform、铰链角度、Controller 入场、镜头、按键弹簧和屏幕更新频率都应可调。
+- 调试参数的变化必须调用组件公开方法或更新公开参数，不允许跨组件修改私有对象。
+- 生产构建默认隐藏调试面板，但不要删除调试代码。
+
+## 10. iPhone Duo 模型不变量
+
+不要把文档中的旧 Blender 规划误认为 GLB 真实结构。运行时必须通过 `ModelAdapter` 集中解析节点。
+
+- 手机根节点：`PHONE_ROOT`
+- 下半屏：`BottomHalf_NO_CAM`
+- 上半屏：`TopHalf_CAM`
+- 铰链视觉网格：`Hinge`
+- Controller 根：`CONTROLLER_ASSEMBLY_ROOT`
+- Controller 内容根：`Controller_ROOT`
+- 上屏：`Top_Screen_Plane`
+- Controller 下屏：`Bottom_Display_Plane`
+
+运动规则：
+
+- GLB Bind Pose 是 `180°` 的竖屏完全展开态。
+- 首次可见渲染前先应用近闭合角，避免 Bind Pose 闪现。
+- 下半屏是固定参考，只旋转上半屏运行时 Pivot。
+- 当前展示目标约为 `110°`，对应上半屏相对 Bind Pose 旋转 `70°`。
+- Pivot 与旋转长轴从 `Hinge` 局部包围盒推导，不硬编码世界轴。
+- Controller 在 GLB 中的当前相对变换就是最终安装终点。
+- 更换父节点时保持世界变换；优先使用 `Object3D.attach()` 并检查非均匀缩放。
+- 整机展示旋转只操作外层 `PresentationRoot`，不污染折叠计算。
+- 铰链外观取上下机身姿态中间值，不实现复杂机械结构。
+- 不回 Blender 增加 Pivot、Anchor 或 Camera，除非用户之后明确改变决定。
+
+## 11. 动画、输入与 NDS 边界
+
+- GSAP 只用于 Intro、Controller 装配、Camera Shot 与 UI 时间线；安装后才能使用。
+- ABXY 回弹和 D-Pad 倾斜使用渲染循环中的阻尼弹簧，不用累积 Tween。
+- Intro 使用显式状态机，至少区分 Loading、Unfold、Assembly、Hero、Ready 与 Play。
+- NDS 模拟器封装在 `NDSRuntime`，模拟器 DOM 或内部 API 不扩散到场景代码。
+- 上下屏输出适配封装在 `ScreenManager` 或 `NDSScreenBridge`。
+- 两块 NDS 画面分别映射为 CanvasTexture；仅在新帧到达时标记更新。
+- 模拟器开源不代表 ROM、美术或音乐可分发；资源许可未确认前不得把候选 ROM 纳入发布流程。
+- NDS 路线验证失败时，自制双屏游戏只是降级方案，不自动切换产品方向。
+
+## 12. 修改与验证
+
+- 开始修改前先读相关文件、`package.json`、`vite.config.js` 和 PRD 对应章节。
+- 保留用户已有未跟踪文件和无关改动，不做清理式重写。
+- 新依赖必须服务于已确认需求，不要预装 Vue、Pinia、mitt、GSAP 或测试工具。
+- 每次代码变更至少运行与范围匹配的检查；当前基础检查为 `npm run build`。
+- 有交互或视觉变化时，开发阶段做功能检查即可，最终视觉验收由用户完成。
+- 未经用户明确要求，不自动提交或推送 Git。
+- 不主动移动 `public/`、`static/`、`docs/` 或 Blender 文件。
+- 若实现事实与 PRD 冲突，先更新或标记文档中的决定，再扩散代码假设。

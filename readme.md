@@ -1,6 +1,8 @@
-# WebGPU Render Template
+# iPhone Duo · WebGPU
 
-一个最小化的 Three.js WebGPU 项目：场景中只包含环面纽结几何体、TSL Node Material、基础灯光和 Tweakpane 调试面板。
+基于 Three.js WebGPU 的 iPhone Duo 双屏掌机交互原型。
+
+当前阶段已经建立 `Experience` 单例与 Class 组件架构，并通过统一资源系统加载 `public/iphone.glb`。模型节点、基础变换和线框模式可在 Tweakpane 中检查。
 
 无需构建处理的公共资源请放在 `public/` 目录中。
 
