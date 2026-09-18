@@ -1,14 +1,18 @@
 {
-  "name": "threejs-tsl-template",
+  "name": "webgpu-render-template",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "three": "^0.183.2",
-    "vite": "^5.4.10"
+    "tweakpane": "^4.0.5"
+  },
+  "devDependencies": {
+    "vite": "^8.3.0"
   }
 }

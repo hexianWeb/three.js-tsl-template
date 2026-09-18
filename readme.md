@@ -1,34 +1,15 @@
-# Three.js TSL template
+# WebGPU Render Template
 
-A minimalist template to start practicing and learning TSL, the Three.js Shading Language
+一个最小化的 Three.js WebGPU 项目：场景中只包含环面纽结几何体、TSL Node Material、基础灯光和 Tweakpane 调试面板。
 
----
+无需构建处理的公共资源请放在 `public/` 目录中。
 
-# Learn TSL
-
-## Useful links
-
-- [Official announcement and introduction](https://github.com/mrdoob/three.js/wiki/Three.js-Shading-Language)
-- [Q&A](https://github.com/boytchev/tsl-textures/wiki/Q&A)
-- [Three.js WebGPU examples](https://threejs.org/examples/?q=webgpu#webgpu_parallax_uv)
-- [List of nodes](https://github.com/mrdoob/three.js/blob/423f285d5d868dd128d6f143dc8ec31154018f57/src/nodes/Nodes.js#L42)
-- [TSL => WGSL / GLSL](https://threejs.org/examples/?q=webgpu#webgpu_tsl_editor)
-- [GLSL => TSL](https://threejs.org/examples/?q=webgpu#webgpu_tsl_transpiler)
-- [TSL textures](https://github.com/boytchev/tsl-textures) ([demos](https://boytchev.github.io/tsl-textures/))
-
----
-
-## Setup
-Download [Node.js](https://nodejs.org/en/download/).
-Run this followed commands:
+## 开发
 
 ``` bash
-# Install dependencies (only the first time)
 npm install
-
-# Run the local server at localhost:8080
 npm run dev
-
-# Build for production in the dist/ directory
 npm run build
 ```
+
+请使用支持 WebGPU 的最新版浏览器访问开发地址。
