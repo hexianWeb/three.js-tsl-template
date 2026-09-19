@@ -444,7 +444,7 @@ DUO_NDS_ROOT
 - `ModelAdapter` 必需节点校验、包围盒居中和基础缩放
 - WebGPU 初始化、资源加载和失败状态提示
 - Camera OrbitControls 与 Tweakpane 基础模型调试
-- GLB 中 8 个必需运行时节点的实际存在性校验
+- GLB 中 9 个必需运行时节点的实际存在性校验
 
 当前下一步：
 
@@ -493,6 +493,8 @@ CONTROLLER_ASSEMBLY_ROOT
 - 可直接使用的产品镜头
 
 这些内容不再回到 Blender 中补建，统一在 Three.js 中生成。
+
+Controller 最终程序化材质仍在后续阶段实现。当前 `Controller_Shell` 使用 `TEXCOORD_1` 烘焙的 `public/lightmaps/Controller_Shell_lightmap.exr` 提供运行时 GI；PNG 文件只用于预览，不作为运行时纹理。
 
 ---
 
@@ -772,6 +774,7 @@ App
 - Playable Demo 方向是 NDS 双屏内容，不是 NES。
 - 不需要用户在开发阶段逐项验收，由用户最后进行视觉验收。
 - 后续静态资源由用户自行补充，工程保持 `public` 为公共资源目录。
+- Controller Shell 的运行时 GI 使用 2048 × 2048 Half Float EXR Lightmap，并通过 `TEXCOORD_1` 采样。
 
 ### 待技术验证
 

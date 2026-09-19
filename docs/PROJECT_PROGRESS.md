@@ -77,7 +77,8 @@ Git 提交：本轮已执行
 
 - 从 `/iphone.glb` 加载真实产品模型。
 - 当前模型已移除 Controller 的最终材质，后续由程序生成程序化材质；现阶段默认外观不是资源加载错误。
-- 启动时集中校验 8 个必要节点。
+- `Controller_Shell` 已接入独立 EXR Lightmap；最终程序化基础材质仍留待后续实现。
+- 启动时集中校验 9 个必要节点。
 - 自动计算模型整体包围盒、中心与基础缩放。
 - 使用外层 `PresentationRoot` 承担展示变换。
 - 为模型 Mesh 启用基础投射与接收阴影。
@@ -93,6 +94,7 @@ TopHalf_CAM
 Hinge
 CONTROLLER_ASSEMBLY_ROOT
 Controller_ROOT
+Controller_Shell
 Top_Screen_Plane
 Bottom_Display_Plane
 ```
@@ -110,7 +112,7 @@ Bottom_Display_Plane
 - 新增 `ModelInspector` Class，并接入 World 更新与销毁生命周期。
 - 坐标轴遵循 Three.js 约定：红色 X、绿色 Y、蓝色 Z。
 - 支持显示世界原点坐标轴与 XZ 网格。
-- 支持从 PresentationRoot 和 8 个关键 GLB 节点中选择检查对象。
+- 支持从 PresentationRoot 和 9 个关键 GLB 节点中选择检查对象。
 - 支持显示所选节点的局部坐标轴和世界包围盒。
 - 支持一次显示全部关键部件的坐标轴。
 - Tweakpane 实时显示所选节点的局部 / 世界 Position 与 Rotation。
@@ -129,6 +131,15 @@ Bottom_Display_Plane
 - 用户视觉校验已确认 `shadowNormalBias = 0.006`；`shadowBias` 暂时保持 `0`。
 - 场景默认显示 Key DirectionalLight Helper，并可在 Lighting 面板中切换。
 
+### 3.8 Controller Shell Lightmap
+
+- `Resources` 使用 `EXRLoader` 加载 `/lightmaps/Controller_Shell_lightmap.exr`。
+- 贴图为 2048 × 2048 Half Float 线性 HDR，运行时文件大小为 50,364,752 bytes。
+- `Controller_Shell` 已包含独立 `TEXCOORD_1` (`uv1`)；Lightmap 使用 `channel = 1` 和 `flipY = true`。
+- Lightmap UV 错位问题已由更新后的 GLB 与采样配置修复，并通过用户视觉校验。
+- Lightmap 只绑定到 `Controller_Shell` 的独立材质，不影响按键、D-Pad 或显示面。
+- Product Model 面板提供 `Controller Lightmap` 启用开关和 `0-5` 强度调节。
+
 ## 4. 验证记录
 
 | 检查 | 结果 |
@@ -140,13 +151,14 @@ Bottom_Display_Plane
 | 本地 `main.js` 请求 | HTTP 200 |
 | 本地 `iphone.glb` 请求 | HTTP 200 |
 | GLB Content-Type | `model/gltf-binary` |
-| GLB 文件大小 | 1,959,564 bytes |
+| GLB 文件大小 | 1,969,972 bytes |
 | GLB 节点 | 40 |
 | GLB Mesh | 28 |
 | GLB 材质 | 11 |
-| 必要节点校验 | 8 / 8 通过 |
+| 必要节点校验 | 9 / 9 通过 |
 | 坐标检查基建构建 | 通过 |
 | Runtime Rig 父级与折叠数学检查 | 通过 |
+| EXR 解码 | 2048 × 2048、Half Float、Linear sRGB 通过 |
 
 构建存在一个非阻塞警告：Three.js WebGPU 相关入口打包后主 JavaScript Chunk 超过 Vite 默认 500 kB 提示阈值。当前阶段不做过早拆包，等 NDS Runtime 选型后统一规划按需加载。
 
@@ -161,6 +173,7 @@ Bottom_Display_Plane
 - Hinge 视觉网格是否位于上下机身姿态中间；可调节 `Hinge visual mix` 辅助确认。
 - 在 `Lighting` 中配合调整 `Shadow bias` 与 `Shadow normal bias`，记录能消除细碎阴影且不造成悬浮感的值。
 - Coordinate Inspector 中的 `BottomRig`、`HingePivot` 和 `HingeVisualRig` 坐标轴是否稳定且符合预期。
+- 切换 `Controller Lightmap` 并调整 Intensity，确认 GI 与 UV 对齐且没有接缝、翻转或局部过曝。
 
 视觉校验发现的问题只需要记录角度、现象和期望姿态；可先在 Tweakpane 中确认参数，再固化默认值。
 
@@ -171,6 +184,7 @@ Bottom_Display_Plane
 - `eslint.config.js` 引用了尚未安装的 `@antfu/eslint-config`，因此 ESLint 暂时不能运行。
 - 当前未配置测试脚本或测试框架。
 - 主 JavaScript Chunk 有体积警告，但构建成功。
+- Controller Shell EXR 未压缩且约 50.4 MB，会显著增加首次加载时间；视觉确认后再决定是否压缩或降级。
 - 当前灯光与镜头仅服务于模型及折叠校验，不是最终 Hero Shot。
 
 ### 尚未决定

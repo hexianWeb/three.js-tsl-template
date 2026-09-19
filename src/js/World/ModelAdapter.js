@@ -10,6 +10,7 @@ const REQUIRED_NODES = {
   hinge: 'Hinge',
   controllerAssembly: 'CONTROLLER_ASSEMBLY_ROOT',
   controllerRoot: 'Controller_ROOT',
+  controllerShell: 'Controller_Shell',
   topScreen: 'Top_Screen_Plane',
   bottomDisplay: 'Bottom_Display_Plane',
 }
@@ -19,9 +20,11 @@ export default class ModelAdapter {
     this.experience = new Experience()
     this.scene = this.experience.scene
     this.debug = this.experience.debug
+    this.resources = this.experience.resources
     this.model = model
     this.resolveNodes()
     this.configureMeshes()
+    this.configureControllerLightmap()
 
     this.presentationRoot = new THREE.Group()
     this.presentationRoot.name = 'PresentationRoot'
@@ -76,6 +79,35 @@ export default class ModelAdapter {
     })
   }
 
+  configureControllerLightmap() {
+    this.controllerShellLightmap = this.resources.items.controllerShellLightmap
+    const controllerShell = this.nodes.controllerShell
+
+    if (!this.controllerShellLightmap?.isTexture) {
+      throw new Error('controllerShellLightmap 未返回有效纹理。')
+    }
+    if (!controllerShell.isMesh || !controllerShell.geometry.attributes.uv1) {
+      throw new Error('Controller_Shell 缺少 Lightmap UV（TEXCOORD_1 / uv1）。')
+    }
+
+    // bake 写在 Blender 的 Lightmap 层，导出为 TEXCOORD_1；Three.js 对应 uv1 / channel 1。
+    // 当前 EXR 与 glTF UV 的 V 方向相反，视觉校验确认需要 flipY 才能正确对齐。
+    this.controllerShellLightmap.name = 'Controller_Shell_Lightmap'
+    this.controllerShellLightmap.colorSpace = THREE.LinearSRGBColorSpace
+    this.controllerShellLightmap.flipY = true
+    this.controllerShellLightmap.channel = 1
+    this.controllerShellLightmap.needsUpdate = true
+    this.controllerShellMaterials = Array.isArray(controllerShell.material)
+      ? controllerShell.material
+      : [controllerShell.material]
+
+    this.controllerShellMaterials.forEach((material) => {
+      material.lightMap = this.controllerShellLightmap
+      material.lightMapIntensity = 1
+      material.needsUpdate = true
+    })
+  }
+
   fitModel() {
     this.productRig.productRoot.updateMatrixWorld(true)
 
@@ -100,10 +132,13 @@ export default class ModelAdapter {
       rotationZ: 0,
       scale: this.fitScale,
       wireframe: false,
+      controllerLightmapEnabled: true,
+      controllerLightmapIntensity: 1,
       nodeStatus: `${Object.keys(this.nodes).length} / ${Object.keys(REQUIRED_NODES).length}`,
     }
 
     this.applyTransform()
+    this.applyControllerLightmap()
   }
 
   applyTransform() {
@@ -130,12 +165,33 @@ export default class ModelAdapter {
     })
   }
 
+  applyControllerLightmap() {
+    this.controllerShellMaterials.forEach((material) => {
+      material.lightMap = this.params.controllerLightmapEnabled
+        ? this.controllerShellLightmap
+        : null
+      material.lightMapIntensity = this.params.controllerLightmapIntensity
+      material.needsUpdate = true
+    })
+  }
+
   debugInit() {
     const folder = this.debug.ui.addFolder({ title: 'Product Model' })
     folder.addBinding(this.params, 'nodeStatus', {
       label: 'Required nodes',
       readonly: true,
     })
+
+    const lightmapFolder = folder.addFolder({ title: 'Controller Lightmap' })
+    lightmapFolder.addBinding(this.params, 'controllerLightmapEnabled', {
+      label: 'Enabled',
+    }).on('change', () => this.applyControllerLightmap())
+    lightmapFolder.addBinding(this.params, 'controllerLightmapIntensity', {
+      label: 'Intensity',
+      min: 0,
+      max: 5,
+      step: 0.05,
+    }).on('change', () => this.applyControllerLightmap())
 
     const transformFolder = folder.addFolder({ title: 'Transform' })
     const positionKeys = ['positionX', 'positionY', 'positionZ']
@@ -190,6 +246,7 @@ export default class ModelAdapter {
       })
     })
 
+    textures.add(this.controllerShellLightmap)
     textures.forEach(texture => texture.dispose())
     materials.forEach(material => material.dispose())
     geometries.forEach(geometry => geometry.dispose())

@@ -129,6 +129,7 @@ src/
 - `Resources` 根据资源类型选择 Loader，并提供加载进度、完成和失败状态。
 - Class 组件通过稳定资源名访问 `resources.items`，不要在各组件内重复写 URL。
 - `public/` 中的 URL 从站点根路径引用，例如 `/iphone.glb`。
+- `Controller_Shell` 的运行时 Lightmap 是 `/lightmaps/Controller_Shell_lightmap.exr`；它使用 `TEXCOORD_1` (`uv1` / `channel = 1`)、`flipY = true` 和线性色彩空间，PNG 版本仅作预览。
 - NDS ROM 是否进入资源清单要等许可证和加载方案确认后再决定。
 - 不修改、压缩、替换或提交用户新增的大型资源，除非任务明确要求。
 - 加载失败必须进入可见错误状态，不允许只在 Console 中静默失败。
@@ -174,6 +175,7 @@ src/
 - 铰链视觉网格：`Hinge`
 - Controller 根：`CONTROLLER_ASSEMBLY_ROOT`
 - Controller 内容根：`Controller_ROOT`
+- Controller 外壳：`Controller_Shell`
 - 上屏：`Top_Screen_Plane`
 - Controller 下屏：`Bottom_Display_Plane`
 

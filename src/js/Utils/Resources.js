@@ -1,3 +1,4 @@
+import { EXRLoader } from 'three/addons/loaders/EXRLoader.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import Experience from '../Experience.js'
 
@@ -8,6 +9,7 @@ export default class Resources {
     this.sources = sources
     this.items = {}
     this.loaders = {
+      exrTexture: new EXRLoader(),
       gltfModel: new GLTFLoader(),
     }
   }
