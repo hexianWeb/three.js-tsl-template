@@ -1,20 +1,21 @@
 # iPhone Duo WebGPU 项目进度
 
-> 最后更新：2026-09-18  
-> 当前阶段：Phase 1.5 — 坐标检查基建
-> 当前状态：代码与功能检查完成，等待用户视觉校验
+> 最后更新：2026-09-19
+> 当前阶段：Phase 2 — Runtime Rig 与折叠
+> 当前状态：Phase 1 视觉校验通过；Phase 2 代码与功能检查完成，等待用户视觉校验
 
 ## 1. 进度摘要
 
-当前已经产出第一个可运行工程基线：旧的环面纽结示例已被移除，项目改为 `Experience` 单例与 Class 组件架构，并通过统一资源流程加载真实的 `iphone.glb`。
+Phase 1 模型加载、适配和场景显示已通过用户视觉校验。当前已建立 `ProductRoot`、`BottomRig`、`HingePivot` 与 `HingeVisualRig`，并在首次可见前应用 `8°` 近闭合姿态。
 
 实施里程碑统计：
 
 ```text
-Phase 1 / 7 已产出
+Phase 1 / 7：完成
+Phase 2 / 7：代码已产出
 功能验证：完成
-视觉校验：等待用户
-Git 提交：未执行
+折叠视觉校验：等待用户
+Git 提交：本轮已执行
 ```
 
 这里不使用主观的总体百分比。后续 NDS 技术验证和视觉精修的工作量仍有不确定性，以七个实施阶段逐项统计更可靠。
@@ -24,9 +25,9 @@ Git 提交：未执行
 | 阶段 | 内容 | 状态 | 说明 |
 |---|---|---|---|
 | Phase 0 | PRD、GLB 调研、代码规则 | 已完成 | PRD 已扩充，项目规则已固化 |
-| Phase 1 | Experience 架构、资源加载、模型适配 | 等待视觉校验 | 构建、语法、节点与资源检查已通过 |
+| Phase 1 | Experience 架构、资源加载、模型适配 | 已完成 | 用户已确认模型在场景中显示正确 |
 | Phase 1.5 | 模型坐标轴与 Transform 检查器 | 已完成 | 为任务二的铰链轴向校准提供基建 |
-| Phase 2 | BottomRig、HingePivot、折叠原型 | 未开始 | 目标为 `8° → 110°` |
+| Phase 2 | BottomRig、HingePivot、折叠原型 | 等待视觉校验 | 已实现 `8° / 110° / 180°` 可调姿态 |
 | Phase 3 | Controller Reveal / Assembly | 未开始 | 以 GLB 当前相对变换为安装终点 |
 | Phase 4 | Intro、Camera Shot、Ready / Play | 未开始 | 计划使用 GSAP，尚未安装 |
 | Phase 5 | NDS 模拟器技术验证与双屏桥接 | 未开始 | 模拟器与 Homebrew 尚未选定 |
@@ -68,14 +69,14 @@ Git 提交：未执行
 
 | 项目 | 数量 |
 |---|---:|
-| JavaScript 文件 | 14 |
-| JavaScript 行数 | 750 |
-| `src/js` 架构模块 | 13 |
-| `src` 内全部文件 | 16 |
+| JavaScript 文件 | 15 |
+| `src/js` 架构模块 | 14 |
+| `src` 内全部文件 | 17 |
 
 ### 3.4 模型加载与适配
 
 - 从 `/iphone.glb` 加载真实产品模型。
+- 当前模型已移除 Controller 的最终材质，后续由程序生成程序化材质；现阶段默认外观不是资源加载错误。
 - 启动时集中校验 8 个必要节点。
 - 自动计算模型整体包围盒、中心与基础缩放。
 - 使用外层 `PresentationRoot` 承担展示变换。
@@ -115,43 +116,53 @@ Bottom_Display_Plane
 - Tweakpane 实时显示所选节点的局部 / 世界 Position 与 Rotation。
 - Transform 读数以 10 Hz 刷新，3D Helper 继续逐帧跟随，避免面板无意义高频刷新。
 
+### 3.7 Runtime Rig 与折叠
+
+- 新增 `ProductRig`，建立 `ProductRoot`、`BottomRig`、`HingePivot`、`HingeVisualRig` 与 `RuntimeAnchors`。
+- 使用 `Object3D.attach()` 保持世界变换，将下半屏和 Controller 挂到 `BottomRig`，上半屏挂到 `HingePivot`。
+- 从 `Hinge` 的局部包围盒动态推导中心与最长轴；当前模型运行时结果为 Z 轴，代码未硬编码 Blender 世界轴。
+- 用户视觉校验已确认 `hingeAxisSign = +1`，并保留 Tweakpane 手动切换用于排查。
+- GLB 的 `180°` Bind Pose 映射为产品角度，首次加入场景前应用 `8°`；Tweakpane 提供 `8°`、`110°`、`180°` 快速检查。
+- 铰链视觉网格默认使用上半屏折叠量的 `0.5`，Controller 安装终点矩阵已相对 `BottomRig` 保存，供 Phase 3 使用。
+- Coordinate Inspector 可检查新增的运行时 Rig 节点。
+- Lighting 面板可实时调节 DirectionalLight 的 `shadowBias` 与 `shadowNormalBias`，用于处理模型细碎自阴影。
+- 用户视觉校验已确认 `shadowNormalBias = 0.006`；`shadowBias` 暂时保持 `0`。
+- 场景默认显示 Key DirectionalLight Helper，并可在 Lighting 面板中切换。
+
 ## 4. 验证记录
 
 | 检查 | 结果 |
 |---|---|
 | `npm run build` | 通过 |
-| JavaScript 语法检查 | 13 / 13 通过 |
+| JavaScript 构建检查 | 15 / 15 通过 |
 | `git diff --check` | 通过 |
 | 本地首页请求 | HTTP 200 |
 | 本地 `main.js` 请求 | HTTP 200 |
 | 本地 `iphone.glb` 请求 | HTTP 200 |
 | GLB Content-Type | `model/gltf-binary` |
-| GLB 文件大小 | 4,900,748 bytes |
-| GLB 节点 | 23 |
-| GLB Mesh | 17 |
-| GLB 材质 | 10 |
+| GLB 文件大小 | 1,959,564 bytes |
+| GLB 节点 | 40 |
+| GLB Mesh | 28 |
+| GLB 材质 | 11 |
 | 必要节点校验 | 8 / 8 通过 |
 | 坐标检查基建构建 | 通过 |
+| Runtime Rig 父级与折叠数学检查 | 通过 |
 
-构建存在一个非阻塞警告：Three.js WebGPU 相关入口打包后主 JavaScript Chunk 约为 962 kB、gzip 后约 253 kB，超过 Vite 默认 500 kB 提示阈值。当前阶段不做过早拆包，等 NDS Runtime 选型后统一规划按需加载。
+构建存在一个非阻塞警告：Three.js WebGPU 相关入口打包后主 JavaScript Chunk 超过 Vite 默认 500 kB 提示阈值。当前阶段不做过早拆包，等 NDS Runtime 选型后统一规划按需加载。
 
-## 5. 用户视觉校验清单
+## 5. Phase 2 用户视觉校验清单
 
-本轮不由开发代理代替用户做视觉验收。用户可重点检查：
+本轮重点检查：
 
-- 模型是否完整显示，有无缺失 Mesh。
-- Controller 与手机的相对位置是否仍然保持 Blender / GLB 原样。
-- 模型朝向是否符合预期，正反面有没有颠倒。
-- 当前自动居中与缩放是否便于观察。
-- GLB 材质颜色、透明度、金属感和屏幕表面是否正常。
-- OrbitControls 的旋转、缩放和拖动是否顺手。
-- Tweakpane 的 Position、Rotation、Scale 与 Wireframe 是否生效。
-- `Coordinate Inspector` 的红 X、绿 Y、蓝 Z 是否清晰可辨。
-- 切换关键节点时，局部 / 世界坐标读数和包围盒是否跟随变化。
-- `All part axes` 是否能显示各关键部件的方向。
-- 页面 Loading 是否能在模型加载完成后消失。
+- 首次显示是否直接处于 `8°` 近闭合态，没有闪现 `180°` Bind Pose。
+- `Product Rig` 的 `Folded 8°`、`Hero 110°`、`Bind 180°` 三个按钮是否分别得到合理姿态。
+- 调节 `Product angle` 时，下半屏和 Controller 保持固定，只有上半屏围绕铰链长轴旋转。
+- 上半屏在全角度范围内是否没有漂移、翻转或明显穿插；`Axis sign` 已确认使用 Positive。
+- Hinge 视觉网格是否位于上下机身姿态中间；可调节 `Hinge visual mix` 辅助确认。
+- 在 `Lighting` 中配合调整 `Shadow bias` 与 `Shadow normal bias`，记录能消除细碎阴影且不造成悬浮感的值。
+- Coordinate Inspector 中的 `BottomRig`、`HingePivot` 和 `HingeVisualRig` 坐标轴是否稳定且符合预期。
 
-视觉校验发现的问题只需要记录现象和期望结果；基础 Transform 可以先在 Tweakpane 中试出合适数值，再固化到默认配置。
+视觉校验发现的问题只需要记录角度、现象和期望姿态；可先在 Tweakpane 中确认参数，再固化默认值。
 
 ## 6. 已知问题与未决项
 
@@ -160,12 +171,11 @@ Bottom_Display_Plane
 - `eslint.config.js` 引用了尚未安装的 `@antfu/eslint-config`，因此 ESLint 暂时不能运行。
 - 当前未配置测试脚本或测试框架。
 - 主 JavaScript Chunk 有体积警告，但构建成功。
-- 当前灯光与镜头仅服务于模型校验，不是最终 Hero Shot。
+- 当前灯光与镜头仅服务于模型及折叠校验，不是最终 Hero Shot。
 
 ### 尚未决定
 
-- 用户视觉校验后的默认模型 Transform。
-- Hinge 运行时长轴与旋转正负方向的最终校准。
+- Hinge 自动推导轴向与铰链视觉中间姿态的最终确认。
 - 最终 Hero / Play Camera 参数。
 - GSAP 安装时机。
 - NDS 模拟器与 Homebrew ROM 选型。
@@ -173,22 +183,16 @@ Bottom_Display_Plane
 
 ## 7. 当前工作区状态
 
-本轮改动尚未提交。主要内容包括：
+本轮 Phase 2 主要改动为：
 
-- 修改 `readme.md`、`src/index.html`、`src/main.js` 与 `src/style.css`。
-- 删除旧示例 `src/material.js`。
-- 新增 `src/js/` 架构文件。
-- 新增项目规则与本文档。
-- `public/iphone.glb`、`docs/` 与项目规则仍处于未跟踪状态。
-- `.worktrees/` 是既有未跟踪目录，本轮未修改也不会纳入提交。
+- 新增 `src/js/World/ProductRig.js`。
+- 修改 `ModelAdapter`，在模型适配后建立运行时 Rig，并在加入场景前应用初始折叠姿态。
+- 更新 Coordinate Inspector 的可选节点与本文档中的阶段状态。
 
 ## 8. 下一步
 
-用户完成本轮视觉校验后：
+用户完成 Phase 2 视觉校验后：
 
-1. 根据反馈固化模型默认 Transform 与基础镜头。
-2. 创建 `BottomRig`、`HingePivot` 与 `HingeVisualRig`。
-3. 从 `Hinge` 局部包围盒推导 Pivot 与长轴。
-4. 完成 `8° → 110°` 可调折叠原型。
-5. 在 Tweakpane 中暴露产品角度、轴向符号与铰链中间姿态。
-6. 功能检查通过后进入 Controller 装配阶段。
+1. 根据反馈固化默认产品角度与铰链视觉混合值。
+2. 进入 Phase 3，使用已保存的 `ControllerInstalled` 矩阵建立 `ControllerEntry`。
+3. 实现 Controller Reveal、Align、Slide、Lock 与可调回弹。

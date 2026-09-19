@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu'
 import Experience from '../Experience.js'
 import ModelInspector from './ModelInspector.js'
+import ProductRig from './ProductRig.js'
 
 const REQUIRED_NODES = {
   phoneRoot: 'PHONE_ROOT',
@@ -19,18 +20,27 @@ export default class ModelAdapter {
     this.scene = this.experience.scene
     this.debug = this.experience.debug
     this.model = model
-    this.presentationRoot = new THREE.Group()
-    this.presentationRoot.name = 'PresentationRoot'
-    this.presentationRoot.add(this.model)
-
     this.resolveNodes()
     this.configureMeshes()
+
+    this.presentationRoot = new THREE.Group()
+    this.presentationRoot.name = 'PresentationRoot'
+    this.productRig = new ProductRig({
+      model: this.model,
+      nodes: this.nodes,
+    })
+    this.presentationRoot.add(this.productRig.productRoot)
+
     this.fitModel()
+    this.productRig.applyInitialPose()
     this.scene.add(this.presentationRoot)
     this.debugInit()
     this.inspector = new ModelInspector({
       presentationRoot: this.presentationRoot,
-      nodes: this.nodes,
+      nodes: {
+        ...this.nodes,
+        ...this.productRig.getInspectableNodes(),
+      },
     })
   }
 
@@ -67,9 +77,9 @@ export default class ModelAdapter {
   }
 
   fitModel() {
-    this.model.updateMatrixWorld(true)
+    this.productRig.productRoot.updateMatrixWorld(true)
 
-    const bounds = new THREE.Box3().setFromObject(this.model)
+    const bounds = new THREE.Box3().setFromObject(this.productRig.productRoot)
     const size = bounds.getSize(new THREE.Vector3())
     const center = bounds.getCenter(new THREE.Vector3())
     const maxDimension = Math.max(size.x, size.y, size.z)
@@ -78,8 +88,8 @@ export default class ModelAdapter {
       throw new Error('无法从 iPhone GLB 计算有效包围盒。')
     }
 
-    // 保留模型内部节点变换，只在视觉根节点外统一居中与缩放。
-    this.model.position.sub(center)
+    // ProductRoot 统一承担居中偏移，避免修改 GLB 节点及运行时 Rig 的相对变换。
+    this.productRig.productRoot.position.sub(center)
     this.fitScale = 3.2 / maxDimension
     this.params = {
       positionX: 0,
