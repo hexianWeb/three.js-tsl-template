@@ -254,10 +254,11 @@ export default class ControllerAssembly {
   }
 
   debugInit() {
-    const folder = this.debug.ui.addFolder({ title: 'Controller Assembly' })
+    const folder = this.debug.ui.addFolder({ title: 'Controller Assembly', expanded: false })
     this.stateBinding = folder.addBinding(this.params, 'state', {
       label: 'State',
       readonly: true,
+      expanded: false,
     })
 
     folder.addBinding(this.params, 'railAxis', {
@@ -312,7 +313,7 @@ export default class ControllerAssembly {
       step: 0.5,
     })
 
-    const timingFolder = folder.addFolder({ title: 'Timing' })
+    const timingFolder = folder.addFolder({ title: 'Timing', expanded: false })
     const timingKeys = [
       'revealDuration',
       'alignDuration',

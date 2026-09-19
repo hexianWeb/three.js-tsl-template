@@ -160,7 +160,7 @@ export default class ProductRig {
   }
 
   debugInit() {
-    const folder = this.debug.ui.addFolder({ title: 'Product Rig' })
+    const folder = this.debug.ui.addFolder({ title: 'Product Rig', expanded: false })
     folder.addBinding(this.params, 'hingeAxis', {
       label: 'Hinge axis',
       readonly: true,

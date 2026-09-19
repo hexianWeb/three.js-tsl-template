@@ -2,7 +2,7 @@
 
 > 最后更新：2026-09-19
 > 当前阶段：Phase 4 — Intro、Camera Shot、Ready / Play
-> 当前状态：IntroDirector 基础状态流已完成，等待视觉校验与 Camera Shot 接入
+> 当前状态：CameraDirector 四组镜头已完成用户视觉校准，Screen Wake 与页面 UI 待实现
 
 ## 1. 进度摘要
 
@@ -30,7 +30,7 @@ Git 提交：本轮已执行
 | Phase 1.5 | 模型坐标轴与 Transform 检查器 | 已完成 | 为任务二的铰链轴向校准提供基建 |
 | Phase 2 | BottomRig、HingePivot、折叠原型 | 已完成 | 折叠方向、阴影和 Lightmap 已完成视觉校准 |
 | Phase 3 | Controller Reveal / Assembly | 已完成 | 精密吸合时间线已通过用户视觉校验 |
-| Phase 4 | Intro、Camera Shot、Ready / Play | 进行中 | 状态流已完成，Camera Shot 与页面 Ready UI 待实现 |
+| Phase 4 | Intro、Camera Shot、Ready / Play | 进行中 | 状态流与 Camera Shot 已完成视觉确认，页面 Ready UI 待实现 |
 | Phase 5 | NDS 模拟器技术验证与双屏桥接 | 未开始 | 模拟器与 Homebrew 尚未选定 |
 | Phase 6 | Keyboard / Gamepad 与 3D 按键反馈 | 未开始 | 按键反馈使用阻尼弹簧 |
 | Phase 7 | 性能、兼容性、Loading 与视觉精修 | 未开始 | 最终视觉验收由用户完成 |
@@ -162,12 +162,19 @@ Bottom_Display_Plane
 - Replay 会终止旧的 Intro、Hero Delay 与 Controller Timeline 后重建初始姿态；Skip 直接恢复 `110°` 和精确安装矩阵。
 - 每次状态变化同步写入全局 `State.mode`，并发布 `intro:state` 事件，为后续 UI 和 CameraDirector 提供边界。
 
+### 3.11 CameraDirector 基础镜头流
+
+- 新增 `CameraDirector`，监听 `intro:state` 并驱动 Folded、Assembly、Hero、Play 四组运行时镜头。
+- Folded 立即落位；Unfold 与 Assembly 镜头并行过渡；Hero 与 Ready 共用 Hero 镜头；Play 使用独立镜头。
+- 镜头 Timeline 同步动画 Camera Position、OrbitControls Target 与 FOV，过渡期间禁用手动 Orbit。
+- Tweakpane 支持单镜头预览、临时开启 OrbitControls 取景，以及将当前 Position、Target、FOV 回写到镜头参数。
+
 ## 4. 验证记录
 
 | 检查 | 结果 |
 |---|---|
 | `npm run build` | 通过 |
-| JavaScript 构建检查 | 16 / 16 通过 |
+| JavaScript 构建检查 | 17 / 17 通过 |
 | `git diff --check` | 通过 |
 | 本地首页请求 | HTTP 200 |
 | 本地 `main.js` 请求 | HTTP 200 |
@@ -185,6 +192,7 @@ Bottom_Display_Plane
 | Controller 装配阶段时序 | 约 1.85s、Reveal/Slide 异向缓动与 Hold 待视觉复核 |
 | Controller 动画终点矩阵 | 最大元素误差 0 |
 | Intro 状态流 | Folded → Unfold → Assembly → Hero → Ready → Play 通过 |
+| Camera Shot 状态映射 | Folded / Assembly / Hero / Play 已接入并通过用户视觉校准 |
 
 构建存在一个非阻塞警告：Three.js WebGPU 相关入口打包后主 JavaScript Chunk 超过 Vite 默认 500 kB 提示阈值。当前阶段不做过早拆包，等 NDS Runtime 选型后统一规划按需加载。
 
@@ -210,7 +218,7 @@ Bottom_Display_Plane
 - 当前未配置测试脚本或测试框架。
 - 主 JavaScript Chunk 有体积警告，但构建成功。
 - Controller Shell EXR 未压缩且约 50.4 MB，会显著增加首次加载时间；视觉确认后再决定是否压缩或降级。
-- 当前灯光与镜头仅服务于模型及折叠校验，不是最终 Hero Shot。
+- 当前 Camera Shot 参数已由用户完成视觉校准，作为后续 Screen Wake 与页面 UI 的构图基线。
 
 ### 尚未决定
 
@@ -226,11 +234,12 @@ Bottom_Display_Plane
 - 新增 `src/js/World/IntroDirector.js`。
 - `World.start()` 自动启动 Intro，`Experience` 不再提前把模式写成 Ready。
 - `ControllerAssembly` 增加供 Intro 使用的可见性、跳过和完成回调边界。
+- 新增 `CameraDirector`，接入四组镜头、状态映射、Orbit 锁定与 Tweakpane 取景工具。
 
 ## 8. 下一步
 
 Phase 4 下一步：
 
-1. 视觉校验自动 Intro 的展开、装配和状态节奏。
-2. 建立 Folded、Assembly、Hero 与 Play Camera Shot。
-3. 增加页面 Ready / Play 与 Skip Intro UI，并接入 `intro:state` 事件。
+1. 实现真实 Screen Wake 表现。
+2. 增加页面 Ready / Play 与 Skip Intro UI，并接入 `intro:state` 事件。
+3. 在完整 Intro 中复核 Screen Wake 与 UI 加入后的镜头节奏，不改动已确认构图基线。

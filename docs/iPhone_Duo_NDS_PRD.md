@@ -449,10 +449,11 @@ DUO_NDS_ROOT
 - Controller Reveal、Align、Slide、Lock 可重播时间线
 - Controller 装配采用约 1.85 秒的阶段重叠吸合节奏，并在锁定后保留 Hero 留白
 - IntroDirector 基础状态流、Replay Intro、Skip Intro、Ready 与 Play 调试入口
+- CameraDirector 四组运行时镜头、Intro 状态映射、Orbit 锁定与 Tweakpane 取景工具
 
 当前下一步：
 
-> IntroDirector 已串联折叠与 Controller 装配；下一步接入 Camera Shot 和页面 Ready / Play UI。
+> Camera Shot 已完成用户视觉校准；下一步实现 Screen Wake 和页面 Ready / Play UI。
 
 ---
 

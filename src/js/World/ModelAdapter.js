@@ -176,7 +176,7 @@ export default class ModelAdapter {
   }
 
   debugInit() {
-    const folder = this.debug.ui.addFolder({ title: 'Product Model' })
+    const folder = this.debug.ui.addFolder({ title: 'Product Model', expanded: false })
     folder.addBinding(this.params, 'nodeStatus', {
       label: 'Required nodes',
       readonly: true,

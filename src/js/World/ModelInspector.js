@@ -84,7 +84,7 @@ export default class ModelInspector {
   }
 
   debugInit() {
-    const folder = this.debug.ui.addFolder({ title: 'Coordinate Inspector' })
+    const folder = this.debug.ui.addFolder({ title: 'Coordinate Inspector', expanded: false })
     const options = Object.fromEntries(
       Object.keys(this.nodes).map(key => [this.getNodeLabel(key), key]),
     )
@@ -98,7 +98,7 @@ export default class ModelInspector {
       options,
     }).on('change', ({ value }) => this.selectNode(value))
 
-    const helperFolder = folder.addFolder({ title: 'Helpers' })
+    const helperFolder = folder.addFolder({ title: 'Helpers', expanded: false })
     helperFolder.addBinding(this.params, 'showWorldAxes', {
       label: 'World axes',
     }).on('change', ({ value }) => {
@@ -125,7 +125,7 @@ export default class ModelInspector {
       step: 0.05,
     })
 
-    const transformFolder = folder.addFolder({ title: 'Transform Readout' })
+    const transformFolder = folder.addFolder({ title: 'Transform Readout', expanded: false })
     this.transformBindings = [
       transformFolder.addBinding(this.params, 'localPosition', {
         label: 'Local position',
