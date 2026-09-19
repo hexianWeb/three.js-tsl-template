@@ -445,10 +445,13 @@ DUO_NDS_ROOT
 - WebGPU 初始化、资源加载和失败状态提示
 - Camera OrbitControls 与 Tweakpane 基础模型调试
 - GLB 中 9 个必需运行时节点的实际存在性校验
+- Runtime Rig、`8° / 110° / 180°` 折叠控制和 Controller EXR Lightmap
+- Controller Reveal、Align、Slide、Lock 可重播时间线
+- Controller 装配采用阶段重叠的 2.1 秒精密吸合节奏，并在锁定后保留 Hero 留白
 
 当前下一步：
 
-> 不再修改 Blender 模型结构。下一步在已经完成的模型适配层上建立 `BottomRig`、`HingePivot` 与 `HingeVisualRig`，先完成 `8° → 110°` 折叠原型。
+> Controller 装配动画已通过视觉校准；下一步进入 IntroDirector、Camera Shot 与 Ready / Play 状态串联。
 
 ---
 

@@ -20,7 +20,7 @@
 - `src/index.html` 加载 `src/main.js`；`main.js` 检查 `navigator.gpu`，创建 `Experience`，等待 WebGPU、资源和 `World` 初始化，并在 Vite HMR dispose 时销毁实例。
 - `Experience` 是全局生命周期单例。首次构造必须传 Canvas；Class 组件通过 `new Experience()` 取得同一实例。创建全局服务或动画循环时保持该边界。
 - 初始化顺序是 Camera -> Renderer/WebGPU -> `Resources.load()` -> World -> `setAnimationLoop()`。资源完成前不要创建依赖模型的 World 组件。
-- `World` 装配环境和 `ModelAdapter`；`ModelAdapter` 再建立 `ProductRig` 与 `ModelInspector`。Intro、输入和 NDS 模块仍是规划内容。
+- `World` 装配环境和 `ModelAdapter`；`ModelAdapter` 再建立 `ProductRig`、`ControllerAssembly` 与 `ModelInspector`。Intro、输入和 NDS 模块仍是规划内容。
 - 资源 URL 只在 `src/js/sources.js` 声明，组件通过 `resources.items` 的稳定名称读取。站点公共资源使用根路径，如 `/iphone.glb`。
 - 生命周期由直接父级显式调用 `update`、`resize`、`destroy`。新增监听器、Tweakpane binding、GPU 资源或动画循环时必须接入同一销毁路径。
 
@@ -33,11 +33,12 @@
 - GLB Bind Pose 是 180 度完全展开态；下半屏固定，只旋转代码生成 Pivot 下的上半屏。首次可见前应用约 8 度近闭合态，当前 Hero/Play 目标为 110 度。
 - Hinge 的 Pivot 和旋转长轴必须从模型局部包围盒推导，不能硬编码世界轴。重新挂接节点时保持世界变换并检查非均匀缩放。
 - Controller 在 GLB 中的相对变换是唯一安装终点并跟随下半屏；整机展示变换只放在外层 `PresentationRoot`。
+- Controller 装配使用 GSAP，Replay 前切到 110 度。当前模型滑轨轴推导为 Z，视觉确认方向为 `-Z`；方向可在 Tweakpane 覆盖。动画结束、Skip 和销毁都必须回到或保留精确安装矩阵。
 - 不回 Blender 增加 Pivot、Anchor 或 Camera，也不要迁移、重命名、压缩或替换用户提供的模型资源，除非任务明确要求。
 
 ## 修改约定
 
 - 当前源码是 JavaScript ESM，不要自行迁移 TypeScript。JS 保持 2 空格、单引号、无分号。
 - 为坐标系、矩阵、四元数、TSL 节点和阻尼参数补充解释约束的中文注释；不要逐行翻译代码。
-- 不假定 Vue、Pinia、mitt、GSAP、模拟器或测试工具已安装。新依赖只在当前任务需要时添加。
+- GSAP 已安装且只用于离散时间线；不要假定 Vue、Pinia、mitt、模拟器或测试工具已安装。新依赖只在当前任务需要时添加。
 - 有交互或视觉变更时，运行 `npm run build` 并说明需要用户在支持 WebGPU 的最新版浏览器中完成视觉验收。

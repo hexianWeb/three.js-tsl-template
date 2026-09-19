@@ -231,6 +231,7 @@ export default class ModelAdapter {
 
   destroy() {
     this.inspector?.destroy()
+    this.productRig?.destroy()
     const geometries = new Set()
     const materials = new Set()
     const textures = new Set()

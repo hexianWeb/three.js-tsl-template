@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu'
 import Experience from '../Experience.js'
+import ControllerAssembly from './ControllerAssembly.js'
 
 const BIND_ANGLE = 180
 const DEFAULT_FOLDED_ANGLE = 8
@@ -19,6 +20,7 @@ export default class ProductRig {
     this.attachProductParts()
     this.setParams()
     this.debugInit()
+    this.setControllerAssembly()
   }
 
   setHierarchy() {
@@ -148,6 +150,15 @@ export default class ProductRig {
     this.setProductAngle(this.params.foldedAngle)
   }
 
+  setControllerAssembly() {
+    this.controllerAssembly = new ControllerAssembly({
+      controller: this.nodes.controllerAssembly,
+      bottomRig: this.bottomRig,
+      installedMatrix: this.controllerInstalledMatrix,
+      prepareAssembly: () => this.setDebugAngle(this.params.playAngle),
+    })
+  }
+
   debugInit() {
     const folder = this.debug.ui.addFolder({ title: 'Product Rig' })
     folder.addBinding(this.params, 'hingeAxis', {
@@ -195,5 +206,9 @@ export default class ProductRig {
       hingeVisualRig: this.hingeVisualRig,
       runtimeAnchors: this.runtimeAnchors,
     }
+  }
+
+  destroy() {
+    this.controllerAssembly?.destroy()
   }
 }
