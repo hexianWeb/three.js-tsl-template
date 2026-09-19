@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu'
 import Experience from '../Experience.js'
+import IntroDirector from './IntroDirector.js'
 import ModelAdapter from './ModelAdapter.js'
 
 export default class World {
@@ -16,6 +17,7 @@ export default class World {
 
     this.setEnvironment()
     this.setProduct()
+    this.setIntro()
     this.debugInit()
   }
 
@@ -77,12 +79,23 @@ export default class World {
     this.product = new ModelAdapter(gltf.scene)
   }
 
+  setIntro() {
+    this.intro = new IntroDirector({
+      productRig: this.product.productRig,
+    })
+  }
+
+  start() {
+    this.intro.play()
+  }
+
   update() {
     this.product.update()
     this.keyLightHelper.update()
   }
 
   destroy() {
+    this.intro?.destroy()
     this.product?.destroy()
     this.scene.remove(this.hemisphereLight, this.keyLight, this.keyLightHelper, this.fillLight)
     this.keyLightHelper?.dispose()

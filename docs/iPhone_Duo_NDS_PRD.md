@@ -447,11 +447,12 @@ DUO_NDS_ROOT
 - GLB 中 9 个必需运行时节点的实际存在性校验
 - Runtime Rig、`8° / 110° / 180°` 折叠控制和 Controller EXR Lightmap
 - Controller Reveal、Align、Slide、Lock 可重播时间线
-- Controller 装配采用阶段重叠的 2.1 秒精密吸合节奏，并在锁定后保留 Hero 留白
+- Controller 装配采用约 1.85 秒的阶段重叠吸合节奏，并在锁定后保留 Hero 留白
+- IntroDirector 基础状态流、Replay Intro、Skip Intro、Ready 与 Play 调试入口
 
 当前下一步：
 
-> Controller 装配动画已通过视觉校准；下一步进入 IntroDirector、Camera Shot 与 Ready / Play 状态串联。
+> IntroDirector 已串联折叠与 Controller 装配；下一步接入 Camera Shot 和页面 Ready / Play UI。
 
 ---
 

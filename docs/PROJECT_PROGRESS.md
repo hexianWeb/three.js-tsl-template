@@ -2,7 +2,7 @@
 
 > 最后更新：2026-09-19
 > 当前阶段：Phase 4 — Intro、Camera Shot、Ready / Play
-> 当前状态：Phase 3 视觉校验通过；准备建立 IntroDirector 状态机
+> 当前状态：IntroDirector 基础状态流已完成，等待视觉校验与 Camera Shot 接入
 
 ## 1. 进度摘要
 
@@ -30,7 +30,7 @@ Git 提交：本轮已执行
 | Phase 1.5 | 模型坐标轴与 Transform 检查器 | 已完成 | 为任务二的铰链轴向校准提供基建 |
 | Phase 2 | BottomRig、HingePivot、折叠原型 | 已完成 | 折叠方向、阴影和 Lightmap 已完成视觉校准 |
 | Phase 3 | Controller Reveal / Assembly | 已完成 | 精密吸合时间线已通过用户视觉校验 |
-| Phase 4 | Intro、Camera Shot、Ready / Play | 进行中 | 先建立 IntroDirector 状态机，再接入镜头 |
+| Phase 4 | Intro、Camera Shot、Ready / Play | 进行中 | 状态流已完成，Camera Shot 与页面 Ready UI 待实现 |
 | Phase 5 | NDS 模拟器技术验证与双屏桥接 | 未开始 | 模拟器与 Homebrew 尚未选定 |
 | Phase 6 | Keyboard / Gamepad 与 3D 按键反馈 | 未开始 | 按键反馈使用阻尼弹簧 |
 | Phase 7 | 性能、兼容性、Loading 与视觉精修 | 未开始 | 最终视觉验收由用户完成 |
@@ -70,9 +70,9 @@ Git 提交：本轮已执行
 
 | 项目 | 数量 |
 |---|---:|
-| JavaScript 文件 | 16 |
-| `src/js` 架构模块 | 15 |
-| `src` 内全部文件 | 18 |
+| JavaScript 文件 | 17 |
+| `src/js` 架构模块 | 16 |
+| `src` 内全部文件 | 19 |
 
 ### 3.4 模型加载与适配
 
@@ -146,11 +146,21 @@ Bottom_Display_Plane
 - 安装 GSAP，并新增 `ControllerAssembly` 管理独立、可重播和可销毁的装配 Timeline。
 - Replay 自动将产品切到 `110°`，再执行 Reveal、Align、Slide 与 Lock。
 - Controller 最新模型的纵向滑轨轴自动推导为 Z、对准旋转轴为 Y；用户视觉校验确认滑入方向为 `-Z`，XYZ 方向与偏移仍可在 Tweakpane 覆盖。
-- Entry 从滑轨负方向进入，Reveal 使用浅弧线靠近，Align 从 `0.4s` 开始与前后阶段重叠并逐渐消除默认 `3°` 偏角。
-- Slide 不在安装点停顿，而是连续压入外壳纵向尺寸的 `0.3%`；Lock 单次回弹后保留 `0.4s` 静止展示。
-- 默认时间线总长 `2.1s`：Reveal `0-0.65s`、Align `0.4-0.9s`、Slide `0.85-1.5s`、Lock `1.5-1.7s`、Hold `1.7-2.1s`。
+- Entry 从滑轨负方向进入；Reveal 用浅弧线和 `power3.out` 送进画面，Align 与 Reveal 后半重叠并消除默认 `3°` 偏角。
+- Slide 用 `power3.in` 吸入滑轨并连续压过安装点约 `5%`，避免与 Reveal 一样在滑轨上匀速走；Lock 用 `back.out` 单次回弹后保留 Hold。
+- 默认时间线总长约 `1.85s`：Reveal `0-0.8s`、Align `0.42-0.87s`、Slide `0.75-1.3s`、Lock `1.3-1.5s`、Hold `1.5-1.85s`。
 - 动画只修改 Controller 的 Position 与 Quaternion，不修改 Scale；完成和 Skip 都恢复保存的精确安装矩阵。
 - Controller Assembly 面板提供 Entry、Replay、Skip / Installed、阶段状态和全部距离、偏移、时长参数。
+
+### 3.10 IntroDirector 基础状态流
+
+- 新增 `IntroDirector`，由 `World.start()` 在渲染循环建立后自动播放。
+- 当前状态链为 `intro-folded → intro-unfold → screen-wake → controller-assembly → hero → ready → play`。
+- Folded 阶段保持 `8°` 并隐藏 Controller；Unfold 用 GSAP 动画到 `110°`，随后调用已完成的装配 Timeline。
+- Unfold 先以 `power3.in` 在 `0.45s` 内从 `8°` 撕开到 `24°`，再以 `power3.out` 在 `1.55s` 内连续落到 `110°`，中间不停车。
+- Hero 留白后进入 Ready；当前通过 Tweakpane 的 `Enter Play` 进入 Play，页面 Ready UI 留待下一步。
+- Replay 会终止旧的 Intro、Hero Delay 与 Controller Timeline 后重建初始姿态；Skip 直接恢复 `110°` 和精确安装矩阵。
+- 每次状态变化同步写入全局 `State.mode`，并发布 `intro:state` 事件，为后续 UI 和 CameraDirector 提供边界。
 
 ## 4. 验证记录
 
@@ -172,8 +182,9 @@ Bottom_Display_Plane
 | Runtime Rig 父级与折叠数学检查 | 通过 |
 | EXR 解码 | 2048 × 2048、Half Float、Linear sRGB 通过 |
 | Controller 装配轴向推导 | Rail Z、Align Y 通过 |
-| Controller 装配阶段时序 | 2.1s、阶段重叠与 Hold 通过 |
+| Controller 装配阶段时序 | 约 1.85s、Reveal/Slide 异向缓动与 Hold 待视觉复核 |
 | Controller 动画终点矩阵 | 最大元素误差 0 |
+| Intro 状态流 | Folded → Unfold → Assembly → Hero → Ready → Play 通过 |
 
 构建存在一个非阻塞警告：Three.js WebGPU 相关入口打包后主 JavaScript Chunk 超过 Vite 默认 500 kB 提示阈值。当前阶段不做过早拆包，等 NDS Runtime 选型后统一规划按需加载。
 
@@ -185,7 +196,7 @@ Bottom_Display_Plane
 - Reveal 浅弧线、Align 与 Slide 的重叠是否自然，阶段之间不应出现明显停顿。
 - 默认 `3°` 对准旋转是否自然；Controller 是否在进入滑轨前已完全对正。
 - Slide 是否沿真实纵向滑轨连续压入，没有横向漂移、穿插手机或在安装点二次启动。
-- Lock 的 `0.3%` 过冲是否可感知但不夸张，回弹后 `0.4s` 留白是否足够展示完整形态。
+- Lock 过冲从不可见的 `0.3%–0.5%` 调整为约 `5%`，待确认回弹是否可感知但不夸张。
 - 动画过程中 Lightmap 是否稳定跟随，阴影没有闪烁。
 - 连续 Replay、Entry Pose、Skip / Installed 是否不会累计位移或破坏最终姿态。
 
@@ -210,16 +221,16 @@ Bottom_Display_Plane
 
 ## 7. 当前工作区状态
 
-本轮 Phase 3 主要改动为：
+本轮 Phase 4 主要改动为：
 
-- 新增 `src/js/World/ControllerAssembly.js` 和 GSAP 依赖。
-- `ProductRig` 负责创建和销毁装配组件，`ModelAdapter.destroy()` 接入同一生命周期。
-- 装配方向从当前 GLB 包围盒推导，最终位置继续使用已保存的安装矩阵。
+- 新增 `src/js/World/IntroDirector.js`。
+- `World.start()` 自动启动 Intro，`Experience` 不再提前把模式写成 Ready。
+- `ControllerAssembly` 增加供 Intro 使用的可见性、跳过和完成回调边界。
 
 ## 8. 下一步
 
 Phase 4 下一步：
 
-1. 建立 IntroDirector 状态机并串联折叠与装配 Timeline。
-2. 增加 Replay Intro、Skip Intro、Ready 和用户触发的 Play 状态。
-3. 在状态流稳定后建立 Folded、Assembly、Hero 与 Play Camera Shot。
+1. 视觉校验自动 Intro 的展开、装配和状态节奏。
+2. 建立 Folded、Assembly、Hero 与 Play Camera Shot。
+3. 增加页面 Ready / Play 与 Skip Intro UI，并接入 `intro:state` 事件。

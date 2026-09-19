@@ -113,8 +113,9 @@ export default class ControllerAssembly {
       alignOverlap: 0.25,
       slideDuration: 0.65,
       slideOverlap: 0.05,
-      lockOvershoot: this.railLength * 0.003,
-      lockDuration: 0.2,
+      // 0.3%–0.5% 过冲会被 Slide 收尾吃掉；约 5% 才能看清压过卡槽再弹回。
+      lockOvershoot: this.railLength * 0.05,
+      lockDuration: 0.35,
       holdDuration: 0.4,
     }
   }
@@ -129,9 +130,10 @@ export default class ControllerAssembly {
       .multiply(this.alignRotationQuaternion)
   }
 
-  play() {
+  play({ prepare = true, onComplete } = {}) {
     this.killTimeline()
-    this.prepareAssembly?.()
+    if (prepare) this.prepareAssembly?.()
+    this.setVisible(true)
     this.applyEntryPose()
 
     const alignStart = Math.max(0, this.params.revealDuration - this.params.alignOverlap)
@@ -146,6 +148,7 @@ export default class ControllerAssembly {
       onComplete: () => {
         this.applyInstalledPose()
         this.timeline = null
+        onComplete?.()
       },
     })
     this.timeline
@@ -168,23 +171,24 @@ export default class ControllerAssembly {
       .to(this.motionState, {
         railDistance: -this.params.lockOvershoot,
         duration: this.params.slideDuration,
-        ease: 'power3.inOut',
+        ease: 'power3.in',
         onUpdate: () => this.applyMotionPose(),
       }, slideStart)
       .call(() => this.setState('lock'), null, lockStart)
       .to(this.motionState, {
         railDistance: 0,
         duration: this.params.lockDuration,
-        ease: 'power2.out',
+        ease: 'back.out(1.8)',
         onUpdate: () => this.applyMotionPose(),
       }, lockStart)
       .call(() => this.setState('hold'), null, holdStart)
       .to({}, { duration: this.params.holdDuration }, holdStart)
   }
 
-  setEntryPose() {
+  setEntryPose({ prepare = true } = {}) {
     this.killTimeline()
-    this.prepareAssembly?.()
+    if (prepare) this.prepareAssembly?.()
+    this.setVisible(true)
     this.applyEntryPose()
   }
 
@@ -223,7 +227,12 @@ export default class ControllerAssembly {
 
   setInstalledPose() {
     this.killTimeline()
+    this.setVisible(true)
     this.applyInstalledPose()
+  }
+
+  setVisible(visible) {
+    this.controller.visible = visible
   }
 
   applyInstalledPose() {
@@ -334,7 +343,7 @@ export default class ControllerAssembly {
     timingFolder.addBinding(this.params, 'lockOvershoot', {
       label: 'Lock overshoot',
       min: 0,
-      max: this.railLength * 0.05,
+      max: this.railLength * 0.12,
       step: this.railLength * 0.001,
     })
 

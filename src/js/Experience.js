@@ -47,8 +47,8 @@ export default class Experience {
     await this.resources.load()
 
     this.world = new World()
-    this.state.setMode('ready')
     this.renderer.instance.setAnimationLoop(this.update)
+    this.world.start()
     this.initialized = true
     return this
   }
