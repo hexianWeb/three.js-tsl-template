@@ -1,8 +1,10 @@
 import * as THREE from 'three/webgpu'
 import Experience from '../Experience.js'
 import CameraDirector from './CameraDirector.js'
+import InputRouter from './InputRouter.js'
 import IntroDirector from './IntroDirector.js'
 import ModelAdapter from './ModelAdapter.js'
+import ScreenManager from './ScreenManager.js'
 
 export default class World {
   constructor() {
@@ -10,6 +12,8 @@ export default class World {
     this.scene = this.experience.scene
     this.resources = this.experience.resources
     this.debug = this.experience.debug
+    this.events = this.experience.events
+    this.state = this.experience.state
     this.params = {
       shadowBias: 0,
       shadowNormalBias: 0.006,
@@ -18,8 +22,10 @@ export default class World {
 
     this.setEnvironment()
     this.setProduct()
+    this.setScreenManager()
     this.setCameraDirector()
     this.setIntro()
+    this.setInputRouter()
     this.debugInit()
   }
 
@@ -85,10 +91,47 @@ export default class World {
     this.cameraDirector = new CameraDirector()
   }
 
+  setScreenManager() {
+    this.screenManager = new ScreenManager({
+      topScreen: this.product.nodes.topScreen,
+      bottomScreen: this.product.nodes.bottomScreen,
+      bottomDisplay: this.product.nodes.bottomDisplay,
+    })
+  }
+
   setIntro() {
     this.intro = new IntroDirector({
       productRig: this.product.productRig,
+      onProductModeChange: mode => this.setProductMode(mode),
     })
+  }
+
+  setInputRouter() {
+    this.inputRouter = new InputRouter({
+      camera: this.experience.camera.instance,
+      canvas: this.experience.canvas,
+      interactionSurface: this.product.nodes.bottomDisplay,
+      resolvePointerAction: uv => this.screenManager.getActionAtUv(uv),
+      onAction: action => this.handleAction(action),
+    })
+  }
+
+  setProductMode(mode) {
+    if (this.state.productMode === mode) return
+
+    this.state.setProductMode(mode)
+    this.screenManager.setMode(mode)
+    this.events.emit('product:mode', { mode })
+  }
+
+  handleAction(action) {
+    if (action === 'continue' && this.state.productMode === 'game-home') {
+      this.intro.complete()
+      this.setProductMode('playing')
+    }
+    else if (action === 'back' && this.state.productMode === 'playing') {
+      this.setProductMode('game-home')
+    }
   }
 
   start() {
@@ -97,12 +140,16 @@ export default class World {
 
   update() {
     this.product.update()
+    this.screenManager.update()
+    this.inputRouter.update()
     this.keyLightHelper.update()
   }
 
   destroy() {
+    this.inputRouter?.destroy()
     this.intro?.destroy()
     this.cameraDirector?.destroy()
+    this.screenManager?.destroy()
     this.product?.destroy()
     this.scene.remove(this.hemisphereLight, this.keyLight, this.keyLightHelper, this.fillLight)
     this.keyLightHelper?.dispose()

@@ -12,6 +12,7 @@ const REQUIRED_NODES = {
   controllerRoot: 'Controller_ROOT',
   controllerShell: 'Controller_Shell',
   topScreen: 'Top_Screen_Plane',
+  bottomScreen: 'Bottom_Screen_Plane',
   bottomDisplay: 'Bottom_Display_Plane',
 }
 

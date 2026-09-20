@@ -61,12 +61,18 @@ export default class CameraDirector {
       'controller-assembly': 'assembly',
       hero: 'hero',
       ready: 'hero',
-      play: 'play',
+    }
+    this.productShots = {
+      'game-home': 'hero',
+      playing: 'play',
     }
 
     this.camera.controls.enabled = false
     this.unsubscribeState = this.events.on('intro:state', ({ state }) => {
       this.handleState(state)
+    })
+    this.unsubscribeProductMode = this.events.on('product:mode', ({ mode }) => {
+      this.handleProductMode(mode)
     })
     this.debugInit()
   }
@@ -78,6 +84,13 @@ export default class CameraDirector {
     this.transitionTo(shotName, {
       immediate: state === 'intro-folded',
     })
+  }
+
+  handleProductMode(mode) {
+    const shotName = this.productShots[mode]
+    if (!shotName) return
+
+    this.transitionTo(shotName)
   }
 
   transitionTo(name, { immediate = false, force = false } = {}) {
@@ -223,6 +236,7 @@ export default class CameraDirector {
   destroy() {
     this.killTransition()
     this.unsubscribeState?.()
+    this.unsubscribeProductMode?.()
     this.camera.controls.enabled = true
   }
 }

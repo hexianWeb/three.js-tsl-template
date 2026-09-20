@@ -115,7 +115,7 @@ src/
 │     ├─ IntroDirector.js
 │     ├─ ScreenManager.js
 │     ├─ NDSRuntime.js
-│     ├─ InputManager.js
+│     ├─ InputRouter.js
 │     └─ ControllerFeedback.js
 ├─ shaders/
 └─ style.css
@@ -143,7 +143,7 @@ src/
 - 需要 mitt 时先加入明确依赖；在依赖尚未安装时不要写假 import。
 - UI 不直接修改 Three.js Mesh、Material 或 Camera。
 - UI 通过 State 或 EventBus 表达意图，由对应 Class 组件处理。
-- InputManager 只输出语义 Action，不直接操作按钮 Mesh 或模拟器内部键码。
+- InputRouter 只输出语义 Action，不直接操作按钮 Mesh 或模拟器内部键码。
 
 ## 8. WebGPU、TSL 与材质
 
@@ -167,7 +167,7 @@ src/
 
 ## 10. iPhone Duo 模型不变量
 
-不要把文档中的旧 Blender 规划误认为 GLB 真实结构。运行时必须通过 `ModelAdapter` 集中解析节点。
+不要把文档中的旧 Blender 规划误认为 GLB 真实结构。运行时必须通过 `ModelAdapter` 集中解析以下 10 个必需节点。
 
 - 手机根节点：`PHONE_ROOT`
 - 下半屏：`BottomHalf_NO_CAM`
@@ -177,6 +177,7 @@ src/
 - Controller 内容根：`Controller_ROOT`
 - Controller 外壳：`Controller_Shell`
 - 上屏：`Top_Screen_Plane`
+- 手机原生下屏：`Bottom_Screen_Plane`
 - Controller 下屏：`Bottom_Display_Plane`
 
 运动规则：
@@ -196,7 +197,7 @@ src/
 
 - GSAP 只用于 Intro、Controller 装配、Camera Shot 与 UI 时间线；安装后才能使用。
 - ABXY 回弹和 D-Pad 倾斜使用渲染循环中的阻尼弹簧，不用累积 Tween。
-- Intro 使用显式状态机，至少区分 Loading、Unfold、Assembly、Hero、Ready 与 Play。
+- Intro 编排与产品模式必须分离：Intro 至少区分 Loading、Unfold、Assembly、Hero 与 Ready；`phone`、`attaching`、`game-home`、`playing` 通过独立产品模式表达。
 - NDS 模拟器封装在 `NDSRuntime`，模拟器 DOM 或内部 API 不扩散到场景代码。
 - 上下屏输出适配封装在 `ScreenManager` 或 `NDSScreenBridge`。
 - 两块 NDS 画面分别映射为 CanvasTexture；仅在新帧到达时标记更新。

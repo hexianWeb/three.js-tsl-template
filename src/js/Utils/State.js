@@ -1,9 +1,14 @@
 export default class State {
   constructor() {
-    this.mode = 'loading'
+    this.introState = 'loading'
+    this.productMode = null
   }
 
-  setMode(mode) {
-    this.mode = mode
+  setIntroState(state) {
+    this.introState = state
+  }
+
+  setProductMode(mode) {
+    this.productMode = mode
   }
 }

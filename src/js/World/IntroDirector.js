@@ -2,13 +2,14 @@ import { gsap } from 'gsap'
 import Experience from '../Experience.js'
 
 export default class IntroDirector {
-  constructor({ productRig }) {
+  constructor({ productRig, onProductModeChange }) {
     this.experience = new Experience()
     this.events = this.experience.events
     this.state = this.experience.state
     this.debug = this.experience.debug
     this.productRig = productRig
     this.controllerAssembly = productRig.controllerAssembly
+    this.onProductModeChange = onProductModeChange
     this.angleState = { value: productRig.params.foldedAngle }
     this.params = {
       state: 'idle',
@@ -52,12 +53,14 @@ export default class IntroDirector {
       .call(() => {
         this.productRig.productAngleBinding?.refresh()
         this.setState('screen-wake')
+        this.onProductModeChange?.('phone')
       })
       .to({}, { duration: this.params.assemblyDelay })
       .call(() => this.startAssembly())
   }
 
   setInitialPose() {
+    this.onProductModeChange?.(null)
     this.angleState.value = this.productRig.params.foldedAngle
     this.productRig.setDebugAngle(this.angleState.value)
     this.controllerAssembly.setEntryPose({ prepare: false })
@@ -75,6 +78,7 @@ export default class IntroDirector {
 
   startAssembly() {
     this.setState('controller-assembly')
+    this.onProductModeChange?.('attaching')
     this.controllerAssembly.play({
       prepare: false,
       onComplete: () => this.enterHero(),
@@ -83,6 +87,7 @@ export default class IntroDirector {
 
   enterHero() {
     this.setState('hero')
+    this.onProductModeChange?.('game-home')
     this.heroDelay = gsap.delayedCall(this.params.heroHold, () => {
       this.heroDelay = null
       this.setState('ready')
@@ -90,22 +95,20 @@ export default class IntroDirector {
   }
 
   skip() {
+    this.complete()
+    this.onProductModeChange?.('game-home')
+  }
+
+  complete() {
     this.killFlow()
     this.productRig.setDebugAngle(this.productRig.params.playAngle)
     this.controllerAssembly.setInstalledPose()
     this.setState('ready')
   }
 
-  enterPlay() {
-    this.killFlow()
-    this.productRig.setDebugAngle(this.productRig.params.playAngle)
-    this.controllerAssembly.setInstalledPose()
-    this.setState('play')
-  }
-
   setState(state) {
     this.params.state = state
-    this.state.setMode(state)
+    this.state.setIntroState(state)
     this.stateBinding?.refresh()
     this.events.emit('intro:state', { state })
   }
@@ -151,7 +154,6 @@ export default class IntroDirector {
     const actions = folder.addFolder({ title: 'Actions' })
     actions.addButton({ title: 'Replay Intro' }).on('click', () => this.play())
     actions.addButton({ title: 'Skip Intro' }).on('click', () => this.skip())
-    actions.addButton({ title: 'Enter Play' }).on('click', () => this.enterPlay())
   }
 
   destroy() {

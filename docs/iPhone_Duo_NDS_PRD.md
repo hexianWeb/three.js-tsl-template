@@ -26,7 +26,7 @@
 加载网页
 → 展示折叠状态的 iPhone Duo
 → Duo 自动展开
-→ 双屏点亮
+→ 手机上下屏点亮并显示 Phone UI
 → Controller 出场
 → Controller 沿滑轨安装到底部机身
 → 形成 NDS 风格双屏掌机
@@ -65,8 +65,8 @@ V1 暂不实现：
 
 - `BottomHalf_NO_CAM`
   - 无 Camera 的一侧
-  - 作为最终 NDS 下屏
-  - 安装到 Controller 内部
+  - `Bottom_Screen_Plane` 承载 Phone Mode 的手机原生下屏 UI
+  - Controller 安装后仍作为固定机身基准；进入 Game Mode 时该屏隐藏、关闭或由结构遮挡
 
 - `Hinge`
   - 用于入场动画中的折叠 / 展开
@@ -80,7 +80,7 @@ Controller 为一个整体式外置底座，不采用左右分离结构。
 - 蓝色 Controller 外壳
 - 左侧 D-Pad
 - 右侧 ABXY
-- 中央下屏显示区域
+- 中央独立显示屏 `Bottom_Display_Plane`
 - 内部滑轨结构
 
 V1 暂不设计肩键。
@@ -89,7 +89,7 @@ Controller 与 Duo Bottom 采用：
 
 > 纵向滑轨式安装。
 
-安装完成后，Controller 外壳会遮挡 iPhone Duo 下半机身的大部分区域，仅露出中央下屏显示区域。
+安装完成后，Controller 外壳会覆盖 iPhone Duo 下半机身的大部分区域。Controller 中央的 `Bottom_Display_Plane` 是自身独立显示屏，不是开孔，也不暴露手机的 `Bottom_Screen_Plane`。
 
 ---
 
@@ -110,7 +110,7 @@ Top_Screen_Plane
 - 角色与主要 Gameplay
 - 主视觉内容
 
-### 4.2 下屏
+### 4.2 Controller 下屏
 
 Controller 内部的下屏显示面为一个 PlaneGeometry。
 
@@ -135,26 +135,32 @@ Bottom_Display_Plane
 
 > 上下屏必须承担不同职责，不能简单复制同一游戏画面。
 
+### 4.3 模式映射
+
+| 产品状态 | `Top_Screen_Plane` | `Bottom_Screen_Plane` | `Bottom_Display_Plane` |
+|---|---|---|---|
+| Phone Mode | 手机上屏 UI | 手机原生下屏 UI | 关闭 / 黑屏 |
+| Controller 装配中 | 延续 Phone UI 或参与转场 | 随装配逐步被结构遮挡 | 保持关闭 / 黑屏 |
+| Game Home | Game Home 主界面 | 隐藏、关闭或由结构遮挡 | Game Home 辅助界面 |
+| Playing | NDS Top 输出 | 隐藏、关闭或由结构遮挡 | NDS Bottom 输出 |
+
+`Bottom_Screen_Plane` 与 `Bottom_Display_Plane` 是两块不同的显示面；任何模式切换都不能把 Controller 视为暴露手机下屏的开孔。
+
 ---
 
 ## 5. 屏幕实现方式
 
-Duo 不实现真实柔性屏幕。
-
-采用两块独立 Plane：
+Duo 不实现真实柔性屏幕。运行时共有三块职责明确的显示面：
 
 ```text
-Top_Screen_Plane
-Bottom_Screen_Plane
+Top_Screen_Plane       # 手机上屏；Phone Mode 与 Game Mode 共用
+Bottom_Screen_Plane    # 手机原生下屏；仅用于 Phone Mode
+Bottom_Display_Plane   # Controller 自身独立下屏；用于 Game Home / Playing
 ```
 
-Controller 安装完成后，最终下屏使用：
+三块屏幕的 UV 均已确认覆盖完整 `0–1`。内容宽高比与显示面比例不一致时，由运行时采用 fit、letterbox 或 crop 策略处理，不拉伸或改写 UV。
 
-```text
-Bottom_Display_Plane
-```
-
-折叠动画过程中保持屏幕关闭，展开完成后再点亮，因此无需表现屏幕在折叠过程中的连续形变。
+折叠动画过程中三块屏幕保持关闭，展开完成后先点亮 `Top_Screen_Plane` 与 `Bottom_Screen_Plane` 显示 Phone UI，因此无需表现屏幕在折叠过程中的连续形变。Controller 装配期间 `Bottom_Display_Plane` 继续保持黑屏 / 关闭，直到预定的 Game Home 转场才点亮。
 
 ---
 
@@ -178,7 +184,7 @@ Bottom_Display_Plane
 iPhone Duo 自动展开，折叠过程中屏幕保持黑屏。
 
 #### Shot 03 — Screen Wake
-展开完成后，上下屏点亮并显示双屏游戏 UI。
+展开完成后，`Top_Screen_Plane` 与 `Bottom_Screen_Plane` 点亮并显示 Phone Mode UI；`Bottom_Display_Plane` 保持关闭。
 
 #### Shot 04 — Controller Reveal
 Controller 从画面外进入，展示 Controller、Duo Bottom 与滑轨安装关系。
@@ -196,10 +202,12 @@ Align
 
 - 微小机械回弹
 - Click 音效
-- 下屏状态激活
+- Game Home 转场开始时激活 Controller 独立下屏
 
 #### Shot 06 — Hero Shot
 展示完整 `iPhone Duo + Controller`，形成 NDS / 3DS 风格双屏掌机。
+
+此时 Game Home 使用 `Top_Screen_Plane` 与 `Bottom_Display_Plane`；手机原生 `Bottom_Screen_Plane` 隐藏、关闭或由结构遮挡。
 
 #### Ready
 Intro 暂停，显示 `PLAY` 或 `Press Any Key`，等待用户主动进入 Playable Demo。
@@ -411,7 +419,7 @@ DUO_NDS_ROOT
 → Loading
 → 折叠状态 Duo 出场
 → Duo 展开
-→ 双屏点亮
+→ Top_Screen_Plane 与 Bottom_Screen_Plane 点亮 Phone UI
 → Controller 出场
 → Controller 滑轨安装
 → 形成完整 NDS 形态
@@ -420,8 +428,9 @@ DUO_NDS_ROOT
 → 进入可玩模式
 → Keyboard / Gamepad 控制游戏
 → 3D ABXY / D-Pad 同步响应
-→ 上屏实时显示游戏主画面
-→ 下屏实时显示副屏内容
+→ Top_Screen_Plane 实时显示游戏 / NDS Top 输出
+→ Bottom_Display_Plane 实时显示游戏 / NDS Bottom 输出
+→ Bottom_Screen_Plane 在 Game Mode 中隐藏、关闭或由结构遮挡
 ```
 
 完成上述链路，即可认为本项目核心概念验证完成。
@@ -669,6 +678,8 @@ Playable Demo 优先考虑真正的 NDS 双屏内容，而不是 NES 单屏游�
 6. 分别映射到 `Top_Screen_Plane` 与 `Bottom_Display_Plane`。
 7. 验证音频必须由用户点击 `Play` 后启动，满足浏览器自动播放策略。
 
+该桥接只处理 Game Home / Playing 的游戏双屏输出。Phone Mode 由屏幕状态管理逻辑将手机 UI 分别映射到 `Top_Screen_Plane` 与 `Bottom_Screen_Plane`；Controller 装配期间 `Bottom_Display_Plane` 不接收可见游戏帧，保持黑屏 / 关闭。
+
 ### 21.3 屏幕桥接
 
 建议由 `NDSScreenBridge` 隔离模拟器与 Three.js：
@@ -684,6 +695,8 @@ NDSScreenBridge
 ```
 
 如果模拟器只提供一张纵向拼接画布，则每帧分别裁切上半区和下半区；如果提供两张画布，则直接作为两个纹理源。该差异只允许存在于 `NDSScreenBridge` 内，不能扩散到场景代码。
+
+三块屏幕 UV 已确认覆盖完整 `0–1`。`NDSScreenBridge` 或 `ScreenManager` 必须按目标显示面的宽高比执行 fit、letterbox 或 crop；不得为填满显示面而非等比拉伸画面或扭曲 UV。
 
 ### 21.4 开源游戏选择原则
 
@@ -748,7 +761,8 @@ App
 ├─ IntroDirector                # 状态机和 GSAP 时间线
 ├─ CameraDirector               # Hero / Play 等镜头
 ├─ ScreenManager
-│  └─ NDSScreenBridge           # 模拟器输出与双 CanvasTexture
+│  ├─ ScreenState               # Phone / Attaching / Game Home / Playing 三屏可见性与内容源
+│  └─ NDSScreenBridge           # NDS 输出映射到 Top_Screen_Plane / Bottom_Display_Plane
 ├─ InputManager                 # Keyboard / Gamepad / Touch Action
 ├─ ControllerFeedback           # 按键弹簧与 D-Pad 倾斜
 ├─ NDSRuntime                   # 模拟器生命周期、ROM、音频、存档
@@ -761,6 +775,7 @@ App
 - 输入系统只输出语义 Action，不直接操作按钮 Mesh 或模拟器键码。
 - GLB 节点名只允许集中在 `ModelAdapter` 中解析。
 - Intro 与 Play 的状态切换不能直接散落在渲染循环中。
+- `ScreenManager` 负责三块屏幕的模式映射；`NDSScreenBridge` 不得把 NDS Bottom 输出路由到手机的 `Bottom_Screen_Plane`。
 
 ---
 
@@ -780,6 +795,8 @@ App
 - 不需要用户在开发阶段逐项验收，由用户最后进行视觉验收。
 - 后续静态资源由用户自行补充，工程保持 `public` 为公共资源目录。
 - Controller Shell 的运行时 GI 使用 2048 × 2048 Half Float EXR Lightmap，并通过 `TEXCOORD_1` 采样。
+- 已确认三块屏幕节点及职责：`Top_Screen_Plane` 为手机上屏，`Bottom_Screen_Plane` 为手机原生下屏，`Bottom_Display_Plane` 为 Controller 独立显示屏。
+- 已确认三块屏幕 UV 均覆盖完整 `0–1`；比例差异由运行时 fit、letterbox 或 crop 处理。
 
 ### 待技术验证
 
@@ -845,6 +862,7 @@ App
 - 建立 Folded、Assembly、Hero、Play 镜头。
 - 屏幕点亮发生在折叠完成后。
 - `READY` 状态等待用户操作，用户点击后再启动音频与游戏。
+- Controller 装配期间保持 `Bottom_Display_Plane` 黑屏 / 关闭；在预定的 Game Home 转场中才激活。
 
 完成条件：Intro 可重复播放、可跳过，状态切换无竞态。
 
@@ -855,7 +873,9 @@ App
 - 在隔离页面运行模拟器与 Homebrew ROM。
 - 测量首屏加载时间、帧率、内存和音频稳定性。
 - 完成上下屏 Canvas 提取。
-- 在 3D 模型两块屏幕上显示真实模拟器画面。
+- 将 NDS Top / Bottom 真实画面分别显示到 `Top_Screen_Plane` / `Bottom_Display_Plane`。
+- 验证 Game Mode 中 `Bottom_Screen_Plane` 保持隐藏、关闭或由结构遮挡。
+- 验证不同宽高比通过 fit、letterbox 或 crop 等比适配，不扭曲 UV。
 - 验证页面隐藏、恢复、失焦和窗口尺寸变化。
 
 完成条件：连续运行十分钟无明显音画漂移、崩溃或输入卡死。
@@ -889,6 +909,8 @@ App
 | 模拟器无法暴露上下屏像素 | 无法映射到 3D 屏幕 | 在模拟器渲染层增加输出适配 | 读取合并 Canvas 后裁切 |
 | 模拟器与 WebGPU 同时运行负载过高 | 掉帧、发热 | 降低 3D DPR、阴影和后处理 | 3D 30 FPS，模拟器保持原帧率 |
 | CanvasTexture 每帧上传成本过高 | GPU 带宽压力 | 仅在新模拟器帧到达时标记更新 | 降低纹理过滤或更新频率 |
+| 三块屏幕在模式切换时路由错误 | Phone UI 或 NDS Bottom 出现在错误显示面 | 由 `ScreenManager` 集中定义模式映射与可见性 | 切换时先将非目标显示面置黑再绑定内容源 |
+| NDS 画面与显示面宽高比不同 | 画面拉伸、裁切主体或出现非预期空白 | 运行时提供 fit / letterbox / crop 策略 | 默认使用 letterbox 保证画面不变形 |
 | Homebrew ROM 许可不完整 | 无法公开部署 | 更换为许可链完整的原创 Homebrew | 自制最小 NDS Homebrew 验证 ROM |
 | 模拟器 GPL 等许可与发布方式冲突 | 影响分发方案 | 在选型 Spike 阶段完成许可证审核 | 更换兼容许可的模拟器或隔离部署 |
 | GLB 节点名发生变化 | 运行时 Rig 失效 | `ModelAdapter` 启动时完整校验 | 提供集中式节点映射表 |
