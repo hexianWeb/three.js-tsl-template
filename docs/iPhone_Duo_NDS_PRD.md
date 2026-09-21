@@ -80,7 +80,7 @@ Controller 为一个整体式外置底座，不采用左右分离结构。
 - 蓝色 Controller 外壳
 - 左侧 D-Pad
 - 右侧 ABXY
-- 中央独立显示屏 `Bottom_Display_Plane`
+- 中央镂空上方的可激活显示层 `Bottom_Display_Plane`
 - 内部滑轨结构
 
 V1 暂不设计肩键。
@@ -89,7 +89,7 @@ Controller 与 Duo Bottom 采用：
 
 > 纵向滑轨式安装。
 
-安装完成后，Controller 外壳会覆盖 iPhone Duo 下半机身的大部分区域。Controller 中央的 `Bottom_Display_Plane` 是自身独立显示屏，不是开孔，也不暴露手机的 `Bottom_Screen_Plane`。
+安装完成后，Controller 外壳会覆盖 iPhone Duo 下半机身的大部分区域。Controller 中央为镂空结构：装配期间隐藏 `Bottom_Display_Plane`，让用户看到下方手机的 `Bottom_Screen_Plane`；Lock 完成后才激活该显示层并过渡到 Controller UI。
 
 ---
 
@@ -139,12 +139,12 @@ Bottom_Display_Plane
 
 | 产品状态 | `Top_Screen_Plane` | `Bottom_Screen_Plane` | `Bottom_Display_Plane` |
 |---|---|---|---|
-| Phone Mode | 手机上屏 UI | 手机原生下屏 UI | 关闭 / 黑屏 |
-| Controller 装配中 | 延续 Phone UI 或参与转场 | 随装配逐步被结构遮挡 | 保持关闭 / 黑屏 |
+| Phone Mode | 手机上屏 UI | 手机原生下屏 UI | 不可见 |
+| Controller 装配中 | 延续 Phone UI | 透过 Controller 镂空保持可见 | 完全透明 / 不可见 |
 | Game Home | Game Home 主界面 | 隐藏、关闭或由结构遮挡 | Game Home 辅助界面 |
 | Playing | NDS Top 输出 | 隐藏、关闭或由结构遮挡 | NDS Bottom 输出 |
 
-`Bottom_Screen_Plane` 与 `Bottom_Display_Plane` 是两块不同的显示面；任何模式切换都不能把 Controller 视为暴露手机下屏的开孔。
+`Bottom_Screen_Plane` 与 `Bottom_Display_Plane` 是两块不同的显示面，但 Controller 的结构语义是镂空上方叠加可激活显示层：装配阶段暴露手机下屏，Game Changer 转场后由 Controller 显示层接管。
 
 ---
 
@@ -155,12 +155,12 @@ Duo 不实现真实柔性屏幕。运行时共有三块职责明确的显示面�
 ```text
 Top_Screen_Plane       # 手机上屏；Phone Mode 与 Game Mode 共用
 Bottom_Screen_Plane    # 手机原生下屏；仅用于 Phone Mode
-Bottom_Display_Plane   # Controller 自身独立下屏；用于 Game Home / Playing
+Bottom_Display_Plane   # 镂空上方的 Controller 显示层；用于 Game Home / Playing
 ```
 
 三块屏幕的 UV 均已确认覆盖完整 `0–1`。内容宽高比与显示面比例不一致时，由运行时采用 fit、letterbox 或 crop 策略处理，不拉伸或改写 UV。
 
-折叠动画过程中三块屏幕保持关闭，展开完成后先点亮 `Top_Screen_Plane` 与 `Bottom_Screen_Plane` 显示 Phone UI，因此无需表现屏幕在折叠过程中的连续形变。Controller 装配期间 `Bottom_Display_Plane` 继续保持黑屏 / 关闭，直到预定的 Game Home 转场才点亮。
+Phone UI 从 Fold 第一帧就在 `Top_Screen_Plane` 与 `Bottom_Screen_Plane` 显示。Top Screen 的方向模糊、轻微位移与折痕阴影随产品角度恢复，Bottom Screen 只做轻度模糊和亮度恢复。Controller 装配期间 `Bottom_Display_Plane` 完全不可见，Lock 完成后的 Game Changer 转场才激活。
 
 ---
 
@@ -178,13 +178,13 @@ Bottom_Display_Plane   # Controller 自身独立下屏；用于 Game Home / Play
 ### 6.2 Intro
 
 #### Shot 01 — Folded Duo
-展示折叠状态 iPhone Duo，Controller 暂不出现。
+展示折叠状态 iPhone Duo，低亮度 Phone UI 已显示，Controller 暂不出现。
 
 #### Shot 02 — Unfold
-iPhone Duo 自动展开，折叠过程中屏幕保持黑屏。
+iPhone Duo 自动展开；Top Screen 根据产品角度执行 Blur、Parallax 与 Fold Shade，Bottom Screen 逐步恢复亮度和清晰度。
 
 #### Shot 03 — Screen Wake
-展开完成后，`Top_Screen_Plane` 与 `Bottom_Screen_Plane` 点亮并显示 Phone Mode UI；`Bottom_Display_Plane` 保持关闭。
+展开完成后，Screen Wake 负责 Phone UI 的曝光、焦点和亮度稳定，不再从黑场点亮。
 
 #### Shot 04 — Controller Reveal
 Controller 从画面外进入，展示 Controller、Duo Bottom 与滑轨安装关系。
@@ -202,7 +202,7 @@ Align
 
 - 微小机械回弹
 - Click 音效
-- Game Home 转场开始时激活 Controller 独立下屏
+- Lock 完成后停顿，再激活 Controller 显示层并播放 Game Changer 转场
 
 #### Shot 06 — Hero Shot
 展示完整 `iPhone Duo + Controller`，形成 NDS / 3DS 风格双屏掌机。
@@ -453,16 +453,19 @@ DUO_NDS_ROOT
 - `ModelAdapter` 必需节点校验、包围盒居中和基础缩放
 - WebGPU 初始化、资源加载和失败状态提示
 - Camera OrbitControls 与 Tweakpane 基础模型调试
-- GLB 中 9 个必需运行时节点的实际存在性校验
+- GLB 中 10 个必需运行时节点的实际存在性校验
 - Runtime Rig、`8° / 110° / 180°` 折叠控制和 Controller EXR Lightmap
 - Controller Reveal、Align、Slide、Lock 可重播时间线
 - Controller 装配采用约 1.85 秒的阶段重叠吸合节奏，并在锁定后保留 Hero 留白
 - IntroDirector 基础状态流、Replay Intro、Skip Intro、Ready 与 Play 调试入口
 - CameraDirector 四组运行时镜头、Intro 状态映射、Orbit 锁定与 Tweakpane 取景工具
+- Fold 第一帧 Phone UI、角度驱动的模糊翻页和 Screen Wake 曝光 / 焦点稳定
+- Controller 装配镂空与 Lock 后 Phone UI -> Game Home 双屏转场
+- Phone、Attaching、Game Home、Playing 四种屏幕模式和最小 Continue / 返回交互
 
 当前下一步：
 
-> Camera Shot 已完成用户视觉校准；下一步实现 Screen Wake 和页面 Ready / Play UI。
+> Camera Shot、Fold / Screen Wake、Game Changer 与最小 Ready / Play 交互已接入；下一步完成 WebGPU 浏览器视觉验收并进入 NDS 技术验证。
 
 ---
 
@@ -678,7 +681,7 @@ Playable Demo 优先考虑真正的 NDS 双屏内容，而不是 NES 单屏游�
 6. 分别映射到 `Top_Screen_Plane` 与 `Bottom_Display_Plane`。
 7. 验证音频必须由用户点击 `Play` 后启动，满足浏览器自动播放策略。
 
-该桥接只处理 Game Home / Playing 的游戏双屏输出。Phone Mode 由屏幕状态管理逻辑将手机 UI 分别映射到 `Top_Screen_Plane` 与 `Bottom_Screen_Plane`；Controller 装配期间 `Bottom_Display_Plane` 不接收可见游戏帧，保持黑屏 / 关闭。
+该桥接只处理 Game Home / Playing 的游戏双屏输出。Phone Mode 由屏幕状态管理逻辑将手机 UI 分别映射到 `Top_Screen_Plane` 与 `Bottom_Screen_Plane`；Controller 装配期间 `Bottom_Display_Plane` 完全不可见，使镂空区域继续显示手机下屏。
 
 ### 21.3 屏幕桥接
 
@@ -761,7 +764,8 @@ App
 ├─ IntroDirector                # 状态机和 GSAP 时间线
 ├─ CameraDirector               # Hero / Play 等镜头
 ├─ ScreenManager
-│  ├─ ScreenState               # Phone / Attaching / Game Home / Playing 三屏可见性与内容源
+│  ├─ PhoneScreenSurface        # Phone / Top Game 材质、Fold TSL 与屏幕参数
+│  ├─ ControllerDisplay         # Controller Canvas、材质与命中测试
 │  └─ NDSScreenBridge           # NDS 输出映射到 Top_Screen_Plane / Bottom_Display_Plane
 ├─ InputManager                 # Keyboard / Gamepad / Touch Action
 ├─ ControllerFeedback           # 按键弹簧与 D-Pad 倾斜
@@ -795,7 +799,7 @@ App
 - 不需要用户在开发阶段逐项验收，由用户最后进行视觉验收。
 - 后续静态资源由用户自行补充，工程保持 `public` 为公共资源目录。
 - Controller Shell 的运行时 GI 使用 2048 × 2048 Half Float EXR Lightmap，并通过 `TEXCOORD_1` 采样。
-- 已确认三块屏幕节点及职责：`Top_Screen_Plane` 为手机上屏，`Bottom_Screen_Plane` 为手机原生下屏，`Bottom_Display_Plane` 为 Controller 独立显示屏。
+- 已确认三块屏幕节点及职责：`Top_Screen_Plane` 为手机上屏，`Bottom_Screen_Plane` 为手机原生下屏，`Bottom_Display_Plane` 为 Controller 镂空上方、仅在 Lock 后激活的显示层。
 - 已确认三块屏幕 UV 均覆盖完整 `0–1`；比例差异由运行时 fit、letterbox 或 crop 处理。
 
 ### 待技术验证
@@ -860,9 +864,9 @@ App
 - 接入 GSAP。
 - 实现 Intro 状态机与 Skip Intro。
 - 建立 Folded、Assembly、Hero、Play 镜头。
-- 屏幕点亮发生在折叠完成后。
+- Phone UI 从 Fold 第一帧显示，折叠效果由产品角度驱动；Screen Wake 只做展开后的曝光与焦点稳定。
 - `READY` 状态等待用户操作，用户点击后再启动音频与游戏。
-- Controller 装配期间保持 `Bottom_Display_Plane` 黑屏 / 关闭；在预定的 Game Home 转场中才激活。
+- Controller 装配期间隐藏 `Bottom_Display_Plane` 以暴露镂空下方的手机 UI；Lock 后通过 Game Changer 转场激活。
 
 完成条件：Intro 可重复播放、可跳过，状态切换无竞态。
 
@@ -963,7 +967,8 @@ Tweakpane 只用于开发调试，生产构建默认隐藏。
 
 ### Screen / Performance
 
-- 屏幕亮度与发光强度
+- Phone 屏幕亮度、自发光强度、漫反射细节与粗糙度
+- Phone UI 的 X / Y 镜像、四档旋转与上下屏面板对调
 - CanvasTexture 更新频率
 - Renderer DPR
 - Shadow enable
@@ -974,6 +979,8 @@ Tweakpane 只用于开发调试，生产构建默认隐藏。
 - 当前 Intro State
 - Skip Intro
 - Replay Intro
+- Screen Wake Duration / Hold
+- Pause / Inspect Screen Wake / Continue Assembly
 - Enter Play
 - Pause / Resume NDS Runtime
 - 模拟 Keyboard / Gamepad Action

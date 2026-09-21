@@ -1,6 +1,6 @@
 import { gsap } from 'gsap'
 import * as THREE from 'three/webgpu'
-import Experience from '../Experience.js'
+import Experience from '../../Experience.js'
 
 const DEFAULT_RAIL_AXIS_SIGN = -1
 

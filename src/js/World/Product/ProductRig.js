@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu'
-import Experience from '../Experience.js'
+import Experience from '../../Experience.js'
 import ControllerAssembly from './ControllerAssembly.js'
 
 const BIND_ANGLE = 180

@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu'
-import Experience from '../Experience.js'
+import Experience from '../../Experience.js'
 import ModelInspector from './ModelInspector.js'
 import ProductRig from './ProductRig.js'
 

@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu'
-import Experience from '../Experience.js'
+import Experience from '../../Experience.js'
 
 const AXIS_LEGEND = 'X 红 · Y 绿 · Z 蓝'
 
@@ -23,10 +23,10 @@ export default class ModelInspector {
     this.params = {
       selectedNode: 'presentationRoot',
       axisLegend: AXIS_LEGEND,
-      showWorldAxes: true,
-      showGrid: false,
-      showSelectedAxes: true,
-      showSelectedBounds: true,
+      showWorldAxes: false,
+      showGrid: true,
+      showSelectedAxes: false,
+      showSelectedBounds: false,
       showAllPartAxes: false,
       axisSize: 0.55,
       localPosition: '',

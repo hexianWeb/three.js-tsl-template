@@ -1,3 +1,4 @@
+import * as THREE from 'three/webgpu'
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import Experience from '../Experience.js'
@@ -11,6 +12,7 @@ export default class Resources {
     this.loaders = {
       exrTexture: new EXRLoader(),
       gltfModel: new GLTFLoader(),
+      texture: new THREE.TextureLoader(),
     }
   }
 

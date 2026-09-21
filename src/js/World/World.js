@@ -1,10 +1,10 @@
 import * as THREE from 'three/webgpu'
 import Experience from '../Experience.js'
-import CameraDirector from './CameraDirector.js'
-import InputRouter from './InputRouter.js'
-import IntroDirector from './IntroDirector.js'
-import ModelAdapter from './ModelAdapter.js'
-import ScreenManager from './ScreenManager.js'
+import CameraDirector from './Directors/CameraDirector.js'
+import IntroDirector from './Directors/IntroDirector.js'
+import InputRouter from './Input/InputRouter.js'
+import ModelAdapter from './Product/ModelAdapter.js'
+import ScreenManager from './Screens/ScreenManager.js'
 
 export default class World {
   constructor() {
@@ -96,6 +96,10 @@ export default class World {
       topScreen: this.product.nodes.topScreen,
       bottomScreen: this.product.nodes.bottomScreen,
       bottomDisplay: this.product.nodes.bottomDisplay,
+      phoneHomeTexture: this.resources.items.phoneHomeTexture,
+      gameHomeTexture: this.resources.items.gameHomeTexture,
+      onPreviewAngle: angle => this.product.productRig.setDebugAngle(angle),
+      onDebugModeChange: mode => this.setProductMode(mode),
     })
   }
 
@@ -103,6 +107,10 @@ export default class World {
     this.intro = new IntroDirector({
       productRig: this.product.productRig,
       onProductModeChange: mode => this.setProductMode(mode),
+      onScreenWakeProgress: progress => this.screenManager.setPhoneWakeProgress(progress),
+      onGameChangerStart: onComplete => this.screenManager.playGameChangerTransition({ onComplete }),
+      onGameChangerStop: () => this.screenManager.killGameChangerTransition(),
+      onGameChangerComplete: () => this.screenManager.completeGameChangerTransition(),
     })
   }
 
@@ -140,6 +148,7 @@ export default class World {
 
   update() {
     this.product.update()
+    this.screenManager.setProductAngle(this.product.productRig.params.productAngle)
     this.screenManager.update()
     this.inputRouter.update()
     this.keyLightHelper.update()

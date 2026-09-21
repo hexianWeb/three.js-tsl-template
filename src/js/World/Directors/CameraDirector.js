@@ -1,5 +1,5 @@
 import { gsap } from 'gsap'
-import Experience from '../Experience.js'
+import Experience from '../../Experience.js'
 
 export default class CameraDirector {
   constructor() {
@@ -45,12 +45,12 @@ export default class CameraDirector {
       },
       play: {
         positionX: 0,
-        positionY: 4,
-        positionZ: 4,
+        positionY: 2,
+        positionZ: 3.8,
         targetX: 0,
-        targetY: 0,
-        targetZ: 0,
-        fov: 34,
+        targetY: 0.5,
+        targetZ:-0.15,
+        fov: 30,
         duration: 1.1,
       },
     }
@@ -59,6 +59,7 @@ export default class CameraDirector {
       'intro-unfold': 'assembly',
       'screen-wake': 'assembly',
       'controller-assembly': 'assembly',
+      'game-changer': 'assembly',
       hero: 'hero',
       ready: 'hero',
     }

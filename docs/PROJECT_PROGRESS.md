@@ -1,12 +1,12 @@
 # iPhone Duo WebGPU 项目进度
 
-> 最后更新：2026-09-20
+> 最后更新：2026-09-21
 > 当前阶段：Phase 4 — Intro、Camera Shot、Ready / Play
-> 当前状态：屏幕模式与最小 Continue / 返回流已实现，Screen Wake 视觉资源与 WebGPU 浏览器视觉验收待完成
+> 当前状态：Fold Screen Effect、Controller 镂空与 Game Changer 转场已实现，WebGPU 浏览器视觉验收待完成
 
 ## 1. 进度摘要
 
-Phase 2 Runtime Rig、折叠方向、阴影和 Controller Lightmap 已完成视觉校准。当前已实现可重播的 Controller Reveal、Align、Slide、Lock 时间线，以及 Phone、Attaching、Game Home、Playing 四种产品屏幕模式和最小 Continue / 返回交互。
+Phase 2 Runtime Rig、折叠方向、阴影和 Controller Lightmap 已完成视觉校准。当前已实现角度驱动的 Fold Phone UI、可重播的 Controller 装配、装配期间的透明镂空，以及 Lock 后 Phone UI -> Game Home 转场和最小 Continue / 返回交互。
 
 实施里程碑统计：
 
@@ -30,7 +30,7 @@ Git 提交：本轮已执行
 | Phase 1.5 | 模型坐标轴与 Transform 检查器 | 已完成 | 为任务二的铰链轴向校准提供基建 |
 | Phase 2 | BottomRig、HingePivot、折叠原型 | 已完成 | 折叠方向、阴影和 Lightmap 已完成视觉校准 |
 | Phase 3 | Controller Reveal / Assembly | 已完成 | 精密吸合时间线已通过用户视觉校验 |
-| Phase 4 | Intro、Camera Shot、Ready / Play | 进行中 | 状态流、Camera Shot 与最小 Controller Game Home 已实现；Screen Wake 视觉资源及浏览器视觉验收待完成 |
+| Phase 4 | Intro、Camera Shot、Ready / Play | 进行中 | Fold UI、Screen Wake、Camera Shot、Game Changer 与最小 Controller Game Home 已实现；浏览器视觉验收待完成 |
 | Phase 5 | NDS 模拟器技术验证与双屏桥接 | 未开始 | 模拟器与 Homebrew 尚未选定 |
 | Phase 6 | Keyboard / Gamepad 与 3D 按键反馈 | 部分实现 | Continue 已支持 Enter / 标准 Gamepad A，Escape 可返回；通用游戏输入与 3D 按键反馈未实现 |
 | Phase 7 | 性能、兼容性、Loading 与视觉精修 | 未开始 | 最终视觉验收由用户完成 |
@@ -47,7 +47,7 @@ Git 提交：本轮已执行
 - 确认 Controller 当前 GLB 相对变换就是最终安装终点。
 - 保留 NDS Web 模拟器与合法 Homebrew ROM 路线。
 - 明确 GSAP 与按键弹簧的职责边界。
-- 确认三块屏幕节点与模式职责：`Top_Screen_Plane` 为手机上屏，`Bottom_Screen_Plane` 为手机原生下屏，`Bottom_Display_Plane` 为 Controller 自身独立显示屏；Controller 不是暴露手机下屏的开孔。
+- 确认三块屏幕节点与模式职责：`Top_Screen_Plane` 为手机上屏，`Bottom_Screen_Plane` 为手机原生下屏，`Bottom_Display_Plane` 为 Controller 镂空上方、仅在 Lock 后激活的显示层。
 - 确认三块屏幕 UV 均覆盖完整 `0–1`；比例差异由运行时 fit、letterbox 或 crop 处理，不扭曲 UV。
 
 ### 3.2 项目规则
@@ -72,9 +72,9 @@ Git 提交：本轮已执行
 
 | 项目 | 数量 |
 |---|---:|
-| JavaScript 文件 | 20 |
-| `src/js` 架构模块 | 19 |
-| `src` 内全部文件 | 22 |
+| JavaScript 文件 | 23 |
+| `src/js` 架构模块 | 21 |
+| `src` 内全部文件 | 25 |
 
 ### 3.4 模型加载与适配
 
@@ -103,7 +103,7 @@ Bottom_Screen_Plane
 Bottom_Display_Plane
 ```
 
-补充屏幕语义确认：当前模型另有 `Bottom_Screen_Plane`，用于 Phone Mode 的手机原生下屏。Game Home / Playing 将 NDS Top / Bottom 分别映射到 `Top_Screen_Plane` / `Bottom_Display_Plane`，并让 `Bottom_Screen_Plane` 隐藏、关闭或由结构遮挡；Controller 装配期间 `Bottom_Display_Plane` 保持黑屏 / 关闭，直到预定转场。
+补充屏幕语义确认：`Bottom_Screen_Plane` 用于 Phone Mode 的手机原生下屏。Controller 装配期间隐藏 `Bottom_Display_Plane`，用户透过镂空继续看到手机 UI；Lock 后转场才由 Controller 显示层接管，Game Home / Playing 再将上下内容映射到 `Top_Screen_Plane` / `Bottom_Display_Plane`。
 
 ### 3.5 页面状态与错误处理
 
@@ -160,7 +160,7 @@ Bottom_Display_Plane
 ### 3.10 IntroDirector 基础状态流
 
 - 新增 `IntroDirector`，由 `World.start()` 在渲染循环建立后自动播放。
-- Intro 编排状态链为 `intro-folded → intro-unfold → screen-wake → controller-assembly → hero → ready`；产品模式独立为 `phone → attaching → game-home → playing`。
+- Intro 编排状态链为 `intro-folded → intro-unfold → screen-wake → controller-assembly → game-changer → hero → ready`；产品模式独立为 `phone → attaching → game-home → playing`。
 - Folded 阶段保持 `8°` 并隐藏 Controller；Unfold 用 GSAP 动画到 `110°`，随后调用已完成的装配 Timeline。
 - Unfold 先以 `power3.in` 在 `0.45s` 内从 `8°` 撕开到 `24°`，再以 `power3.out` 在 `1.55s` 内连续落到 `110°`，中间不停车。
 - Hero 阶段进入 Game Home；Continue 会先终止 Hero Delay、收束 Intro 并进入 Playing，避免后续 Ready 事件把镜头拉回 Hero。
@@ -176,20 +176,30 @@ Bottom_Display_Plane
 
 ### 3.12 ScreenManager 与 InputRouter
 
-- 新增 `ScreenManager`，集中管理三块屏幕在 `phone`、`attaching`、`game-home`、`playing` 模式下的材质、可见性、黑屏状态和自建 GPU 资源生命周期。
-- Controller Game Home 使用运行时生成的方形 `CanvasTexture`，提供唯一真实 UI 动作 Continue；Playing 显示明确占位内容，不伪装为已接入 NDS 模拟器。
+- `ScreenManager` 只协调 `phone`、`attaching`、`game-home`、`playing` 模式、三屏可见性和 Game Changer Timeline。
+- `PhoneScreenSurface` 管理 Phone / Top Game 纹理、Node Material、Fold TSL 参数和 GPU 资源；`ControllerDisplay` 管理 Controller Canvas、显示材质、Continue 命中与按需纹理上传。
+- Controller Game Home 使用参考图视觉语言重绘的运行时 `CanvasTexture`，Alto's Odyssey 卡片提供唯一真实 UI 动作 Continue；Playing 显示明确占位内容，不伪装为已接入 NDS 模拟器。
 - Pointer 通过 Three.js Raycaster 命中 `Bottom_Display_Plane`，读取交点 UV 并命中测试 Continue 区域。
 - Continue 的 Pointer、Enter 与标准 Gamepad button 0 / A 均路由到同一语义 Action；Escape 从 Playing 返回 Game Home。
-- Phone Mode 与 Controller 装配阶段不响应这些产品导航动作；Controller 显示屏在装配期间保持黑屏。
+- Phone Mode 与 Controller 装配、Game Changer 转场阶段不响应产品导航动作；只有转场完成进入 Game Home 后才激活 Continue。
 - Controller CanvasTexture 已统一应用水平镜像与逆时针 `90°` 旋转，Continue 命中测试复用同一纹理 UV 变换。
 - `ScreenManager.update()` 只在 Canvas 内容变化时上传纹理；销毁时只释放本模块创建的纹理和材质，并恢复 GLB 原始屏幕状态。
+- `docs/img/主页面.png` 已通过 Vite 资源管线作为 Phone UI 加载；原图为 `1484 × 1060` 双联桌面，运行时按左右两个 `742 × 1060` 面板分别映射到手机上下屏。
+- Phone UI 从 Fold 第一帧开始显示。Top Screen 使用 9-tap TSL 方向模糊、UV 位移与折痕阴影，默认从 `24°` 开始恢复并在 `85°` 清晰；Bottom Screen 在 `45°` 前完成轻度模糊和亮度恢复。
+- Screen Wake 不再从黑场点亮，而是在 Unfold 完成后以默认 `1.5s` 稳定曝光与焦点，并额外停留 `4s` 供观察。
+- Controller 装配期间 `Bottom_Display_Plane` 完全不可见，使镂空区域显示 `Bottom_Screen_Plane` 的 Phone UI。
+- Lock 完成后停顿 `0.15s`，再以 `0.75s` Blur / Scale / Crossfade 将 Top Screen 切换到 `游戏模式主页面.png`、激活 Controller UI，并在结束时隐藏手机下屏。
+- Phone UI 使用受 ACES 色调映射管理的 `MeshStandardNodeMaterial`，由独立 `Phone Screens` 面板调节自发光亮度、漫反射细节和粗糙度；默认亮度已从无色调映射的全亮状态降至 `0.38`。
+- Phone UI 先裁成两张独立半幅 `CanvasTexture`，再执行镜像和旋转；当前校准基线为 `180°` 与上下屏面板对调，面板仍可切换 X / Y 镜像和四档旋转。
+- Intro 面板新增 `screenWakeHold`、`Pause at Screen Wake`、`Inspect Screen Wake` 与 `Continue Assembly`；可无限期停留在完整点亮状态调试，再恢复装配流程。
+- 新增 `Fold Screen Effect` 与 `Game Changer Transition` 面板，可检查角度、模糊、位移、折痕方向、镂空、转场进度、Game UI 朝向和亮度。
 
 ## 4. 验证记录
 
 | 检查 | 结果 |
 |---|---|
 | `npm run build` | 通过 |
-| JavaScript 构建检查 | 20 / 20 通过 |
+| Vite 模块转换 | 43 modules，通过 |
 | `git diff --check` | 通过 |
 | 本地首页请求 | HTTP 200 |
 | 本地 `main.js` 请求 | HTTP 200 |
@@ -206,9 +216,15 @@ Bottom_Display_Plane
 | Controller 装配轴向推导 | Rail Z、Align Y 通过 |
 | Controller 装配阶段时序 | 约 1.85s、Reveal/Slide 异向缓动与 Hold 待视觉复核 |
 | Controller 动画终点矩阵 | 最大元素误差 0 |
-| Intro / 产品状态流 | Folded → Unfold → Assembly → Hero → Ready；Phone → Attaching → Game Home → Playing 已接入 |
+| Intro / 产品状态流 | Folded → Unfold → Screen Wake → Assembly → Game Changer → Hero → Ready 已接入 |
 | Camera Shot 状态映射 | Intro 与产品模式事件已分离；Folded / Assembly / Hero / Play 已接入 |
 | Continue / 返回输入 | Pointer、Enter、标准 Gamepad A → Continue；Escape → Game Home 已接入 |
+| Phone UI 资源构建 | `主页面.png` 已输出为独立 Vite Asset，通过 |
+| Fold / Screen Wake 状态流 | Fold 第一帧显示 UI；Unfold 驱动模糊翻页；Screen Wake 稳定曝光与焦点，已接入 |
+| Phone 屏幕材质控制 | Brightness / Diffuse detail / Roughness 与镜像、旋转、面板对调已接入 |
+| Screen Wake 调试 | 时长、停留、自动暂停、独立检查与继续装配已接入 |
+| Controller 镂空 | Attaching 隐藏显示层并暴露手机下屏，已接入 |
+| Game Changer | Lock 后 Top / Bottom 双屏 Blur、Scale、Crossfade 转场，已接入 |
 
 构建存在一个非阻塞警告：Three.js WebGPU 相关入口打包后主 JavaScript Chunk 超过 Vite 默认 500 kB 提示阈值。当前阶段不做过早拆包，等 NDS Runtime 选型后统一规划按需加载。
 
@@ -234,7 +250,7 @@ Bottom_Display_Plane
 - 当前未配置测试脚本或测试框架。
 - 主 JavaScript Chunk 有体积警告，但构建成功。
 - Controller Shell EXR 未压缩且约 50.4 MB，会显著增加首次加载时间；视觉确认后再决定是否压缩或降级。
-- 当前 Camera Shot 参数已由用户完成视觉校准，作为后续 Screen Wake 视觉资源与最终 Phone UI 贴图的构图基线。
+- 当前 Camera Shot 参数已由用户完成视觉校准，并已用于 Screen Wake 与 Phone UI 构图基线。
 
 ### 尚未决定
 
@@ -247,27 +263,31 @@ Bottom_Display_Plane
 
 - 三块屏幕 UV 均已确认覆盖完整 `0–1`。
 - `ScreenManager` 已实现 Phone Mode、Controller 装配、Game Home 与 Playing 的三屏材质和可见性规则。
-- Screen Wake 的最终视觉资源和 Phone UI 贴图尚未提供；当前 Phone Mode 沿用 GLB 原始屏幕材质。
+- Screen Wake 与 Phone UI 已接入 `docs/img/主页面.png`，不再沿用 GLB 原始屏幕材质。
 - `NDSRuntime` 和真实 NDS 上下屏 Canvas 尚未接入，Playing 明确使用占位内容。
 - 屏幕宽高比差异后续统一在运行时使用 fit、letterbox 或 crop 处理；触控输入尚未实现。
-- 最终屏幕朝向、Continue 命中区域与镜头构图仍需在最新版支持 WebGPU 的浏览器中视觉验收；当前代码已包含 Controller 屏幕水平镜像与逆时针 `90°` 变换。
+- Fold 模糊方向、折痕阴影侧、镂空透视关系、Game Home 朝向、Continue 命中区域与镜头构图仍需在最新版支持 WebGPU 的浏览器中视觉验收。
 
 ## 7. 当前工作区状态
 
 本轮 Phase 4 主要改动为：
 
-- 新增 `src/js/World/IntroDirector.js`。
+- 新增 `src/js/World/Directors/IntroDirector.js`。
 - `World.start()` 自动启动 Intro，`Experience` 不再提前把模式写成 Ready。
 - `ControllerAssembly` 增加供 Intro 使用的可见性、跳过和完成回调边界。
 - 新增 `CameraDirector`，接入四组镜头、状态映射、Orbit 锁定与 Tweakpane 取景工具。
 - 新增 `ScreenManager` 与 `InputRouter`，接入独立产品模式、Controller Game Home、Continue 和 Escape 返回流。
 - `State` 已将 Intro 编排与产品模式拆分为 `introState`、`productMode`。
+- `ScreenManager` 已接入双联 Phone UI 分屏采样，`IntroDirector` 已接入可重播的 Screen Wake 时间线。
+- 新增 `src/shaders/screenEffects.js`，通过 TSL 实现角度驱动 Fold 效果和 Game Changer 双屏转场。
+- 接入 `游戏模式主页面.png`，并重绘 Controller Game Home Canvas UI。
+- 将原 812 行 `ScreenManager` 拆分为模式协调器、`PhoneScreenSurface` 与 `ControllerDisplay`，保持 `World` / `IntroDirector` 公开调用不变。
+- `src/js/World/` 已按 `Product/`、`Directors/`、`Screens/`、`Input/` 分层，根级只保留 `World.js` 作为装配入口。
 
 ## 8. 下一步
 
 Phase 4 下一步：
 
-1. 补充真实 Screen Wake 视觉资源与最终 Phone UI 贴图。
+1. 在最新版支持 WebGPU 的浏览器中复核 Fold Blur / Parallax / Shade、镂空透视、Game Changer 节奏、双屏朝向、Continue 命中区域和镜头构图。
 2. 在 Phase 5 接入 `NDSRuntime` 与真实 NDS 上下屏 Canvas，替换 Playing 占位内容。
 3. 后续补充触控与通用游戏输入；3D 按键反馈仍按阻尼弹簧路线实现。
-4. 在最新版支持 WebGPU 的浏览器中复核屏幕朝向、Continue 命中区域、模式切换和镜头构图。
