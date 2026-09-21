@@ -130,7 +130,7 @@ opacity    0.00 → 1.00
 - Spring Ease
 - Controller Display Reveal
 
-在 Controller 靠近和装配期间，`Bottom_Display_Plane` 保持黑屏 / 关闭；只有进入预定的 Game Home 转场时才点亮，避免在机械安装尚未完成时提前暴露游戏 UI。
+在 Controller 靠近和装配期间，`Bottom_Display_Plane` 完全不可见，用户透过中央镂空继续看到手机的 `Bottom_Screen_Plane`。只有 Lock 完成后的 Game Home 转场才激活 Controller 显示层。
 
 ### 叙事目的
 
@@ -242,17 +242,17 @@ Home        Library        Media
 
 ---
 
-# 6. Controller 独立下屏 UI
+# 6. Controller 镂空与显示层 UI
 
 ## 核心认知
 
-Controller 中央是一块独立显示屏，对应 GLB 节点：
+Controller 中央是镂空结构，其上方的可激活显示层对应 GLB 节点：
 
 ```text
 Bottom_Display_Plane
 ```
 
-它不是开孔，也不会暴露 iPhone Duo 原本的下半屏。手机下半屏由 `Bottom_Screen_Plane` 表示；Controller 装配完成后，游戏模式的下屏内容改由 `Bottom_Display_Plane` 承载。
+装配期间隐藏该 Plane，镂空区域会暴露由 `Bottom_Screen_Plane` 表示的手机原生下屏。Controller Lock 完成后，`Bottom_Display_Plane` 通过 Blur、Scale 与 Crossfade 激活，转场完成后接管游戏模式下屏。
 
 因此逻辑是：
 
@@ -263,8 +263,8 @@ Phone Mode
 
 Controller Attaching
 ├─ Top_Screen_Plane       → 延续 Phone UI / 转场内容
-├─ Bottom_Screen_Plane    → 随装配逐步被遮挡
-└─ Bottom_Display_Plane   → 黑屏 / 关闭
+├─ Bottom_Screen_Plane    → 透过 Controller 镂空保持可见
+└─ Bottom_Display_Plane   → 完全透明 / 不可见
 
 Game Home / Playing
 ├─ Top_Screen_Plane       → Game Home 主界面 / NDS Top Screen
@@ -278,7 +278,7 @@ Game Home / Playing
 
 ## GAME HOME 状态
 
-Controller 独立下屏只承担非常少量的辅助操作。
+Controller 显示层只承担非常少量的辅助操作。
 
 推荐：
 

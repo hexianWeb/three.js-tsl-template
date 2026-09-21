@@ -20,8 +20,8 @@
 - `src/index.html` 加载 `src/main.js`；`main.js` 检查 `navigator.gpu`，创建 `Experience`，等待 WebGPU、资源和 `World` 初始化，并在 Vite HMR dispose 时销毁实例。
 - `Experience` 是全局生命周期单例。首次构造必须传 Canvas；Class 组件通过 `new Experience()` 取得同一实例。创建全局服务或动画循环时保持该边界。
 - 初始化顺序是 Camera -> Renderer/WebGPU -> `Resources.load()` -> World -> `setAnimationLoop()`。资源完成前不要创建依赖模型的 World 组件。
-- `World` 装配环境、`ModelAdapter`、`ScreenManager`、`CameraDirector`、`IntroDirector` 与 `InputRouter`；`ModelAdapter` 再建立 `ProductRig`、`ControllerAssembly` 与 `ModelInspector`。NDS Runtime、真实双屏输出和通用游戏输入仍是规划内容。
-- `Experience.init()` 在启动渲染循环后调用 `World.start()` 自动播放 Intro。IntroDirector 负责 Folded、Unfold、Screen Wake、Assembly、Hero 与 Ready 编排；Replay、Skip、Continue 收束和销毁必须停止所有自身及 Controller Timeline。`phone`、`attaching`、`game-home`、`playing` 是独立产品模式，不并入 `intro:state`。
+- `World` 装配环境、`ModelAdapter`、`ScreenManager`、`CameraDirector`、`IntroDirector` 与 `InputRouter`；`ScreenManager` 只协调模式和 Game Changer Timeline，具体渲染委托给 `PhoneScreenSurface` 与 `ControllerDisplay`；`ModelAdapter` 再建立 `ProductRig`、`ControllerAssembly` 与 `ModelInspector`。NDS Runtime、真实双屏输出和通用游戏输入仍是规划内容。
+- `Experience.init()` 在启动渲染循环后调用 `World.start()` 自动播放 Intro。IntroDirector 负责 Folded、Unfold、Screen Wake、Assembly、Game Changer、Hero 与 Ready 编排；Replay、Skip、Continue 收束和销毁必须停止自身、Controller 与屏幕转场 Timeline。`phone`、`attaching`、`game-home`、`playing` 是独立产品模式，不并入 `intro:state`。
 - `CameraDirector` 监听 `intro:state` 驱动 Folded、Assembly、Hero 镜头，并监听 `product:mode` 驱动 Game Home / Playing 的 Hero、Play 镜头；镜头过渡期间关闭 OrbitControls，Tweakpane 可临时开启 Orbit 并将当前取景写回单组镜头参数。
 - 资源 URL 只在 `src/js/sources.js` 声明，组件通过 `resources.items` 的稳定名称读取。站点公共资源使用根路径，如 `/iphone.glb`。
 - 生命周期由直接父级显式调用 `update`、`resize`、`destroy`。新增监听器、Tweakpane binding、GPU 资源或动画循环时必须接入同一销毁路径。
@@ -36,6 +36,8 @@
 - Hinge 的 Pivot 和旋转长轴必须从模型局部包围盒推导，不能硬编码世界轴。重新挂接节点时保持世界变换并检查非均匀缩放。
 - Controller 在 GLB 中的相对变换是唯一安装终点并跟随下半屏；整机展示变换只放在外层 `PresentationRoot`。
 - Controller 装配使用 GSAP，Replay 前切到 110 度。当前模型滑轨轴推导为 Z，视觉确认方向为 `-Z`；方向可在 Tweakpane 覆盖。动画结束、Skip 和销毁都必须回到或保留精确安装矩阵。
+- Phone UI 从 Fold 第一帧开始显示；Top Screen 的方向模糊、位移和折痕阴影由产品角度驱动，Screen Wake 只负责展开后的曝光与焦点稳定。
+- Controller 装配期间 `Bottom_Display_Plane` 完全不可见，用户透过镂空看到 `Bottom_Screen_Plane`；Lock 完成后再执行 Phone UI -> Game Home 转场，结束时隐藏手机下屏并激活 Controller UI。
 - 不回 Blender 增加 Pivot、Anchor 或 Camera，也不要迁移、重命名、压缩或替换用户提供的模型资源，除非任务明确要求。
 
 ## 修改约定

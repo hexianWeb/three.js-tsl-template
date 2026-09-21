@@ -108,15 +108,20 @@ src/
 │  │  └─ Debug.js
 │  └─ World/
 │     ├─ World.js
-│     ├─ ModelAdapter.js
-│     ├─ ProductRig.js
-│     ├─ HingeController.js
-│     ├─ ControllerAssembly.js
-│     ├─ IntroDirector.js
-│     ├─ ScreenManager.js
-│     ├─ NDSRuntime.js
-│     ├─ InputRouter.js
-│     └─ ControllerFeedback.js
+│     ├─ Product/
+│     │  ├─ ModelAdapter.js
+│     │  ├─ ProductRig.js
+│     │  ├─ ControllerAssembly.js
+│     │  └─ ModelInspector.js
+│     ├─ Directors/
+│     │  ├─ IntroDirector.js
+│     │  └─ CameraDirector.js
+│     ├─ Screens/
+│     │  ├─ ScreenManager.js
+│     │  ├─ PhoneScreenSurface.js
+│     │  └─ ControllerDisplay.js
+│     └─ Input/
+│        └─ InputRouter.js
 ├─ shaders/
 └─ style.css
 ```
@@ -180,6 +185,12 @@ src/
 - 手机原生下屏：`Bottom_Screen_Plane`
 - Controller 下屏：`Bottom_Display_Plane`
 
+屏幕结构规则：
+
+- Phone UI 从 Fold 第一帧显示，Top Screen 的 Blur、Parallax 与 Fold Shade 由产品角度驱动。
+- Controller 装配期间 `Bottom_Display_Plane` 必须完全不可见，使镂空区域显示下方 `Bottom_Screen_Plane`。
+- Lock 完成后才激活 `Bottom_Display_Plane`，通过 Game Changer 转场切换到 Controller UI；转场结束后隐藏手机原生下屏。
+
 运动规则：
 
 - GLB Bind Pose 是 `180°` 的竖屏完全展开态。
@@ -197,7 +208,7 @@ src/
 
 - GSAP 只用于 Intro、Controller 装配、Camera Shot 与 UI 时间线；安装后才能使用。
 - ABXY 回弹和 D-Pad 倾斜使用渲染循环中的阻尼弹簧，不用累积 Tween。
-- Intro 编排与产品模式必须分离：Intro 至少区分 Loading、Unfold、Assembly、Hero 与 Ready；`phone`、`attaching`、`game-home`、`playing` 通过独立产品模式表达。
+- Intro 编排与产品模式必须分离：Intro 至少区分 Loading、Unfold、Screen Wake、Assembly、Game Changer、Hero 与 Ready；`phone`、`attaching`、`game-home`、`playing` 通过独立产品模式表达。
 - NDS 模拟器封装在 `NDSRuntime`，模拟器 DOM 或内部 API 不扩散到场景代码。
 - 上下屏输出适配封装在 `ScreenManager` 或 `NDSScreenBridge`。
 - 两块 NDS 画面分别映射为 CanvasTexture；仅在新帧到达时标记更新。

@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>TSL Controller Plastic Material - Fixed v2</title>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#eceff2;
+  --panel:rgba(255,255,255,.88);
+  --line:rgba(15,23,42,.10);
+  --text:#111827;
+  --muted:#6b7280;
+}
+*{box-sizing:border-box}
+html,body{
+  width:100%;height:100%;margin:0;overflow:hidden;background:var(--bg);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif
+}
+#app{width:100%;height:100%;position:relative}
+canvas{display:block;width:100%;height:100%}
+.panel{
+  position:absolute;z-index:10;left:18px;top:18px;width:360px;
+  max-height:calc(100vh - 36px);overflow:auto;
+  padding:16px;border-radius:18px;border:1px solid var(--line);
+  background:var(--panel);backdrop-filter:blur(18px);
+  box-shadow:0 20px 60px rgba(15,23,42,.10)
+}
+h1{font-size:16px;line-height:1.2;margin:0 0 5px;font-weight:700}
+.desc{font-size:11px;line-height:1.55;color:var(--muted);margin-bottom:14px}
+.section{border-top:1px solid var(--line);padding-top:11px;margin-top:11px}
+.section:first-of-type{border-top:0;padding-top:0;margin-top:0}
+.section-title{font-size:11px;font-weight:700;color:#374151;margin-bottom:8px}
+.row{
+  display:grid;grid-template-columns:112px 1fr 52px;
+  gap:8px;align-items:center;min-height:30px;margin:4px 0
+}
+.row label{font-size:11px;color:#374151}
+.row output{
+  font-size:10px;color:var(--muted);text-align:right;
+  font-variant-numeric:tabular-nums
+}
+input[type=range]{width:100%;accent-color:#1677ff}
+input[type=color]{
+  width:100%;height:27px;border:1px solid var(--line);
+  border-radius:7px;background:white;padding:2px
+}
+select{
+  grid-column:2/4;width:100%;height:30px;padding:0 8px;
+  border:1px solid var(--line);border-radius:8px;background:white;
+  color:var(--text);font-size:11px
+}
+.toggle{
+  grid-column:2/4;display:flex;align-items:center;gap:7px;
+  font-size:11px;color:#374151
+}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+button{
+  height:32px;border:1px solid var(--line);border-radius:9px;
+  background:white;color:#1f2937;cursor:pointer;font-size:11px
+}
+button:hover{background:#f8fafc}
+.badge{
+  position:absolute;right:16px;bottom:16px;z-index:4;
+  padding:8px 11px;border-radius:999px;
+  background:rgba(255,255,255,.80);border:1px solid var(--line);
+  backdrop-filter:blur(12px);color:#6b7280;font-size:10px
+}
+#error{
+  display:none;position:absolute;inset:0;z-index:100;
+  background:#f8fafc;padding:40px;color:#111827;
+  font-size:14px;line-height:1.7;white-space:pre-wrap
+}
+.note{
+  padding:9px 10px;border-radius:10px;background:#f5f7fa;
+  color:#5b6472;font-size:10px;line-height:1.55
+}
+@media(max-width:720px){
+  .panel{left:10px;top:10px;width:calc(100vw - 20px);max-height:54vh}
+  .badge{right:10px;bottom:10px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="panel">
+    <h1>Controller Shell · TSL 程序化塑料</h1>
+    <div class="desc">
+      修正版 v3：Color A / B 拉开色差，三组 Noise Scale 上限统一扩大到 1000。
+      不依赖 <code>snoise()</code>，使用 TSL 基础节点自行组合 3D Value Noise / FBM。
+    </div>
+
+    <div class="section">
+      <div class="section-title">Preset</div>
+      <div class="row">
+        <label>材质风格</label>
+        <select id="preset">
+          <option value="injection">精细注塑塑料</option>
+          <option value="hybrid" selected>注塑 + 轻微打印感</option>
+          <option value="print">3D 打印原型</option>
+          <option value="button">按键塑料</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>Color A</label>
+        <input id="colorA" type="color" value="#1d5f9f">
+        <output></output>
+      </div>
+      <div class="row">
+        <label>Color B</label>
+        <input id="colorB" type="color" value="#43a7ff">
+        <output></output>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Base Color Variation</div>
+      <div class="row">
+        <label>Color Noise Scale</label>
+        <input id="colorScale" type="range" min="2" max="1000" step="1" value="180">
+        <output id="colorScaleOut">180</output>
+      </div>
+      <div class="row">
+        <label>Color Contrast</label>
+        <input id="colorContrast" type="range" min="0.05" max="0.45" step="0.01" value="0.20">
+        <output id="colorContrastOut">0.20</output>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Roughness</div>
+      <div class="row">
+        <label>Roughness Min</label>
+        <input id="roughMin" type="range" min="0.15" max="0.85" step="0.01" value="0.50">
+        <output id="roughMinOut">0.50</output>
+      </div>
+      <div class="row">
+        <label>Roughness Max</label>
+        <input id="roughMax" type="range" min="0.15" max="0.90" step="0.01" value="0.59">
+        <output id="roughMaxOut">0.59</output>
+      </div>
+      <div class="row">
+        <label>Rough Noise Scale</label>
+        <input id="roughScale" type="range" min="4" max="1000" step="1" value="320">
+        <output id="roughScaleOut">320</output>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Micro Surface</div>
+      <div class="row">
+        <label>Bump Noise Scale</label>
+        <input id="bumpScale" type="range" min="20" max="1000" step="1" value="700">
+        <output id="bumpScaleOut">700</output>
+      </div>
+      <div class="row">
+        <label>Bump Strength</label>
+        <input id="bumpStrength" type="range" min="0" max="0.12" step="0.002" value="0.028">
+        <output id="bumpStrengthOut">0.028</output>
+      </div>
+      <div class="row">
+        <label>Micro Contrast</label>
+        <input id="microContrast" type="range" min="0.05" max="0.45" step="0.01" value="0.16">
+        <output id="microContrastOut">0.16</output>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">3D Print Layer</div>
+      <div class="row">
+        <label>打印层纹</label>
+        <div class="toggle">
+          <input id="printEnabled" type="checkbox" checked>
+          <span>启用轻微层纹</span>
+        </div>
+      </div>
+      <div class="row">
+        <label>Layer Frequency</label>
+        <input id="printFreq" type="range" min="10" max="500" step="1" value="175">
+        <output id="printFreqOut">175</output>
+      </div>
+      <div class="row">
+        <label>Layer Strength</label>
+        <input id="printStrength" type="range" min="0" max="0.35" step="0.005" value="0.045">
+        <output id="printStrengthOut">0.045</output>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Physical BRDF</div>
+      <div class="row">
+        <label>IOR</label>
+        <input id="ior" type="range" min="1.30" max="1.70" step="0.01" value="1.47">
+        <output id="iorOut">1.47</output>
+      </div>
+      <div class="row">
+        <label>Clearcoat</label>
+        <input id="clearcoat" type="range" min="0" max="0.35" step="0.01" value="0.05">
+        <output id="clearcoatOut">0.05</output>
+      </div>
+      <div class="row">
+        <label>Coat Roughness</label>
+        <input id="coatRough" type="range" min="0.05" max="0.8" step="0.01" value="0.32">
+        <output id="coatRoughOut">0.32</output>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="row">
+        <label>Light Sweep</label>
+        <div class="toggle">
+          <input id="lightSweep" type="checkbox" checked>
+          <span>自动扫光观察微表面</span>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="frontView">正视图</button>
+        <button id="angleView">产品视角</button>
+      </div>
+      <div class="note" style="margin-top:10px">
+        重点观察移动高光。颗粒像砂纸时降低 Bump Strength；
+        太平滑时提高 Bump Noise Scale 或 Roughness Variation。
+      </div>
+    </div>
+  </div>
+
+  <div class="badge" id="backendBadge">Initializing…</div>
+  <div id="error"></div>
+</div>
+
+<script type="importmap">
+{
+  "imports":{
+    "three":"https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.webgpu.js",
+    "three/webgpu":"https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.webgpu.js",
+    "three/tsl":"https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.tsl.js",
+    "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three/webgpu';
+import {
+  positionLocal,
+  uniform,
+  float,
+  vec3,
+  mix,
+  smoothstep,
+  bumpMap
+} from 'three/tsl';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const errorBox = document.querySelector('#error');
+
+window.addEventListener('error', (event) => {
+  if (errorBox.style.display !== 'block') {
+    errorBox.style.display = 'block';
+    errorBox.textContent =
+      '材质预览初始化失败。\n\n' +
+      (event.error?.stack || event.message || 'Unknown error');
+  }
+});
+
+try {
+  const app = document.querySelector('#app');
+  const badge = document.querySelector('#backendBadge');
+
+  const renderer = new THREE.WebGPURenderer({ antialias:true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.setClearColor(0xeceff2, 1);
+  app.prepend(renderer.domElement);
+
+  await renderer.init();
+
+  badge.textContent = navigator.gpu
+    ? 'WebGPU · Three.js r186 · TSL'
+    : 'Three.js r186 · TSL';
+
+  const scene = new THREE.Scene();
+
+  const camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 0.05, 100);
+  camera.position.set(0.55, 0.28, 5.1);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.target.set(0,0,0);
+  controls.minDistance = 2.7;
+  controls.maxDistance = 9;
+
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xa7afba, 1.45));
+
+  const key = new THREE.DirectionalLight(0xffffff, 4.3);
+  key.position.set(3.8,3.3,5);
+  scene.add(key);
+
+  const fill = new THREE.DirectionalLight(0xcfe0ff, 1.7);
+  fill.position.set(-4,1.1,2);
+  scene.add(fill);
+
+  const sweep = new THREE.PointLight(0xffffff, 30, 12, 2);
+  sweep.position.set(3,2.2,3);
+  scene.add(sweep);
+
+  const warm = new THREE.PointLight(0xffead6, 12, 10, 2);
+  warm.position.set(-3,-1.2,2.2);
+  scene.add(warm);
+
+  const uColorA = uniform(new THREE.Color('#1d5f9f'));
+  const uColorB = uniform(new THREE.Color('#43a7ff'));
+
+  const uColorScale = uniform(180.0);
+  const uColorContrast = uniform(0.20);
+
+  const uRoughMin = uniform(0.50);
+  const uRoughMax = uniform(0.59);
+  const uRoughScale = uniform(320.0);
+
+  const uBumpScale = uniform(700.0);
+  const uBumpStrength = uniform(0.028);
+  const uMicroContrast = uniform(0.16);
+
+  const uPrintEnabled = uniform(1.0);
+  const uPrintFreq = uniform(175.0);
+  const uPrintStrength = uniform(0.045);
+
+  const uIOR = uniform(1.47);
+  const uClearcoat = uniform(0.05);
+  const uCoatRough = uniform(0.32);
+
+  function hash31(p) {
+    return p
+      .dot(vec3(127.1, 311.7, 74.7))
+      .sin()
+      .mul(43758.5453123)
+      .fract();
+  }
+
+  function valueNoise3(p) {
+    const i = p.floor();
+    const f = p.fract();
+
+    const u = f.mul(f).mul(
+      vec3(3.0).sub(f.mul(2.0))
+    );
+
+    const n000 = hash31(i.add(vec3(0,0,0)));
+    const n100 = hash31(i.add(vec3(1,0,0)));
+    const n010 = hash31(i.add(vec3(0,1,0)));
+    const n110 = hash31(i.add(vec3(1,1,0)));
+
+    const n001 = hash31(i.add(vec3(0,0,1)));
+    const n101 = hash31(i.add(vec3(1,0,1)));
+    const n011 = hash31(i.add(vec3(0,1,1)));
+    const n111 = hash31(i.add(vec3(1,1,1)));
+
+    const nx00 = mix(n000, n100, u.x);
+    const nx10 = mix(n010, n110, u.x);
+    const nx01 = mix(n001, n101, u.x);
+    const nx11 = mix(n011, n111, u.x);
+
+    const nxy0 = mix(nx00, nx10, u.y);
+    const nxy1 = mix(nx01, nx11, u.y);
+
+    return mix(nxy0, nxy1, u.z);
+  }
+
+  function fbm3(p) {
+    const a = valueNoise3(p).mul(0.571);
+    const b = valueNoise3(
+      p.mul(2.03).add(vec3(17.3,9.2,13.7))
+    ).mul(0.286);
+    const c = valueNoise3(
+      p.mul(4.11).add(vec3(41.7,29.1,7.4))
+    ).mul(0.143);
+
+    return a.add(b).add(c);
+  }
+
+  const colorNoise = fbm3(positionLocal.mul(uColorScale));
+  const colorLow = float(0.5).sub(uColorContrast);
+  const colorHigh = float(0.5).add(uColorContrast);
+  const colorMask = smoothstep(colorLow, colorHigh, colorNoise);
+  const baseColorNode = mix(uColorA, uColorB, colorMask);
+
+  const roughNoise = fbm3(
+    positionLocal.mul(uRoughScale).add(vec3(8.3,21.7,3.9))
+  );
+
+  const roughnessNode = uRoughMin.add(
+    uRoughMax.sub(uRoughMin).mul(roughNoise)
+  );
+
+  const microNoise = fbm3(
+    positionLocal.mul(uBumpScale).add(vec3(31.1,7.8,19.4))
+  );
+
+  const microLow = float(0.5).sub(uMicroContrast);
+  const microHigh = float(0.5).add(uMicroContrast);
+  const microHeight = smoothstep(microLow, microHigh, microNoise);
+
+  const printLayer = positionLocal.y
+    .mul(uPrintFreq)
+    .sin()
+    .mul(0.5)
+    .add(0.5);
+
+  const finalHeight = microHeight.add(
+    printLayer
+      .sub(0.5)
+      .mul(uPrintStrength)
+      .mul(uPrintEnabled)
+  );
+
+  const proceduralNormal = bumpMap(finalHeight, uBumpStrength);
+
+  const material = new THREE.MeshPhysicalNodeMaterial();
+  material.colorNode = baseColorNode;
+  material.metalnessNode = float(0.0);
+  material.roughnessNode = roughnessNode;
+  material.normalNode = proceduralNormal;
+  material.iorNode = uIOR;
+  material.clearcoatNode = uClearcoat;
+  material.clearcoatRoughnessNode = uCoatRough;
+
+  const plate = new THREE.Mesh(
+    new THREE.BoxGeometry(3.75, 2.42, 0.10),
+    material
+  );
+  plate.rotation.set(-0.055,0.13,0);
+  scene.add(plate);
+
+  const backdrop = new THREE.Mesh(
+    new THREE.PlaneGeometry(14,10),
+    new THREE.MeshStandardMaterial({
+      color:0xf9fafb,
+      roughness:0.93,
+      metalness:0
+    })
+  );
+  backdrop.position.z = -1.0;
+  scene.add(backdrop);
+
+  const $ = s => document.querySelector(s);
+
+  const bindings = {
+    colorScale:{u:uColorScale,out:'colorScaleOut'},
+    colorContrast:{u:uColorContrast,out:'colorContrastOut'},
+    roughMin:{u:uRoughMin,out:'roughMinOut'},
+    roughMax:{u:uRoughMax,out:'roughMaxOut'},
+    roughScale:{u:uRoughScale,out:'roughScaleOut'},
+    bumpScale:{u:uBumpScale,out:'bumpScaleOut'},
+    bumpStrength:{u:uBumpStrength,out:'bumpStrengthOut'},
+    microContrast:{u:uMicroContrast,out:'microContrastOut'},
+    printFreq:{u:uPrintFreq,out:'printFreqOut'},
+    printStrength:{u:uPrintStrength,out:'printStrengthOut'},
+    ior:{u:uIOR,out:'iorOut'},
+    clearcoat:{u:uClearcoat,out:'clearcoatOut'},
+    coatRough:{u:uCoatRough,out:'coatRoughOut'}
+  };
+
+  for (const [id,info] of Object.entries(bindings)) {
+    $('#' + id).addEventListener('input',e=>{
+      const v = Number(e.target.value);
+      info.u.value = v;
+      $('#' + info.out).value = e.target.value;
+    });
+  }
+
+  $('#colorA').addEventListener('input',e=>uColorA.value.set(e.target.value));
+  $('#colorB').addEventListener('input',e=>uColorB.value.set(e.target.value));
+
+  $('#printEnabled').addEventListener('change',e=>{
+    uPrintEnabled.value = e.target.checked ? 1 : 0;
+  });
+
+  const presets = {
+    injection:{
+      a:'#1f5f97',b:'#55b2ff',
+      colorScale:140,colorContrast:0.22,
+      roughMin:0.46,roughMax:0.54,roughScale:260,
+      bumpScale:620,bumpStrength:0.020,microContrast:0.18,
+      print:false,printFreq:175,printStrength:0,
+      ior:1.47,clearcoat:0.04,coatRough:0.33
+    },
+    hybrid:{
+      a:'#1d5f9f',b:'#43a7ff',
+      colorScale:180,colorContrast:0.20,
+      roughMin:0.50,roughMax:0.59,roughScale:320,
+      bumpScale:700,bumpStrength:0.028,microContrast:0.16,
+      print:true,printFreq:175,printStrength:0.045,
+      ior:1.47,clearcoat:0.05,coatRough:0.32
+    },
+    print:{
+      a:'#174f86',b:'#4da9f6',
+      colorScale:120,colorContrast:0.17,
+      roughMin:0.54,roughMax:0.65,roughScale:220,
+      bumpScale:520,bumpStrength:0.050,microContrast:0.14,
+      print:true,printFreq:132,printStrength:0.17,
+      ior:1.47,clearcoat:0.02,coatRough:0.44
+    },
+    button:{
+      a:'#d9cf93',b:'#fff4cf',
+      colorScale:90,colorContrast:0.25,
+      roughMin:0.26,roughMax:0.33,roughScale:180,
+      bumpScale:420,bumpStrength:0.006,microContrast:0.20,
+      print:false,printFreq:175,printStrength:0,
+      ior:1.47,clearcoat:0.11,coatRough:0.22
+    }
+  };
+
+  function setValue(id,value){
+    const el = $('#' + id);
+    el.value = value;
+    if(bindings[id]){
+      bindings[id].u.value = Number(value);
+      $('#' + bindings[id].out).value = value;
+    }
+  }
+
+  function applyPreset(name){
+    const p = presets[name];
+
+    $('#colorA').value = p.a;
+    $('#colorB').value = p.b;
+    uColorA.value.set(p.a);
+    uColorB.value.set(p.b);
+
+    [
+      'colorScale','colorContrast',
+      'roughMin','roughMax','roughScale',
+      'bumpScale','bumpStrength','microContrast',
+      'printFreq','printStrength',
+      'ior','clearcoat','coatRough'
+    ].forEach(id=>setValue(id,p[id]));
+
+    $('#printEnabled').checked = p.print;
+    uPrintEnabled.value = p.print ? 1 : 0;
+  }
+
+  $('#preset').addEventListener('change',e=>applyPreset(e.target.value));
+
+  $('#frontView').addEventListener('click',()=>{
+    camera.position.set(0,0,5.15);
+    controls.target.set(0,0,0);
+    plate.rotation.set(0,0,0);
+    controls.update();
+  });
+
+  $('#angleView').addEventListener('click',()=>{
+    camera.position.set(0.55,0.28,5.1);
+    controls.target.set(0,0,0);
+    plate.rotation.set(-0.055,0.13,0);
+    controls.update();
+  });
+
+  const clock = new THREE.Clock();
+
+  renderer.setAnimationLoop(()=>{
+    const t = clock.getElapsedTime();
+
+    if($('#lightSweep').checked){
+      sweep.position.x = Math.sin(t*0.60)*4.0;
+      sweep.position.y = 1.0 + Math.cos(t*0.43)*2.0;
+      sweep.position.z = 3.0;
+    }
+
+    controls.update();
+    renderer.render(scene,camera);
+  });
+
+  addEventListener('resize',()=>{
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight);
+  });
+
+} catch (err) {
+  console.error(err);
+  errorBox.style.display = 'block';
+  errorBox.textContent =
+    '材质预览初始化失败。\n\n' +
+    '请使用新版 Chrome / Edge，并保持联网以加载 Three.js CDN。\n\n' +
+    (err?.stack || String(err));
+}
+</script>
+</body>
+</html>
