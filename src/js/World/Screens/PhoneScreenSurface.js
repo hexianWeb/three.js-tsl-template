@@ -24,7 +24,7 @@ export default class PhoneScreenSurface {
     this.onPreviewAngle = onPreviewAngle
     this.onDebugModeChange = onDebugModeChange
     this.params = {
-      phoneBrightness: 0.37,
+      phoneBrightness: 0.30,
       phoneDiffuseDetail: 0.14,
       phoneRoughness: 0.72,
       phoneMirrorX: false,
@@ -39,7 +39,6 @@ export default class PhoneScreenSurface {
       topFoldShade: 0.35,
       topShadeSide: 0,
       foldedBrightness: 0.45,
-      bottomBlurPixels: 3,
       bottomClearAngle: 45,
       wakeBlurPixels: 2,
       phoneExitBlurPixels: 14,
@@ -152,7 +151,6 @@ export default class PhoneScreenSurface {
       progress: uniform(0),
       phoneBlur: uniform(0),
       phoneUvScale: uniform(1),
-      bottomBlur: uniform(0),
       gameBlur: uniform(0),
       gameUvScale: uniform(1),
       bottomOpacity: uniform(1),
@@ -213,13 +211,7 @@ export default class PhoneScreenSurface {
       this.phoneUniforms.top,
       this.transitionUniforms,
     )
-    const bottomColor = foldedPhoneColor(
-      bottomTexture,
-      this.phoneUniforms.bottom,
-      false,
-      undefined,
-      this.transitionUniforms.bottomBlur,
-    )
+    const bottomColor = foldedPhoneColor(bottomTexture, this.phoneUniforms.bottom)
 
     this.topMaterial.colorNode = topColor.mul(this.phoneUniforms.top.diffuse)
     this.topMaterial.emissiveNode = topColor.mul(this.phoneUniforms.top.emissive)
@@ -255,7 +247,6 @@ export default class PhoneScreenSurface {
       8,
       this.params.bottomClearAngle,
     )
-    const bottomFoldEffect = 1 - bottomRecovery
     const wakeEffect = 1 - this.phoneWakeProgress
     const wakeBrightness = THREE.MathUtils.lerp(0.88, 1, this.phoneWakeProgress)
     const topBrightness = THREE.MathUtils.lerp(
@@ -276,10 +267,7 @@ export default class PhoneScreenSurface {
     this.phoneUniforms.top.parallax.value = this.params.topParallax * topFoldEffect
     this.phoneUniforms.top.shade.value = this.params.topFoldShade * topFoldEffect
     this.phoneUniforms.top.shadeSide.value = this.params.topShadeSide
-    this.phoneUniforms.bottom.blur.value = (
-      this.params.bottomBlurPixels * bottomFoldEffect
-      + this.params.wakeBlurPixels * wakeEffect
-    ) / this.phonePanelWidth
+    this.phoneUniforms.bottom.blur.value = 0
     this.phoneUniforms.bottom.parallax.value = 0
     this.phoneUniforms.bottom.shade.value = 0
     this.applyPhoneLevels(this.phoneUniforms.top, topBrightness)
@@ -309,9 +297,6 @@ export default class PhoneScreenSurface {
       this.params.phoneExitScale,
       value,
     )
-    this.transitionUniforms.bottomBlur.value = (
-      this.params.phoneExitBlurPixels * value
-    ) / this.phonePanelWidth
     this.transitionUniforms.gameBlur.value = (
       this.params.gameBlurPixels * (1 - value)
     ) / this.gameTextureWidth
@@ -365,7 +350,6 @@ export default class PhoneScreenSurface {
       topParallax: [0, 0.08, 0.001],
       topFoldShade: [0, 1, 0.01],
       foldedBrightness: [0, 1, 0.01],
-      bottomBlurPixels: [0, 20, 1],
       bottomClearAngle: [8, 90, 1],
       wakeBlurPixels: [0, 10, 0.5],
     }

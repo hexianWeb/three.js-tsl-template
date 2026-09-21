@@ -68,7 +68,7 @@ export default class CameraDirector {
       playing: 'play',
     }
 
-    this.camera.controls.enabled = false
+    this.camera.controls.enabled = true
     this.unsubscribeState = this.events.on('intro:state', ({ state }) => {
       this.handleState(state)
     })

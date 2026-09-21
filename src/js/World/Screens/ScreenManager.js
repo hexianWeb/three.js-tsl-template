@@ -24,6 +24,7 @@ export default class ScreenManager {
       transitionDuration: 0.75,
     }
     this.transitionState = { value: 0 }
+    this.isRefreshingTransitionProgress = false
     this.mode = null
 
     this.validateScreens()
@@ -169,7 +170,9 @@ export default class ScreenManager {
       this.screens.bottomScreen.visible = value < 0.999
       this.screens.bottomDisplay.visible = value > 0.001
     }
+    this.isRefreshingTransitionProgress = true
     this.transitionProgressBinding?.refresh()
+    this.isRefreshingTransitionProgress = false
   }
 
   completeGameChangerTransition() {
@@ -220,6 +223,9 @@ export default class ScreenManager {
     this.transitionProgressBinding = folder.addBinding(this.params, 'transitionProgress', {
       label: 'Progress', min: 0, max: 1, step: 0.01,
     }).on('change', ({ value }) => {
+      // Tweakpane refresh 也会发出 change，程序刷新不能反向取消正在播放的 Timeline。
+      if (this.isRefreshingTransitionProgress) return
+
       this.killGameChangerTransition()
       this.onDebugModeChange?.('attaching')
       this.setGameChangerProgress(value)

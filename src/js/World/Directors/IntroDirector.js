@@ -30,7 +30,7 @@ export default class IntroDirector {
       unfoldCrackDuration: 0.45,
       unfoldDuration: 1.55,
       screenWakeDuration: 1.5,
-      screenWakeHold: 4,
+      screenWakeHold: 0.2,
       pauseAtScreenWake: false,
       assemblyDelay: 0.35,
       heroHold: 1,
