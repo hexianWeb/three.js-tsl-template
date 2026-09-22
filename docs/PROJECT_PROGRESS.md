@@ -1,8 +1,8 @@
 # iPhone Duo WebGPU 项目进度
 
-> 最后更新：2026-09-21
-> 当前阶段：Phase 4 — Intro、Camera Shot、Ready / Play
-> 当前状态：Fold Screen Effect、Controller 镂空与 Game Changer 转场已实现，WebGPU 浏览器视觉验收待完成
+> 最后更新：2026-09-22
+> 当前阶段：Phase 4 已完成；Phase 5 前 Controller Shell 材质 LookDev
+> 当前状态：用户已确认 Phase 4 和外壳塑料效果；ABXY / DPad 清漆塑料已接入，按键材质待视觉验收
 
 ## 1. 进度摘要
 
@@ -14,6 +14,7 @@ Phase 2 Runtime Rig、折叠方向、阴影和 Controller Lightmap 已完成视�
 Phase 1 / 7：完成
 Phase 2 / 7：完成
 Phase 3 / 7：完成
+Phase 4 / 7：完成（用户确认视觉校验通过）
 功能验证：完成
 装配视觉校验：通过
 Git 提交：本轮已执行
@@ -30,7 +31,7 @@ Git 提交：本轮已执行
 | Phase 1.5 | 模型坐标轴与 Transform 检查器 | 已完成 | 为任务二的铰链轴向校准提供基建 |
 | Phase 2 | BottomRig、HingePivot、折叠原型 | 已完成 | 折叠方向、阴影和 Lightmap 已完成视觉校准 |
 | Phase 3 | Controller Reveal / Assembly | 已完成 | 精密吸合时间线已通过用户视觉校验 |
-| Phase 4 | Intro、Camera Shot、Ready / Play | 进行中 | Fold UI、Screen Wake、Camera Shot、Game Changer 与最小 Controller Game Home 已实现；浏览器视觉验收待完成 |
+| Phase 4 | Intro、Camera Shot、Ready / Play | 已完成 | 用户已确认浏览器视觉校验完成；进入 Phase 5 前增加 Controller Shell 材质 LookDev |
 | Phase 5 | NDS 模拟器技术验证与双屏桥接 | 未开始 | 模拟器与 Homebrew 尚未选定 |
 | Phase 6 | Keyboard / Gamepad 与 3D 按键反馈 | 部分实现 | Continue 已支持 Enter / 标准 Gamepad A，Escape 可返回；通用游戏输入与 3D 按键反馈未实现 |
 | Phase 7 | 性能、兼容性、Loading 与视觉精修 | 未开始 | 最终视觉验收由用户完成 |
@@ -72,15 +73,15 @@ Git 提交：本轮已执行
 
 | 项目 | 数量 |
 |---|---:|
-| JavaScript 文件 | 23 |
-| `src/js` 架构模块 | 21 |
-| `src` 内全部文件 | 25 |
+| JavaScript 文件 | 26 |
+| `src/js` 架构模块 | 23 |
+| `src` 内全部文件 | 28 |
 
 ### 3.4 模型加载与适配
 
 - 从 `/iphone.glb` 加载真实产品模型。
-- 当前模型已移除 Controller 的最终材质，后续由程序生成程序化材质；现阶段默认外观不是资源加载错误。
-- `Controller_Shell` 已接入独立 EXR Lightmap；最终程序化基础材质仍留待后续实现。
+- `Controller_Shell` 现由程序生成磨砂塑料；ABXY / DPad 使用保留原底色的独立 Physical 清漆塑料。
+- `Controller_Shell` 已接入独立 EXR Lightmap，并保留在程序化塑料材质上。
 - 启动时集中校验 10 个必要节点。
 - 自动计算模型整体包围盒、中心与基础缩放。
 - 使用外层 `PresentationRoot` 承担展示变换。
@@ -145,6 +146,9 @@ Bottom_Display_Plane
 - Lightmap UV 错位问题已由更新后的 GLB 与采样配置修复，并通过用户视觉校验。
 - Lightmap 只绑定到 `Controller_Shell` 的独立材质，不影响按键、D-Pad 或显示面。
 - Product Model 面板提供 `Controller Lightmap` 启用开关和 `0-5` 强度调节。
+- 新增 `ControllerShellMaterial` 和 `controllerPlastic.js`：尺寸归一化局部噪声、粗糙度变化、表面梯度微法线与高频衰减；可选层纹默认关闭。
+- `Controller Shell Plastic` 面板提供颜色、频率、粗糙度、坡度强度和打印层纹轴调节；方案校正详见 `Controller_TSL_Material_Implementation.md` 首节。
+- 用户已确认外壳材质效果；新增 `ControllerButtonMaterial` 覆盖 ABXY / DPad，`Controller Button Plastic` 面板可调清漆强度、清漆粗糙度、底层 IOR 与微颗粒。按键不使用外壳 Lightmap。
 
 ### 3.9 Controller 装配
 
@@ -199,8 +203,11 @@ Bottom_Display_Plane
 | 检查 | 结果 |
 |---|---|
 | `npm run build` | 通过 |
-| Vite 模块转换 | 43 modules，通过 |
+| Vite 模块转换 | 46 modules，通过 |
 | `git diff --check` | 通过 |
+| Controller 塑料 TSL | 当前 WGSLNodeBuilder 已生成含噪声、法线梯度与 uv1 Lightmap 的代码；层纹开关两种状态通过，GPU 驱动编译与视觉待浏览器验收 |
+| Controller 材质生命周期 | Uniform 调参、原材质恢复、独立面板/材质释放及共享 Lightmap 保留检查通过 |
+| 按键清漆塑料 | WGSL 代码生成、清漆 Uniform 开关、5 个按键颜色保留与资源恢复/释放检查通过；浏览器视觉待验收 |
 | 本地首页请求 | HTTP 200 |
 | 本地 `main.js` 请求 | HTTP 200 |
 | 本地 `iphone.glb` 请求 | HTTP 200 |
@@ -266,7 +273,7 @@ Bottom_Display_Plane
 - Screen Wake 与 Phone UI 已接入 `docs/img/主页面.png`，不再沿用 GLB 原始屏幕材质。
 - `NDSRuntime` 和真实 NDS 上下屏 Canvas 尚未接入，Playing 明确使用占位内容。
 - 屏幕宽高比差异后续统一在运行时使用 fit、letterbox 或 crop 处理；触控输入尚未实现。
-- Fold 模糊方向、折痕阴影侧、镂空透视关系、Game Home 朝向、Continue 命中区域与镜头构图仍需在最新版支持 WebGPU 的浏览器中视觉验收。
+- Phase 4 和 Controller Shell 效果已由用户确认；新增按键清漆材质需独立 LookDev 验收。
 
 ## 7. 当前工作区状态
 
@@ -286,8 +293,8 @@ Bottom_Display_Plane
 
 ## 8. 下一步
 
-Phase 4 下一步：
+Phase 5 前下一步：
 
-1. 在最新版支持 WebGPU 的浏览器中复核 Fold Blur / Parallax / Shade、镂空透视、Game Changer 节奏、双屏朝向、Continue 命中区域和镜头构图。
+1. 在最新版支持 WebGPU 的浏览器中验收 ABXY / DPad 的清漆高光及其与磨砂外壳的质感对比。
 2. 在 Phase 5 接入 `NDSRuntime` 与真实 NDS 上下屏 Canvas，替换 Playing 占位内容。
 3. 后续补充触控与通用游戏输入；3D 按键反馈仍按阻尼弹簧路线实现。

@@ -859,6 +859,8 @@ App
 
 ### Phase 4 — Intro 与镜头
 
+当前状态：用户已于 2026-09-22 确认该阶段视觉校验完成。进入 Phase 5 前先完成 Controller Shell 程序化塑料 LookDev，实施细节与草案修正见 `Controller_TSL_Material_Implementation.md` 首节。
+
 目标：完成从产品介绍到可玩状态的整条时间线。
 
 - 接入 GSAP。

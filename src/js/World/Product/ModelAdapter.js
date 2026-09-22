@@ -1,5 +1,7 @@
 import * as THREE from 'three/webgpu'
 import Experience from '../../Experience.js'
+import ControllerButtonMaterial from './ControllerButtonMaterial.js'
+import ControllerShellMaterial from './ControllerShellMaterial.js'
 import ModelInspector from './ModelInspector.js'
 import ProductRig from './ProductRig.js'
 
@@ -16,6 +18,8 @@ const REQUIRED_NODES = {
   bottomDisplay: 'Bottom_Display_Plane',
 }
 
+const BUTTON_NODE_NAMES = ['Button_A', 'Button_B', 'Button_X', 'Button_Y', 'DPad']
+
 export default class ModelAdapter {
   constructor(model) {
     this.experience = new Experience()
@@ -26,6 +30,7 @@ export default class ModelAdapter {
     this.resolveNodes()
     this.configureMeshes()
     this.configureControllerLightmap()
+    this.configureButtonMaterials()
 
     this.presentationRoot = new THREE.Group()
     this.presentationRoot.name = 'PresentationRoot'
@@ -80,6 +85,15 @@ export default class ModelAdapter {
     })
   }
 
+  configureButtonMaterials() {
+    const buttons = BUTTON_NODE_NAMES.map((name) => {
+      const node = this.nodes.controllerRoot.getObjectByName(name)
+      if (!node?.isMesh) throw new Error(`Controller 缺少按键 Mesh：${name}`)
+      return node
+    })
+    this.controllerButtonMaterial = new ControllerButtonMaterial({ buttons, debug: this.debug })
+  }
+
   configureControllerLightmap() {
     this.controllerShellLightmap = this.resources.items.controllerShellLightmap
     const controllerShell = this.nodes.controllerShell
@@ -90,6 +104,8 @@ export default class ModelAdapter {
     if (!controllerShell.isMesh || !controllerShell.geometry.attributes.uv1) {
       throw new Error('Controller_Shell 缺少 Lightmap UV（TEXCOORD_1 / uv1）。')
     }
+
+    this.controllerShellMaterial = new ControllerShellMaterial({ shell: controllerShell, debug: this.debug })
 
     // bake 写在 Blender 的 Lightmap 层，导出为 TEXCOORD_1；Three.js 对应 uv1 / channel 1。
     // 当前 EXR 与 glTF UV 的 V 方向相反，视觉校验确认需要 flipY 才能正确对齐。
@@ -233,6 +249,9 @@ export default class ModelAdapter {
   destroy() {
     this.inspector?.destroy()
     this.productRig?.destroy()
+    // 先恢复 GLB 原材质，使下方去重回收同时覆盖被替换的原材质及其共享纹理。
+    this.controllerShellMaterial?.destroy()
+    this.controllerButtonMaterial?.destroy()
     const geometries = new Set()
     const materials = new Set()
     const textures = new Set()

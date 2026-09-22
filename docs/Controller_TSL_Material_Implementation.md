@@ -1,5 +1,38 @@
 # Controller Shell TSL 程序化塑料材质实现说明
 
+## 当前实现与方案校正（2026-09-22）
+
+本文原有第 1–21 节是视觉参考与概念草案，代码示例不能直接作为当前 Three.js 的可运行实现。实际实现以本节和源码为准。
+
+- **范围**：`Controller_Shell` 使用磨砂塑料；用户确认外壳效果后，新增 ABXY / DPad 清漆塑料，详见下节。
+- **模块**：`src/js/World/Product/ControllerShellMaterial.js` 管理材质、参数、面板和销毁；`src/shaders/controllerPlastic.js` 管理纯 TSL 函数；由 `ModelAdapter` 装配。
+- **噪声 API**：Three.js 0.186 当前导出 `mx_noise_float`，不导出草案中的 `snoise`。当前使用两次 3D Perlin 噪声，微颗粒信号复用于 Roughness 和 Bump，避免三组各三层 FBM 的开销。
+- **凹凸 API**：当前 `bumpMap()` 通过偏移 UV 重采样计算高度差，不能正确求纯 `positionLocal` 高度场的梯度。实现改为视空间表面梯度法线，不使用贴图、切线或额外 UV。
+- **尺度**：以外壳最长边为统一参考长度，补偿加载时的节点缩放；不按 XYZ 各自归一化。频率表示每个参考长度的噪声格数 / 层纹周期数，不是 Blender Noise Scale，也不是毫米。纹理随模型移动，后续统一展示缩放不改变颗粒数量。
+- **Bump 强度**：当前参数是坡度尺度，先除以频率再换算为视空间高度，不能照搬草案中 `0.03` 的高度值。
+- **抗闪烁**：使用屏幕导数估计采样足迹，对无法分辨的高频噪声与层纹逐渐衰减。这是实用的带宽限制，不等于精确预积分，也不保证所有设备与极端近景均无混叠。
+- **PBR**：默认 `MeshStandardNodeMaterial`、Metalness 0、Roughness 0.55，不启用 Clearcoat。标准介电反射足以作为无涂层塑料基线；需要精确 IOR / 涂层 LookDev 时再使用 Physical，而非默认堆叠清漆。
+- **颜色**：默认 `#298de3`，线性空间小幅乘性变化（0.025），避免明显云斑；主质感来自粗糙度和微法线。
+- **层纹**：默认关闭；提供 X / Y / Z 局部轴选择，Y 只是初始选项，不假定是 Blender 打印轴。
+- **Lightmap**：继续使用现有 EXR、`uv1`、`channel = 1`、`flipY = true`、线性色彩空间。它是烘焙间接光，不是塑料颜色或法线贴图。更换材质不会重新烘焙光照。
+- **生命周期**：原 GLB 材质被保留，销毁时恢复后交由 `ModelAdapter` 去重回收；新材质与本组件面板显式释放，不销毁共享 Lightmap。
+
+### 当前调参及验收
+
+在 `Controller Shell Plastic` 面板先调 Base color / roughness，再调 grainFrequency / bumpStrength，最后才考虑颜色变化与可选打印层纹。频率越高不代表越真实，超出屏幕分辨率的颗粒会被衰减；中远景主要由 PBR 粗糙度维持磨砂观感。
+
+Phase 4 原有视觉流程和外壳材质效果已由用户确认。新增按键材质仍需在 WebGPU 浏览器检查近景高光、运动稳定性、Replay / Skip。当前没有新增 HDRI，光照仍以现有场景和 EXR 为准。
+
+### 按键高亮清漆塑料
+
+- `ControllerButtonMaterial.js` 绑定实际 GLB 的 `Button_A/B/X/Y` 和 `DPad`；`buttons` 是无 Mesh 的节点，不作为材质目标。名称解析仍集中在 `ModelAdapter`。
+- 保留 GLB 奶油色底色与可用的颜色/透明度贴图引用，独立创建 `MeshPhysicalNodeMaterial`，不修改共享的原材质。
+- 默认底层 Roughness `0.28`、IOR `1.47`、微凹凸坡度 `0.025`；不加入打印纹。
+- 清漆强度 `0.85`、清漆 Roughness `0.12`；`clearcoatNormalNode` 使用平滑几何法线，底层微颗粒不扰乱表层高光。该模型的清漆 IOR 固定约 1.5，面板 IOR 调节的是底层塑料。
+- 面板为 `Controller Button Plastic`：降低 `clearcoatRoughness` 会让高光更锐利，提高 `clearcoat` 会增强涂层贡献；高光位置与亮度仍取决于灯光和观察角度。
+- 复用外壳的滤波噪声与表面梯度函数，按键以各自最长边归一化；不使用外壳专属 Lightmap。
+- 销毁时恢复原材质并释放新材质与面板，原共享材质/纹理由 `ModelAdapter` 统一去重回收。
+
 ## 1. 目标
 
 为 iPhone Duo → NDS 项目的 Controller 外壳实现一套可在 Three.js WebGPU / TSL 中运行的程序化塑料材质。

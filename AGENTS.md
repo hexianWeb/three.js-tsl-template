@@ -30,7 +30,7 @@
 
 - Three.js 渲染类型从 `three/webgpu` 导入，TSL 从 `three/tsl` 导入；保持 `WebGPURenderer`、Node Material/TSL 和 Tweakpane 路线，不默认增加 WebGL、GLSL 或其他 GUI 回退。
 - 当前运行时模型是 `public/iphone.glb`。10 个必需节点名集中在 `ModelAdapter`：`PHONE_ROOT`、`BottomHalf_NO_CAM`、`TopHalf_CAM`、`Hinge`、`CONTROLLER_ASSEMBLY_ROOT`、`Controller_ROOT`、`Controller_Shell`、`Top_Screen_Plane`、`Bottom_Screen_Plane`、`Bottom_Display_Plane`。
-- 当前 GLB 已有意移除 Controller 的最终材质，后续在程序中生成程序化材质；不要把默认材质外观当作加载失败，也不要为此回退旧模型。
+- `ControllerShellMaterial` 为 `Controller_Shell` 生成程序化磨砂塑料，纯 TSL 位于 `src/shaders/controllerPlastic.js`；`ControllerButtonMaterial` 为 ABXY / DPad 生成独立 Physical 清漆塑料并保留 GLB 底色。按键名称集中在 `ModelAdapter`，不把外壳 Lightmap 用于按键；不要为材质外观回退旧模型。
 - `Controller_Shell` 的运行时 GI 使用 `/lightmaps/Controller_Shell_lightmap.exr`。该 2048² Half Float EXR 使用 `TEXCOORD_1` (`uv1`)，因此保持 `flipY = true`、线性色彩空间和 `channel = 1`；PNG 仅作预览。
 - GLB Bind Pose 是 180 度完全展开态；下半屏固定，只旋转代码生成 Pivot 下的上半屏。首次可见前应用约 8 度近闭合态，当前 Hero/Play 目标为 110 度。
 - Hinge 的 Pivot 和旋转长轴必须从模型局部包围盒推导，不能硬编码世界轴。重新挂接节点时保持世界变换并检查非均匀缩放。
