@@ -757,6 +757,8 @@ Input Target
 ```text
 App
 ├─ Renderer
+├─ Environment                  # 背景、三盏灯、主光阴影、曝光；不设置 scene.environment
+├─ Stage                        # 展台桌板，独立挂在 Scene 下，不进入 fitModel() 包围盒
 ├─ ProductRig
 │  ├─ ModelAdapter              # 校验节点、建立运行时层级
 │  ├─ HingeController           # 产品夹角、Pivot、铰链视觉
@@ -776,6 +778,8 @@ App
 关键边界：
 
 - 场景代码不能依赖具体模拟器 DOM 结构。
+- `Stage` 不参与 `fitModel()` 包围盒，也不挂在折叠 Pivot 或 Controller 装配节点下。
+- 曝光只通过 `Renderer.setExposure()` 修改，`Environment` 不直接写 Renderer 内部字段。
 - 输入系统只输出语义 Action，不直接操作按钮 Mesh 或模拟器键码。
 - GLB 节点名只允许集中在 `ModelAdapter` 中解析。
 - Intro 与 Play 的状态切换不能直接散落在渲染循环中。
@@ -801,6 +805,8 @@ App
 - Controller Shell 的运行时 GI 使用 2048 × 2048 Half Float EXR Lightmap，并通过 `TEXCOORD_1` 采样。
 - 已确认三块屏幕节点及职责：`Top_Screen_Plane` 为手机上屏，`Bottom_Screen_Plane` 为手机原生下屏，`Bottom_Display_Plane` 为 Controller 镂空上方、仅在 Lock 后激活的显示层。
 - 已确认三块屏幕 UV 均覆盖完整 `0–1`；比例差异由运行时 fit、letterbox 或 crop 处理。
+- **不使用 HDR 环境贴图**，`scene.environment` 恒为 null。已实测否决，详见第 29 节与 `docs/Scene_Lighting_Stage_Plan.md`。
+- 展台当前是程序化倒角桌板占位；外部展台模型到位后替换 `Stage.js` 的几何来源。
 
 ### 待技术验证
 
@@ -960,6 +966,20 @@ Tweakpane 只用于开发调试，生产构建默认隐藏。
 - `dpadStiffness`
 - `dpadDamping`
 
+### Environment
+
+- 背景色、曝光
+- Hemisphere / Key / Fill 强度
+- 主光 X / Y / Z 位置
+- 主光 Helper 显示开关
+- 阴影正交范围 Extent、深度区间 Depth range、Bias、Normal bias
+
+### Stage
+
+- 显示开关、颜色、粗糙度
+- 宽 / 深 / 厚度 / 倒角（改动后重建 geometry）
+- Surface offset 微调桌面高度
+
 ### Camera
 
 - Hero Camera position / target / FOV
@@ -1061,3 +1081,40 @@ value += velocity * dt
 ```
 
 `target` 在按下时为 `1`，松开时为 `0`。最终位移为 `-pressAxis * buttonTravel * value`。D-Pad 使用同一套弹簧值驱动两个倾斜轴。
+
+---
+
+## 29. 场景环境与展台
+
+详细实施计划、取舍过程与验收清单在 `docs/Scene_Lighting_Stage_Plan.md`。本节只固化对其它模块有约束力的产品决定。
+
+### 29.1 照明方案
+
+场景采用三盏实时灯，**不使用 HDR 环境贴图**：
+
+| 光源 | 参数 | 职责 |
+|---|---|---|
+| `HemisphereLight` | `#f7fbff` / `#101827`，强度 2.4 | 唯一的场景级间接漫反射 |
+| 主 `DirectionalLight` | `#ffffff`，强度 5，位置 `(4, 6, 5)` | 主要投影与高光 |
+| 补 `DirectionalLight` | `#7dd3fc`，强度 2，位置 `(-4, 1.5, 3)` | 冷色补光 |
+
+Renderer 保持 ACES 与曝光 1.1。主光投 2048² 阴影，阴影相机范围以光源到原点的距离为中心推导，不使用 three 的默认 ±5 / near 0.5 / far 500。
+
+### 29.2 HDR 环境贴图已否决
+
+`studio_small_03_1k.hdr` 曾接入 `scene.environment` 并实测，结论是整体观感更差：`Controller_Shell` 的 EXR Lightmap 本身就是一次天光烘焙，叠加 studio HDR 后重复计光，画面被抬平、层次减少。该方案取消，HDR 文件保留在 `public/hdr/` 但不进入 `sources.js`。
+
+三条连带约束：
+
+- **间接镜面为零。** `HemisphereLight` 在 three 中只贡献 irradiance。没有 `scene.environment` 就没有 IBL specular，按键清漆只能从两盏 `DirectionalLight` 得到点状高光，拿不到柔光箱轮廓。任何"清漆应读出面光源轮廓"的验收描述都已作废。
+- **间接漫反射完全无方向。** 凹缝与开阔面收到的间接光几乎相同，这是当前画面最主要的层次损失来源。屏幕空间 AO 是唯一能对它做空间调制的手段，因此 GTAO 的优先级因取消 HDR 而**上升**。
+- **Controller Shell Lightmap 保留。** 原先"HDR 到位后重估这张图去留"的决策点前提已消失，`lightMapIntensity` 保持 1。
+
+### 29.3 展台
+
+展台当前是程序化占位件，不是最终资产：
+
+- `RoundedBoxGeometry` + 非金属 `MeshStandardNodeMaterial`，暖灰 `#a79f92`，roughness 0.72，尺寸 20 × 20 × 0.12，倒角 0.02。
+- 桌面上表面对应 Blender `Z = -0.035`，导出后是 GLB 模型局部 Y。世界高度必须经 `ModelAdapter.getStageSurfaceWorldY()` 运行时换算，**不能写死**。
+- 8°–110° 折叠区间内，整机最低点（Controller Shell）恒在桌面上方 `+0.00658`。Bind Pose 180° 会穿桌 `-0.04463`，但 180° 只是调试姿态，Intro 与 Hero 都不会到达。
+- 外部展台模型到位后只替换几何来源，坐标换算与调参接口不变。

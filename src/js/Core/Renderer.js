@@ -25,6 +25,10 @@ export default class Renderer {
     await this.instance.init()
   }
 
+  setExposure(value) {
+    this.instance.toneMappingExposure = value
+  }
+
   update() {
     this.instance.render(this.scene, this.camera.instance)
   }

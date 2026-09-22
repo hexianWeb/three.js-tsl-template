@@ -20,6 +20,9 @@ const REQUIRED_NODES = {
 
 const BUTTON_NODE_NAMES = ['Button_A', 'Button_B', 'Button_X', 'Button_Y', 'DPad']
 
+// 用户在 Blender 中确认的桌面上表面位于 Z = -0.035，导出后对应 GLB 模型局部 Y。
+const STAGE_SURFACE_MODEL_Y = -0.035
+
 export default class ModelAdapter {
   constructor(model) {
     this.experience = new Experience()
@@ -156,6 +159,13 @@ export default class ModelAdapter {
 
     this.applyTransform()
     this.applyControllerLightmap()
+  }
+
+  // 桌面高度受 fitModel() 的居中偏移与 PresentationRoot 展示变换共同影响，
+  // 因此走运行时矩阵换算，不能把推导出的世界坐标写死。
+  getStageSurfaceWorldY() {
+    this.presentationRoot.updateMatrixWorld(true)
+    return this.model.localToWorld(new THREE.Vector3(0, STAGE_SURFACE_MODEL_Y, 0)).y
   }
 
   applyTransform() {

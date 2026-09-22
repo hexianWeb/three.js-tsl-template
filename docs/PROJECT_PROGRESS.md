@@ -1,12 +1,14 @@
 # iPhone Duo WebGPU 项目进度
 
 > 最后更新：2026-09-22
-> 当前阶段：Phase 4 已完成；Phase 5 前 Controller Shell 材质 LookDev
-> 当前状态：用户已确认 Phase 4 和外壳塑料效果；ABXY / DPad 清漆塑料已接入，按键材质待视觉验收
+> 当前阶段：Phase 4 已完成；Phase 5 前进行材质与场景环境 LookDev
+> 当前状态：外壳与按键塑料已接入；场景环境与展台已拆出独立组件并调定；HDR 环境贴图经实测否决，下一步是 GTAO
 
 ## 1. 进度摘要
 
 Phase 2 Runtime Rig、折叠方向、阴影和 Controller Lightmap 已完成视觉校准。当前已实现角度驱动的 Fold Phone UI、可重播的 Controller 装配、装配期间的透明镂空，以及 Lock 后 Phone UI -> Game Home 转场和最小 Continue / 返回交互。
+
+本轮补充了场景环境：灯光从 `World` 拆出为 `Environment` 组件并收紧了主光阴影相机，新增程序化展台桌板 `Stage`。HDR 环境贴图经实测否决，场景不设置 `scene.environment`。
 
 实施里程碑统计：
 
@@ -73,9 +75,9 @@ Git 提交：本轮已执行
 
 | 项目 | 数量 |
 |---|---:|
-| JavaScript 文件 | 26 |
-| `src/js` 架构模块 | 23 |
-| `src` 内全部文件 | 28 |
+| JavaScript 文件 | 28 |
+| `src/js` 架构模块 | 25 |
+| `src` 内全部文件 | 30 |
 
 ### 3.4 模型加载与适配
 
@@ -134,9 +136,9 @@ Bottom_Display_Plane
 - GLB 的 `180°` Bind Pose 映射为产品角度，首次加入场景前应用 `8°`；Tweakpane 提供 `8°`、`110°`、`180°` 快速检查。
 - 铰链视觉网格默认使用上半屏折叠量的 `0.5`，Controller 安装终点矩阵已相对 `BottomRig` 保存，供 Phase 3 使用。
 - Coordinate Inspector 可检查新增的运行时 Rig 节点。
-- Lighting 面板可实时调节 DirectionalLight 的 `shadowBias` 与 `shadowNormalBias`，用于处理模型细碎自阴影。
+- 可实时调节 DirectionalLight 的 `shadowBias` 与 `shadowNormalBias`，用于处理模型细碎自阴影（面板后来从 `Lighting` 改名为 `Environment`，见 3.13）。
 - 用户视觉校验已确认 `shadowNormalBias = 0.006`；`shadowBias` 暂时保持 `0`。
-- 场景默认显示 Key DirectionalLight Helper，并可在 Lighting 面板中切换。
+- 场景默认显示 Key DirectionalLight Helper，并可在面板中切换。
 
 ### 3.8 Controller Shell Lightmap
 
@@ -197,6 +199,16 @@ Bottom_Display_Plane
 - Phone UI 先裁成两张独立半幅 `CanvasTexture`，再执行镜像和旋转；当前校准基线为 `180°` 与上下屏面板对调，面板仍可切换 X / Y 镜像和四档旋转。
 - Intro 面板新增 `screenWakeHold`、`Pause at Screen Wake`、`Inspect Screen Wake` 与 `Continue Assembly`；可无限期停留在完整点亮状态调试，再恢复装配流程。
 - 新增 `Fold Screen Effect` 与 `Game Changer Transition` 面板，可检查角度、模糊、位移、折痕方向、镂空、转场进度、Game UI 朝向和亮度。
+
+### 3.13 场景环境与展台
+
+- 新增 `World/Environment/Environment.js`，把原先散在 `World.setEnvironment()` 的背景色、`HemisphereLight`、主光、补光与 Helper 收进独立组件，Tweakpane folder 从 `Lighting` 改名为 `Environment`，并补上了原先缺失的 folder dispose。
+- 新增可调参数：背景色、曝光、三盏灯强度、主光 X / Y / Z 位置。曝光经 `Renderer.setExposure()` 修改，`Environment` 不直接写 Renderer 内部字段。
+- 主光阴影相机不再使用 three 默认的 ±5 / near 0.5 / far 500，改为以光源到原点的距离为中心推导 near/far，正交范围由 `shadowExtent`（默认 3.6）控制。
+- 新增 `World/Environment/Stage.js` 程序化展台：`RoundedBoxGeometry` + 非金属 `MeshStandardNodeMaterial`，暖灰 `#a79f92`，roughness 0.72，调定 20 × 20 × 0.12，倒角 0.02。`receiveShadow = true`、`castShadow = false`，直接挂 Scene，不进入 `fitModel()` 包围盒。
+- 桌面高度经 `ModelAdapter.getStageSurfaceWorldY()` 运行时换算（Blender `Z = -0.035` → GLB 局部 Y → 世界 Y），未写死坐标。实测返回 `-0.09726002`，与文档推导一致。
+- **HDR 环境贴图已否决。** `studio_small_03_1k.hdr` 接入 `scene.environment` 后实测观感更差——外壳 EXR Lightmap 本身是一次天光烘焙，叠加 studio HDR 后重复计光，画面被抬平。文件保留在 `public/hdr/` 但不进入 `sources.js`。
+- 取消 HDR 的连带结果：场景**间接镜面为零**，清漆高光只来自两盏 DirectionalLight；间接漫反射只剩无方向的半球光。因此 GTAO 的优先级上升，详见 `docs/Scene_Lighting_Stage_Plan.md`。
 
 ## 4. 验证记录
 
@@ -259,10 +271,17 @@ Bottom_Display_Plane
 - Controller Shell EXR 未压缩且约 50.4 MB，会显著增加首次加载时间；视觉确认后再决定是否压缩或降级。
 - 当前 Camera Shot 参数已由用户完成视觉校准，并已用于 Screen Wake 与 Phone UI 构图基线。
 
+- Bind Pose `180°` 时整机最低点落到桌面下方 `-0.04463`，即上半屏摊平后穿过桌板。`180°` 只是 Tweakpane 调试姿态，Intro 与 Hero 都不会到达，暂不处理。
+- `ModelInspector` 的 GridHelper 位于 `y = 0`，桌面在 `-0.097`，因此网格会浮在桌面之上遮挡 LookDev 视图，调外观时需手动关闭。
+- `Environment` 的 `showKeyLightHelper` 默认仍是 `true`，生产前应改为 `false`。
+- `Stage` 的 `width` / `depth` 滑杆上限就是当前调定的 20；若需更大桌面要先放宽 `Stage.debugInit()` 的 `ranges`。
+
 ### 尚未决定
 
 - Hinge 自动推导轴向与铰链视觉中间姿态的最终确认。
 - 最终 Hero / Play Camera 参数。
+- 外部展台模型是否替换当前程序化桌板占位。
+- 若清漆高光在验收中显得单薄，是否引入低强度 `RectAreaLight`（取消 HDR 后这是唯一能造出面光源高光的路径）。
 - NDS 模拟器与 Homebrew ROM 选型。
 - NDS 上下屏 Canvas 输出的具体获取方式。
 
@@ -291,10 +310,18 @@ Bottom_Display_Plane
 - 将原 812 行 `ScreenManager` 拆分为模式协调器、`PhoneScreenSurface` 与 `ControllerDisplay`，保持 `World` / `IntroDirector` 公开调用不变。
 - `src/js/World/` 已按 `Product/`、`Directors/`、`Screens/`、`Input/` 分层，根级只保留 `World.js` 作为装配入口。
 
+本轮场景环境改动为：
+
+- 新增 `src/js/World/Environment/Environment.js` 与 `src/js/World/Environment/Stage.js`，`World` 只负责装配与销毁。
+- `Renderer` 新增 `setExposure()`；`ModelAdapter` 新增 `getStageSurfaceWorldY()` 与 `STAGE_SURFACE_MODEL_Y` 常量。
+- HDR 实验已完整撤回：`sources.js`、`Resources.js` 恢复原状，`Environment.js` 中的 `environment*` 死参数已移除。`public/hdr/studio_small_03_1k.hdr` 保留在磁盘上但不被加载。
+- 同步更新 `docs/Scene_Lighting_Stage_Plan.md` 与 PRD 第 29 节。
+
 ## 8. 下一步
 
 Phase 5 前下一步：
 
-1. 在最新版支持 WebGPU 的浏览器中验收 ABXY / DPad 的清漆高光及其与磨砂外壳的质感对比。
-2. 在 Phase 5 接入 `NDSRuntime` 与真实 NDS 上下屏 Canvas，替换 Playing 占位内容。
-3. 后续补充触控与通用游戏输入；3D 按键反馈仍按阻尼弹簧路线实现。
+1. 在最新版支持 WebGPU 的浏览器中验收展台构图、接触阴影，以及 ABXY / DPad 清漆高光与磨砂外壳的质感对比。
+2. 实施 GTAO（`Core/ScenePipeline.js` + `three/addons/tsl/display/GTAONode.js`）。取消 HDR 后半球光是唯一的间接漫反射且完全无方向，AO 成为产品层次的主要来源。
+3. 在 Phase 5 接入 `NDSRuntime` 与真实 NDS 上下屏 Canvas，替换 Playing 占位内容。
+4. 后续补充触控与通用游戏输入；3D 按键反馈仍按阻尼弹簧路线实现。

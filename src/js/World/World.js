@@ -1,7 +1,8 @@
-import * as THREE from 'three/webgpu'
 import Experience from '../Experience.js'
 import CameraDirector from './Directors/CameraDirector.js'
 import IntroDirector from './Directors/IntroDirector.js'
+import Environment from './Environment/Environment.js'
+import Stage from './Environment/Stage.js'
 import InputRouter from './Input/InputRouter.js'
 import ModelAdapter from './Product/ModelAdapter.js'
 import ScreenManager from './Screens/ScreenManager.js'
@@ -14,66 +15,23 @@ export default class World {
     this.debug = this.experience.debug
     this.events = this.experience.events
     this.state = this.experience.state
-    this.params = {
-      shadowBias: 0,
-      shadowNormalBias: 0.006,
-      showKeyLightHelper: true,
-    }
 
     this.setEnvironment()
     this.setProduct()
+    this.setStage()
     this.setScreenManager()
     this.setCameraDirector()
     this.setIntro()
     this.setInputRouter()
-    this.debugInit()
   }
 
   setEnvironment() {
-    this.scene.background = new THREE.Color('#090d14')
-
-    this.hemisphereLight = new THREE.HemisphereLight('#f7fbff', '#101827', 2.4)
-    this.scene.add(this.hemisphereLight)
-
-    this.keyLight = new THREE.DirectionalLight('#ffffff', 5)
-    this.keyLight.position.set(4, 6, 5)
-    this.keyLight.castShadow = true
-    this.keyLight.shadow.mapSize.set(2048, 2048)
-    this.applyShadowSettings()
-    this.scene.add(this.keyLight)
-
-    this.keyLightHelper = new THREE.DirectionalLightHelper(this.keyLight, 0.5, '#fbbf24')
-    this.keyLightHelper.visible = this.params.showKeyLightHelper
-    this.scene.add(this.keyLightHelper)
-
-    this.fillLight = new THREE.DirectionalLight('#7dd3fc', 2)
-    this.fillLight.position.set(-4, 1.5, 3)
-    this.scene.add(this.fillLight)
+    this.environment = new Environment()
   }
 
-  applyShadowSettings() {
-    this.keyLight.shadow.bias = this.params.shadowBias
-    this.keyLight.shadow.normalBias = this.params.shadowNormalBias
-  }
-
-  debugInit() {
-    const folder = this.debug.ui.addFolder({ title: 'Lighting', expanded: false })
-    folder.addBinding(this.params, 'shadowBias', {
-      label: 'Shadow bias',
-      min: -0.01,
-      max: 0.01,
-      step: 0.0001,
-    }).on('change', () => this.applyShadowSettings())
-    folder.addBinding(this.params, 'shadowNormalBias', {
-      label: 'Shadow normal bias',
-      min: 0,
-      max: 0.2,
-      step: 0.001,
-    }).on('change', () => this.applyShadowSettings())
-    folder.addBinding(this.params, 'showKeyLightHelper', {
-      label: 'Key light helper',
-    }).on('change', ({ value }) => {
-      this.keyLightHelper.visible = value
+  setStage() {
+    this.stage = new Stage({
+      surfaceY: this.product.getStageSurfaceWorldY(),
     })
   }
 
@@ -151,7 +109,7 @@ export default class World {
     this.screenManager.setProductAngle(this.product.productRig.params.productAngle)
     this.screenManager.update()
     this.inputRouter.update()
-    this.keyLightHelper.update()
+    this.environment.update()
   }
 
   destroy() {
@@ -159,9 +117,8 @@ export default class World {
     this.intro?.destroy()
     this.cameraDirector?.destroy()
     this.screenManager?.destroy()
+    this.stage?.destroy()
     this.product?.destroy()
-    this.scene.remove(this.hemisphereLight, this.keyLight, this.keyLightHelper, this.fillLight)
-    this.keyLightHelper?.dispose()
-    this.keyLight?.shadow?.map?.dispose()
+    this.environment?.destroy()
   }
 }
