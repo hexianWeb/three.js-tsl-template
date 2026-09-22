@@ -20,8 +20,9 @@ export default class Environment {
       keyY: 6,
       keyZ: 5,
       fillIntensity: 2,
-      shadowExtent: 3.6,
+      shadowExtent: 4.0,
       shadowDepth: 6,
+      shadowRadius: 10.0,
       shadowBias: 0,
       shadowNormalBias: 0.006,
       showKeyLightHelper: true,
@@ -74,6 +75,8 @@ export default class Environment {
     camera.far = distance + this.params.shadowDepth
     camera.updateProjectionMatrix()
 
+    // PCFShadowMap 的软边由 radius 控制，单位是阴影贴图像素；1 接近硬边。
+    shadow.radius = this.params.shadowRadius
     shadow.bias = this.params.shadowBias
     shadow.normalBias = this.params.shadowNormalBias
   }
@@ -131,6 +134,12 @@ export default class Environment {
     shadows.addBinding(this.params, 'shadowDepth', {
       label: 'Depth range',
       min: 1,
+      max: 20,
+      step: 0.1,
+    }).on('change', () => this.applyShadowSettings())
+    shadows.addBinding(this.params, 'shadowRadius', {
+      label: 'Radius',
+      min: 0,
       max: 20,
       step: 0.1,
     }).on('change', () => this.applyShadowSettings())

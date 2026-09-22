@@ -10,7 +10,7 @@ export default class ControllerButtonMaterial {
       roughness: 0.28,
       roughnessVariation: 0.012,
       grainFrequency: 90,
-      bumpStrength: 0.5,
+      bumpStrength: 0.05,
       clearcoat: 0.85,
       clearcoatRoughness: 0.12,
       ior: 1.47,

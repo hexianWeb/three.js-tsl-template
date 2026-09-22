@@ -13,6 +13,21 @@ export default [
     path: '/lightmaps/Controller_Shell_lightmap.exr',
   },
   {
+    name: 'stagePlasticColor',
+    type: 'texture',
+    path: '/texture/Plastic010_1K-JPG_Color.jpg',
+  },
+  {
+    name: 'stagePlasticNormal',
+    type: 'texture',
+    path: '/texture/Plastic010_1K-JPG_NormalGL.jpg',
+  },
+  {
+    name: 'stagePlasticRoughness',
+    type: 'texture',
+    path: '/texture/Plastic010_1K-JPG_Roughness.jpg',
+  },
+  {
     name: 'phoneHomeTexture',
     type: 'texture',
     path: phoneHomeUrl,

@@ -7,7 +7,7 @@ export default class ControllerShellMaterial {
     this.shell = shell
     this.originalMaterial = shell.material
     this.params = {
-      color: '#3b556c',
+      color: '#3e5f7c',
       colorVariation: 0.025,
       colorFrequency: 1500,
       roughness: 0.45,

@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu'
 import Experience from '../Experience.js'
+import ScenePipeline from './ScenePipeline.js'
 
 export default class Renderer {
   constructor() {
@@ -23,6 +24,7 @@ export default class Renderer {
     this.instance.shadowMap.type = THREE.PCFShadowMap
     this.resize()
     await this.instance.init()
+    this.pipeline = new ScenePipeline(this.instance, this.scene, this.camera.instance, this.experience.debug)
   }
 
   setExposure(value) {
@@ -30,18 +32,20 @@ export default class Renderer {
   }
 
   update() {
-    this.instance.render(this.scene, this.camera.instance)
+    this.pipeline.update()
   }
 
   resize() {
     this.instance.setPixelRatio(this.sizes.pixelRatio)
     this.instance.setSize(this.sizes.width, this.sizes.height)
+    this.pipeline?.resize()
   }
 
   destroy() {
     if (!this.instance) return
 
     this.instance.setAnimationLoop(null)
+    this.pipeline?.destroy()
     this.instance.dispose()
   }
 }

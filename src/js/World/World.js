@@ -32,6 +32,11 @@ export default class World {
   setStage() {
     this.stage = new Stage({
       surfaceY: this.product.getStageSurfaceWorldY(),
+      textures: {
+        color: this.resources.items.stagePlasticColor,
+        normal: this.resources.items.stagePlasticNormal,
+        roughness: this.resources.items.stagePlasticRoughness,
+      },
     })
   }
 

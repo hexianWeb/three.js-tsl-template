@@ -1114,7 +1114,7 @@ Renderer 保持 ACES 与曝光 1.1。主光投 2048² 阴影，阴影相机范�
 
 展台当前是程序化占位件，不是最终资产：
 
-- `RoundedBoxGeometry` + 非金属 `MeshStandardNodeMaterial`，暖灰 `#a79f92`，roughness 0.72，尺寸 20 × 20 × 0.12，倒角 0.02。
+- `RoundedBoxGeometry` + 非金属 `MeshStandardNodeMaterial`，尺寸 20 × 20 × 0.12，倒角 0.02。表面为 `public/texture/` 的 Plastic010 1K JPG（颜色、OpenGL 法线、粗糙度），Tint 默认白，粗糙度乘数默认 1。
 - 桌面上表面对应 Blender `Z = -0.035`，导出后是 GLB 模型局部 Y。世界高度必须经 `ModelAdapter.getStageSurfaceWorldY()` 运行时换算，**不能写死**。
 - 8°–110° 折叠区间内，整机最低点（Controller Shell）恒在桌面上方 `+0.00658`。Bind Pose 180° 会穿桌 `-0.04463`，但 180° 只是调试姿态，Intro 与 Hero 都不会到达。
 - 外部展台模型到位后只替换几何来源，坐标换算与调参接口不变。

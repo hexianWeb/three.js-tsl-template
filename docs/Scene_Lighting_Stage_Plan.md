@@ -3,7 +3,7 @@
 > 2026-09-22（决定变更 · 重要）：**HDR 环境贴图方案取消。** 用户实测接入 `scene.environment` 后整体观感更差，决定不设置环境贴图。A 里程碑的 HDR 部分作废，第 3 节 A 已改写为"展台 + 灯光 + 主光阴影"。该决定的连带影响见第 2 节"取消 HDR 的后果"。
 > 2026-09-22（决定变更）：展台恢复为**程序化倒角桌板占位**。此前"改为用户导入的外部模型"的决定暂缓——外部模型尚未提供，先用占位件验收接触阴影与构图，外部模型到位后再替换 `Stage.js` 的几何来源。
 > 2026-09-22（已实施）：`World/Environment/Environment.js` 与 `World/Environment/Stage.js` 已建立，A 里程碑（不含已取消的 HDR）完成，详见第 7 节。
-> 2026-09-22（复核）：`src/js/Core/ScenePipeline.js` 仍不存在，B（GTAO）**未进入源码**；此前把它写成已完成的记录不成立。
+> 2026-09-22（本轮实施）：已新增 `src/js/Core/ScenePipeline.js` 并接入 Renderer。B（GTAO）已进入源码，构建与 CPU 生命周期检查通过；GPU 编译、视觉与性能待浏览器验收。此前“尚未进入源码”的复核记录已被本轮实现取代。
 > 材质基线提交：`a7a141d`（Controller 磨砂外壳与按键清漆材质）。
 
 ## 1. 用户已确认
@@ -11,7 +11,7 @@
 - Phase 4 视觉流程已完成；进入 Phase 5 前先完善产品棚拍环境。
 - **不使用 HDR 环境贴图**。`studio_small_03_1k.hdr` 已实测接入并被否决，文件保留在 `public/hdr/` 但不进入 `sources.js`。重新提起该方案前先读第 2 节"取消 HDR 的后果"。
 - 桌面上表面位于 **Blender Z = -0.035**，不是 Three.js 世界 Z。
-- 展台选用 **哑光、低反光、薄倒角桌板**；实际调定为暖灰 `#a79f92`。
+- 展台选用 **哑光、低反光、薄倒角桌板**。纯色暖灰 `#a79f92` 已替换为 Plastic010 贴图；粗糙度改由贴图提供，Tint 默认白色。
 - 仍希望评估 LightProbeGrid 与 GTAO，利用接触阴影与间接光改善材质层次。
 
 ## 2. 当前基线及问题
@@ -51,8 +51,8 @@ HDR 被否决的原因是实测观感更差：外壳 EXR Lightmap 本身就是�
 3. ✅ `World.setEnvironment()` 已拆为 `World/Environment/Environment.js`，暴露背景、曝光、三盏灯强度、主光位置与阴影参数。
 4. ⚠️ 清漆与金属高光只能来自两盏 `DirectionalLight`，没有环境反射可用。若后续认为高光过于单薄，替代方案是加低强度 `RectAreaLight` 做柔光箱塑形——这是**唯一**不引入 IBL 又能造出面光源高光的路径，但它不作为承影光源。
 5. ✅ 灯光能量保持基线（Hemisphere 2.4 / Key 5 / Fill 2 / 曝光 1.1）。取消 HDR 后不存在重复计光，`lightMapIntensity` 保持 1，无需下调。
-6. ✅ Stage 使用 `RoundedBoxGeometry` + 非金属 `MeshStandardNodeMaterial`，roughness 调定 0.72。
-7. ✅ 主光阴影相机范围与 near/far 已按光源距离收紧。PCF radius、bias、normalBias 仍是默认值，留待接触漂浮或条纹出现时再调。
+6. ✅ Stage 使用 `RoundedBoxGeometry` + 非金属 `MeshStandardNodeMaterial`。表面为 Plastic010 1K JPG（颜色 sRGB，法线 GL 与粗糙度为 `NoColorSpace`），roughness 作为贴图乘数默认 1。
+7. ✅ 主光阴影相机范围与 near/far 已按光源距离收紧。`Key shadow` 面板可调 `shadow.radius`（当前源码值 10，范围 0–20）、bias、normalBias。
 8. ⚠️ `showKeyLightHelper` 默认仍是 `true`。生产前应改为默认隐藏，Tweakpane 开关已具备。
 
 ### B. GTAO（第二个可验收里程碑）
@@ -131,7 +131,7 @@ World/
     ProbeLighting.js      # 尚未创建；可选探针实验、失效/重烘焙与资源管理
 Core/
   Renderer.js             # 唯一渲染循环入口
-  ScenePipeline.js        # 尚未创建；主通道、GTAO、降噪与输出
+    ScenePipeline.js        # 已创建；主通道、GTAO、降噪与输出
 ```
 
 此目录仅为计划，开始对应功能时才创建文件。World 显式装配和销毁，资源路径仍只写在 sources.js；不增加新的独立动画循环。
@@ -155,7 +155,9 @@ Core/
 
 ### 渲染与光照
 
-- `Core/Renderer.js`：`WebGPURenderer`（antialias），ACES，曝光 1.1，`shadowMap.enabled = true`，`PCFShadowMap`。`update()` 直接 `instance.render(scene, camera)`，**没有任何后处理管线**。新增 `setExposure()` 作为曝光的唯一公开入口。
+- `Core/Renderer.js`：`WebGPURenderer`（antialias），ACES，曝光 1.1，`shadowMap.enabled = true`，`PCFShadowMap`。`update()` 委托 `ScenePipeline`，关闭 GTAO 时直接渲染以完全旁路额外通道。`setExposure()` 是曝光的公开入口。
+- `Core/ScenePipeline.js`：全分辨率几何法线 / 深度预通道（排除透明对象、关闭 MSAA，保留 Renderer 的光照管理对象），半分辨率 GTAO（16 samples、radius 0.12、thickness 0.08、scale 1），全分辨率 Denoise RTT（radius 3、depthPhi 0.05、normalPhi 8），再通过 `builtinAOContext` 注入主场景。主场景保留 Renderer 的 MSAA 设置，最终仅由 RenderPipeline 执行一次输出转换。未启用时间累积。
+- `GTAO` 面板提供 Enabled、Scene / Raw AO / Denoised AO 预览和参数调节。Renderer 显式调用 resize / destroy，释放全部自有通道、噪声纹理和材质；原 EXR Lightmap 不由管线释放。
 - `World/Environment/Environment.js`：从 `World.setEnvironment()` 抽出，持有背景色、`HemisphereLight('#f7fbff', '#101827', 2.4)`、主 `DirectionalLight('#ffffff', 5)`（castShadow，2048² 阴影）与 `DirectionalLight('#7dd3fc', 2)` 补光，以及 Helper、Tweakpane `Environment` folder 和完整销毁路径。
 - 主光阴影相机不再使用默认的 ±5 / near 0.5 / far 500。`applyShadowSettings()` 以光源到原点的距离为中心推导 near/far，正交范围由 `shadowExtent`（默认 3.6）控制，`shadowDepth`（默认 6）控制深度区间。
 - **`scene.environment` 恒为 null**（设计决定，非待办）。`sources.js` 无 HDR 条目，`Resources` 无 `HDRLoader` 类型。`public/hdr/studio_small_03_1k.hdr` 保留在磁盘上但不被加载。取消理由与连带影响写在 `Environment.js` 顶部注释与第 2 节。
@@ -163,10 +165,10 @@ Core/
 
 ### 展台
 
-- `World/Environment/Stage.js`：`RoundedBoxGeometry` + `MeshStandardNodeMaterial`（`#a79f92`，roughness 0.72，metalness 0），调定 20 × 20 × 0.12，倒角 0.02。`castShadow = false`、`receiveShadow = true`，直接挂在 Scene 下，不进入 `fitModel()` 包围盒。
+- `World/Environment/Stage.js`：`RoundedBoxGeometry` + `MeshStandardNodeMaterial`（Plastic010 颜色 / 法线 / 粗糙度，metalness 0，roughness 乘数 1，Tint `#ffffff`），调定 20 × 20 × 0.12，倒角 0.02。`castShadow = false`、`receiveShadow = true`，直接挂在 Scene 下，不进入 `fitModel()` 包围盒。三张 JPG 在 `sources.js` 声明为 `stagePlasticColor`、`stagePlasticNormal`、`stagePlasticRoughness`。
 - 20 × 20 是 Tweakpane `width` / `depth` 滑杆的上限值。若还需要更大的桌面，要先放宽 `Stage.debugInit()` 里的 `ranges` 上限。
 - 桌面高度来自 `ModelAdapter.getStageSurfaceWorldY()`：以 `STAGE_SURFACE_MODEL_Y = -0.035` 经 `model.localToWorld()` 运行时换算，未写死世界坐标。Box 以几何中心为原点，因此摆放时减去半厚度。
-- Tweakpane `Stage` folder 提供 visible / color / roughness / width / depth / thickness / bevel / surfaceOffset；改动尺寸会 dispose 旧 geometry 后重建。
+- Tweakpane `Stage` folder 提供 visible / tint / roughness scale / normal scale / tile size / width / depth / thickness / bevel / surfaceOffset。`tileSize` 默认 2，平铺次数为宽深除以该值。改动尺寸会 dispose 旧 geometry 后重建，并重算平铺。
 - 这是**占位件**。外部展台模型到位后只需替换几何来源，坐标换算与调参接口不变。
 
 ### Lightmap
@@ -190,7 +192,7 @@ Core/
 
 ### 待办
 
-1. **B（GTAO）** — 当前优先级最高。取消 HDR 后半球光是唯一的间接漫反射且完全无方向，AO 是产品层次的主要来源。目标与约束见第 3 节 B。
+1. **B（GTAO）浏览器验收** — 接入已完成；本轮 build（53 modules）与 diff 检查通过，CPU 检查覆盖目标尺寸、分辨率、旁路、预览与释放。尚未进行 GPU 编译、视觉与性能验收，需按第 6 节检查，尤其注意透明转场、装配运动、孔沿叠黑与半分辨率边缘。
 2. **C（LightProbeGrid 对照）**，有收益再保留。
 3. 生产前把 `showKeyLightHelper` 默认值改为 `false`。
 4. 若清漆高光在验收中显得单薄，评估低强度 `RectAreaLight`——这是不引入 IBL 时唯一能造出面光源高光的路径。

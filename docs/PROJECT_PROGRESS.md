@@ -2,7 +2,7 @@
 
 > 最后更新：2026-09-22
 > 当前阶段：Phase 4 已完成；Phase 5 前进行材质与场景环境 LookDev
-> 当前状态：外壳与按键塑料已接入；场景环境与展台已拆出独立组件并调定；HDR 环境贴图经实测否决，下一步是 GTAO
+> 当前状态：外壳、按键塑料、场景环境与展台已接入；HDR 环境贴图经实测否决；GTAO 已接入源码并通过构建，待 WebGPU 浏览器验收
 
 ## 1. 进度摘要
 
@@ -136,7 +136,7 @@ Bottom_Display_Plane
 - GLB 的 `180°` Bind Pose 映射为产品角度，首次加入场景前应用 `8°`；Tweakpane 提供 `8°`、`110°`、`180°` 快速检查。
 - 铰链视觉网格默认使用上半屏折叠量的 `0.5`，Controller 安装终点矩阵已相对 `BottomRig` 保存，供 Phase 3 使用。
 - Coordinate Inspector 可检查新增的运行时 Rig 节点。
-- 可实时调节 DirectionalLight 的 `shadowBias` 与 `shadowNormalBias`，用于处理模型细碎自阴影（面板后来从 `Lighting` 改名为 `Environment`，见 3.13）。
+- 可实时调节 DirectionalLight 的 `shadow.radius`、`shadowBias` 与 `shadowNormalBias`。`radius` 是 PCF 软边宽度（阴影贴图像素），`Key shadow` 面板范围 `0–20`，当前源码值为 `10`；bias 用于处理模型细碎自阴影（面板后来从 `Lighting` 改名为 `Environment`，见 3.13）。
 - 用户视觉校验已确认 `shadowNormalBias = 0.006`；`shadowBias` 暂时保持 `0`。
 - 场景默认显示 Key DirectionalLight Helper，并可在面板中切换。
 
@@ -205,10 +205,18 @@ Bottom_Display_Plane
 - 新增 `World/Environment/Environment.js`，把原先散在 `World.setEnvironment()` 的背景色、`HemisphereLight`、主光、补光与 Helper 收进独立组件，Tweakpane folder 从 `Lighting` 改名为 `Environment`，并补上了原先缺失的 folder dispose。
 - 新增可调参数：背景色、曝光、三盏灯强度、主光 X / Y / Z 位置。曝光经 `Renderer.setExposure()` 修改，`Environment` 不直接写 Renderer 内部字段。
 - 主光阴影相机不再使用 three 默认的 ±5 / near 0.5 / far 500，改为以光源到原点的距离为中心推导 near/far，正交范围由 `shadowExtent`（默认 3.6）控制。
-- 新增 `World/Environment/Stage.js` 程序化展台：`RoundedBoxGeometry` + 非金属 `MeshStandardNodeMaterial`，暖灰 `#a79f92`，roughness 0.72，调定 20 × 20 × 0.12，倒角 0.02。`receiveShadow = true`、`castShadow = false`，直接挂 Scene，不进入 `fitModel()` 包围盒。
+- 新增 `World/Environment/Stage.js` 程序化展台：`RoundedBoxGeometry` + 非金属 `MeshStandardNodeMaterial`，调定 20 × 20 × 0.12，倒角 0.02。`receiveShadow = true`、`castShadow = false`，直接挂 Scene，不进入 `fitModel()` 包围盒。表面使用 `public/texture/` 下的 Plastic010 1K JPG（颜色 / OpenGL 法线 / 粗糙度），颜色乘色默认白，粗糙度默认按贴图原值（scale 1），`tileSize` 默认 2。
 - 桌面高度经 `ModelAdapter.getStageSurfaceWorldY()` 运行时换算（Blender `Z = -0.035` → GLB 局部 Y → 世界 Y），未写死坐标。实测返回 `-0.09726002`，与文档推导一致。
 - **HDR 环境贴图已否决。** `studio_small_03_1k.hdr` 接入 `scene.environment` 后实测观感更差——外壳 EXR Lightmap 本身是一次天光烘焙，叠加 studio HDR 后重复计光，画面被抬平。文件保留在 `public/hdr/` 但不进入 `sources.js`。
 - 取消 HDR 的连带结果：场景**间接镜面为零**，清漆高光只来自两盏 DirectionalLight；间接漫反射只剩无方向的半球光。因此 GTAO 的优先级上升，详见 `docs/Scene_Lighting_Stage_Plan.md`。
+
+### 3.14 GTAO 管线
+
+- 新增 `Core/ScenePipeline.js`，由 `Renderer` 创建、逐帧调用、resize 与销毁。
+- 使用 r186 `RenderPipeline`、几何法线 / 深度预通道、`GTAONode` 与 `DenoiseNode`；通过 `builtinAOContext` 影响间接光照，不直接乘最终颜色，保留屏幕自发光与直射高光。
+- 预通道排除透明对象；默认半分辨率 AO、16 samples、radius 0.12、thickness 0.08、strength 1，全分辨率边缘保持降噪。不启用时间累积，避免引入历史帧拖影。
+- `GTAO` 面板提供完全旁路开关、Scene / Raw AO / Denoised AO 预览及采样、分辨率、半径、厚度、强度和降噪半径。正常输出仅执行一次色调映射 / 色彩转换。
+- `npm run build` 通过（53 modules），`git diff --check` 通过；CPU 检查覆盖目标尺寸、分辨率切换、旁路、预览、uniform 与目标释放。GPU 编译、视觉、帧耗时仍待浏览器验收。
 
 ## 4. 验证记录
 
@@ -322,6 +330,6 @@ Bottom_Display_Plane
 Phase 5 前下一步：
 
 1. 在最新版支持 WebGPU 的浏览器中验收展台构图、接触阴影，以及 ABXY / DPad 清漆高光与磨砂外壳的质感对比。
-2. 实施 GTAO（`Core/ScenePipeline.js` + `three/addons/tsl/display/GTAONode.js`）。取消 HDR 后半球光是唯一的间接漫反射且完全无方向，AO 成为产品层次的主要来源。
+2. 验收已接入的 GTAO：先关闭外壳 Lightmap 调节 AO，再开启复核孔沿叠黑；检查全流程、Replay / Skip、窗口与 DPR 变化，并记录开关前后帧耗时。此轮尚未完成 GPU 运行及视觉验收。
 3. 在 Phase 5 接入 `NDSRuntime` 与真实 NDS 上下屏 Canvas，替换 Playing 占位内容。
 4. 后续补充触控与通用游戏输入；3D 按键反馈仍按阻尼弹簧路线实现。
