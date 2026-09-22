@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@antfu/eslint-config": "^9.5.1",
     "gsap": "^3.15.0",
     "three": "^0.186.0",
     "tweakpane": "^4.0.5"
