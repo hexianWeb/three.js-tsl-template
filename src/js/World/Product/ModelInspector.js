@@ -47,9 +47,10 @@ export default class ModelInspector {
     this.configureOverlayHelper(this.worldAxes)
     this.scene.add(this.worldAxes)
 
-    this.grid = new THREE.GridHelper(10, 20, '#526075', '#283241')
+    this.grid = new THREE.GridHelper(20, 20, '#526075', '#283241')
     this.grid.name = 'DebugWorldGrid'
     this.grid.visible = this.params.showGrid
+    this.grid.position.y = -0.01
     this.scene.add(this.grid)
 
     this.selectedAxes = new THREE.AxesHelper(1)
@@ -147,7 +148,8 @@ export default class ModelInspector {
   }
 
   getNodeLabel(key) {
-    if (key === 'presentationRoot') return 'PresentationRoot'
+    if (key === 'presentationRoot')
+      return 'PresentationRoot'
     return this.nodes[key].name || key
   }
 
@@ -190,7 +192,8 @@ export default class ModelInspector {
 
   updateReadout(force = false) {
     const now = performance.now()
-    if (!force && now - this.lastPanelRefresh < 100) return
+    if (!force && now - this.lastPanelRefresh < 100)
+      return
 
     this.lastPanelRefresh = now
     this.params.localPosition = this.formatVector(this.selectedNode.position)
