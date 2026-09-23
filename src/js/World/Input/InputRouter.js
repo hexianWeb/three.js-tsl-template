@@ -143,6 +143,10 @@ export default class InputRouter {
         event.preventDefault()
         this.dispatch('ui:move:' + direction)
       }
+      else if ((event.code === 'PageUp' || event.code === 'PageDown') && !event.repeat) {
+        event.preventDefault()
+        this.dispatch(event.code === 'PageUp' ? 'ui:cover:prev' : 'ui:cover:next')
+      }
       else if ((event.code === 'Enter' || event.code === 'Space') && !event.repeat) {
         event.preventDefault()
         this.dispatch('ui:activate', { userGesture: true })
@@ -235,6 +239,8 @@ export default class InputRouter {
         for (const direction of ['up', 'down', 'left', 'right']) {
           if (padActions.has(direction) && !previous.has(direction)) this.dispatch('ui:move:' + direction)
         }
+        if (padActions.has('l') && !previous.has('l')) this.dispatch('ui:cover:prev')
+        if (padActions.has('r') && !previous.has('r')) this.dispatch('ui:cover:next')
         if (padActions.has('b') && !previous.has('b')) this.dispatch('ui:activate')
       }
       this.homePadPrevious.set(gamepad.index, padActions)
