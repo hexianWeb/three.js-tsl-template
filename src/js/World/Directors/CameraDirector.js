@@ -1,4 +1,5 @@
 import { gsap } from 'gsap'
+import * as THREE from 'three/webgpu'
 import Experience from '../../Experience.js'
 
 export default class CameraDirector {
@@ -10,7 +11,15 @@ export default class CameraDirector {
     this.params = {
       currentShot: 'none',
       orbitEnabled: false,
+      // 相对当前镜头的摆动幅度。角度用度，距离是相对镜头距离的比例。
+      orbitAzimuth: 16,
+      orbitPolar: 10,
+      orbitDistance: 0.1,
     }
+    this.gestureOrbit = true
+    this.orbitAnchor = null
+    this.orbitOffset = new THREE.Vector3()
+    this.orbitSpherical = new THREE.Spherical()
     // 镜头和 Target 都使用 PresentationRoot 归一化后的世界坐标，避免依赖 GLB 内的相机或原始毫米单位。
     this.shots = {
       folded: {
@@ -93,6 +102,12 @@ export default class CameraDirector {
     if (!shotName)
       return
 
+    // 已经在目标镜头上时不再重播过渡，但要按产品模式重新打开受限 Orbit。
+    if (this.params.currentShot === shotName) {
+      if (!this.timeline) this.restoreOrbitState({ recapture: true })
+      return
+    }
+
     this.transitionTo(shotName)
   }
 
@@ -104,11 +119,13 @@ export default class CameraDirector {
     this.killTransition()
     this.params.currentShot = name
     this.currentShotBinding?.refresh()
+    // 过渡期间先放开角度钳制。controls.update() 每帧都会按限制回写相机，否则镜头会被夹在旧锚点上。
     this.camera.controls.enabled = false
+    this.clearOrbitSpan()
 
     if (immediate || shot.duration === 0) {
       this.applyShot(shot)
-      this.restoreOrbitState()
+      this.restoreOrbitState({ recapture: true })
       return
     }
 
@@ -119,7 +136,7 @@ export default class CameraDirector {
       },
       onComplete: () => {
         this.timeline = null
-        this.restoreOrbitState()
+        this.restoreOrbitState({ recapture: true })
       },
     })
     this.timeline
@@ -175,11 +192,72 @@ export default class CameraDirector {
     this.timeline = null
   }
 
-  restoreOrbitState() {
-    // Playing 时指针属于 NDS 下屏，即使调试 Orbit 开关开启，也不能抢走触控拖动。
-    this.camera.controls.enabled = this.params.orbitEnabled
-      && !this.timeline
-      && this.experience.state.productMode !== 'playing'
+  setGestureOrbit(allowed) {
+    if (this.gestureOrbit === allowed) return
+    this.gestureOrbit = allowed
+    this.restoreOrbitState()
+  }
+
+  captureOrbitAnchor() {
+    const controls = this.camera.controls
+    // 与 OrbitControls 一致：camera.up 为 +Y 时，球坐标不再做额外旋转。
+    this.orbitOffset.copy(this.camera.instance.position).sub(controls.target)
+    this.orbitSpherical.setFromVector3(this.orbitOffset)
+    this.orbitAnchor = {
+      azimuth: this.orbitSpherical.theta,
+      polar: this.orbitSpherical.phi,
+      distance: this.orbitSpherical.radius,
+    }
+  }
+
+  clearOrbitSpan() {
+    this.applyOrbitSpan(null)
+  }
+
+  applyOrbitSpan(anchor) {
+    const controls = this.camera.controls
+    if (!anchor) {
+      controls.minAzimuthAngle = -Infinity
+      controls.maxAzimuthAngle = Infinity
+      controls.minPolarAngle = 0
+      controls.maxPolarAngle = Math.PI
+      controls.minDistance = 0
+      controls.maxDistance = Infinity
+      controls.enablePan = true
+      return
+    }
+
+    const azimuth = THREE.MathUtils.degToRad(this.params.orbitAzimuth)
+    const polar = THREE.MathUtils.degToRad(this.params.orbitPolar)
+    controls.minAzimuthAngle = anchor.azimuth - azimuth
+    controls.maxAzimuthAngle = anchor.azimuth + azimuth
+    controls.minPolarAngle = Math.max(0.05, anchor.polar - polar)
+    controls.maxPolarAngle = Math.min(Math.PI - 0.05, anchor.polar + polar)
+    const scale = this.params.orbitDistance
+    controls.minDistance = anchor.distance * (1 - scale)
+    controls.maxDistance = anchor.distance * (1 + scale)
+    // 只让用户绕掌机看一小圈，不把注视点拖离机身。
+    controls.enablePan = false
+  }
+
+  restoreOrbitState({ recapture = false } = {}) {
+    const mode = this.experience.state.productMode
+    const settled = !this.timeline
+    const browsing = settled && (mode === 'game-home' || mode === 'playing')
+    // 调试开关是自由取景，会盖过产品的小范围限制。
+    const freeOrbit = settled && this.params.orbitEnabled
+
+    if (!settled || freeOrbit || !browsing) {
+      if (freeOrbit) this.orbitAnchor = null
+      this.clearOrbitSpan()
+    }
+    else {
+      if (recapture || !this.orbitAnchor) this.captureOrbitAnchor()
+      this.applyOrbitSpan(this.orbitAnchor)
+    }
+
+    // 点在上下屏上时 gestureOrbit 为 false，把这只指针留给点击和 NDS 触控。
+    this.camera.controls.enabled = this.gestureOrbit && (freeOrbit || browsing)
   }
 
   debugInit() {
@@ -193,7 +271,18 @@ export default class CameraDirector {
     })
     folder.addBinding(this.params, 'orbitEnabled', {
       label: 'Orbit Enabled',
-    }).on('change', () => this.restoreOrbitState())
+    }).on('change', () => this.restoreOrbitState({ recapture: true }))
+    const orbitRanges = {
+      orbitAzimuth: ['Orbit azimuth (°)', 0, 40, 1],
+      orbitPolar: ['Orbit polar (°)', 0, 30, 1],
+      orbitDistance: ['Orbit distance (±)', 0, 0.35, 0.01],
+    }
+    Object.entries(orbitRanges).forEach(([key, [label, min, max, step]]) => {
+      folder.addBinding(this.params, key, { label, min, max, step })
+        .on('change', () => {
+          if (this.orbitAnchor) this.applyOrbitSpan(this.orbitAnchor)
+        })
+    })
 
     this.shotBindings = {}
     Object.entries(this.shots).forEach(([name, shot]) => {
@@ -242,6 +331,7 @@ export default class CameraDirector {
     this.killTransition()
     this.unsubscribeState?.()
     this.unsubscribeProductMode?.()
+    this.clearOrbitSpan()
     this.camera.controls.enabled = true
   }
 }

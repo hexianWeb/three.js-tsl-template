@@ -14,7 +14,7 @@ const NAVIGATION_KEYS = {
 }
 
 export default class InputRouter {
-  constructor({ camera, canvas, interactionSurfaces, resolvePointerAction, resolvePointerTouch, onAction, onGameButtons, onGameTouch }) {
+  constructor({ camera, canvas, interactionSurfaces, resolvePointerAction, resolvePointerTouch, onAction, onGameButtons, onGameTouch, setOrbitGesture }) {
     this.camera = camera
     this.canvas = canvas
     this.interactionSurfaces = interactionSurfaces
@@ -23,6 +23,7 @@ export default class InputRouter {
     this.onAction = onAction
     this.onGameButtons = onGameButtons
     this.onGameTouch = onGameTouch
+    this.setOrbitGesture = setOrbitGesture
     this.raycaster = new THREE.Raycaster()
     this.pointer = new THREE.Vector2()
     this.homePadPrevious = new Map()
@@ -32,6 +33,12 @@ export default class InputRouter {
     this.focused = document.hasFocus()
     this.listeners = new AbortController()
     const listen = (target, type, handler) => target.addEventListener(type, handler, { signal: this.listeners.signal })
+    // 捕获阶段先于 OrbitControls：点在屏幕上时关掉旋转，避免和点击、下屏触控抢同一只指针。
+    const capture = { capture: true, signal: this.listeners.signal }
+    canvas.addEventListener('pointerdown', event => this.holdOrbitForScreen(event), capture)
+    // 松手可能发生在画布外；挂在 window 上才能把旋转交还。
+    window.addEventListener('pointerup', event => this.releaseOrbitGesture(event), capture)
+    window.addEventListener('pointercancel', event => this.releaseOrbitGesture(event), capture)
     listen(canvas, 'pointerdown', event => this.handlePointerDown(event))
     listen(canvas, 'pointermove', event => this.handlePointerMove(event))
     listen(canvas, 'pointerup', event => this.handlePointerUp(event))
@@ -54,6 +61,16 @@ export default class InputRouter {
     listen(document, 'focusin', event => {
       if (this.isEditableTarget(event.target)) this.clearInputs()
     })
+  }
+
+  holdOrbitForScreen(event) {
+    if (event.button !== 0 || !this.hit(event)) return
+    this.setOrbitGesture(false)
+  }
+
+  releaseOrbitGesture(event) {
+    if (event.buttons !== 0) return
+    this.setOrbitGesture(true)
   }
 
   hit(event, surfaces = this.interactionSurfaces) {
@@ -190,6 +207,7 @@ export default class InputRouter {
     if (pointerId != null && this.canvas.hasPointerCapture(pointerId)) this.canvas.releasePointerCapture(pointerId)
     if (homePointerId != null && this.canvas.hasPointerCapture(homePointerId)) this.canvas.releasePointerCapture(homePointerId)
     this.onGameTouch(null)
+    this.setOrbitGesture(true)
   }
 
   clearInputs() {
