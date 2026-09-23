@@ -4,8 +4,11 @@ import Experience from '../../Experience.js'
 import { ndsSources } from '../../sources.js'
 import { controllerTransitionColor } from '../../../shaders/screenEffects.js'
 
-const VIEWS = ['home', 'library', 'map', 'controller']
+const VIEWS = ['home', 'library', 'map', 'controller', 'media']
+const TAB_ORDER = ['home', 'library', 'media']
 const FONT = 'Inter, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif'
+// 上屏主封面与右侧预览的间距。滑动时按这个间距平移，预览才能落到主封面的位置。
+const COVER_PITCH = 992
 const COLORS = {
   light: {
     start: '#d3e8ff', end: '#f9f0ed', ink: '#142944', muted: '#627690',
@@ -20,9 +23,16 @@ const COLORS = {
 }
 
 export default class ControllerDisplay {
-  constructor({ screen }) {
+  constructor({ screen, gameHomeReference, gameCovers }) {
     this.debug = new Experience().debug
     this.screen = screen
+    this.gameHomeReference = gameHomeReference.image
+    this.gameCovers = gameCovers.map(texture => texture.image)
+    this.coverIndex = 0
+    // 封面逻辑索引先切到目标，像素偏移再缓动回 0，避免动画中途改索引造成跳变。
+    this.coverOffset = 0
+    this.coverMotion = null
+    this.pageMotion = null
     this.params = { brightness: 0.72, blurPixels: 12, scale: 1.03 }
     this.theme = 'light'
     this.view = 'home'
@@ -124,10 +134,99 @@ export default class ControllerDisplay {
   }
 
   setView(view) {
-    if (!VIEWS.includes(view)) return
+    if (!VIEWS.includes(view) || view === this.view) return
+    const direction = this.pageDirection(this.view, view)
+    this.beginPageMotion(direction, 460)
+    this.coverMotion = null
+    this.coverOffset = 0
     this.view = view
     this.focusIndex = 0
     this.drawGameHome()
+  }
+
+  pageDirection(from, to) {
+    const fromTab = TAB_ORDER.indexOf(from)
+    const toTab = TAB_ORDER.indexOf(to)
+    if (fromTab >= 0 && toTab >= 0 && fromTab !== toTab) return Math.sign(toTab - fromTab)
+    return to === 'home' ? -1 : 1
+  }
+
+  beginPageMotion(direction, duration) {
+    this.ensureMotionBuffers()
+    this.copyCanvas(this.topCanvas, this.motionFromTop)
+    this.copyCanvas(this.canvas, this.motionFromBottom)
+    this.pageMotion = { start: performance.now(), duration, direction }
+  }
+
+  shiftCover(nextIndex) {
+    const count = this.gameCovers.length
+    if (!count) return
+    const index = ((nextIndex % count) + count) % count
+    let delta = index - this.coverIndex
+    if (delta > count / 2) delta -= count
+    if (delta < -count / 2) delta += count
+    if (delta === 0) return
+    this.coverIndex = index
+    if (this.pageMotion) {
+      this.drawGameHome()
+      return
+    }
+    this.coverOffset += delta * COVER_PITCH
+    const distance = Math.abs(this.coverOffset)
+    this.coverMotion = {
+      start: performance.now(),
+      from: this.coverOffset,
+      duration: Math.min(860, 420 + (distance / COVER_PITCH) * 180),
+    }
+    this.drawGameHome()
+  }
+
+  ensureMotionBuffers() {
+    if (this.motionFromTop) return
+    this.motionFromTop = this.createMotionCanvas(1400, 1000)
+    this.motionToTop = this.createMotionCanvas(1400, 1000)
+    this.motionFromBottom = this.createMotionCanvas(1024, 1024)
+    this.motionToBottom = this.createMotionCanvas(1024, 1024)
+  }
+
+  createMotionCanvas(width, height) {
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    return canvas
+  }
+
+  copyCanvas(source, target) {
+    const context = target.getContext('2d')
+    context.setTransform(1, 0, 0, 1, 0, 0)
+    context.clearRect(0, 0, target.width, target.height)
+    context.drawImage(source, 0, 0)
+  }
+
+  // ease-in-out：起步和落位都减速，页面切换不会在第一帧跳到终态。
+  easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2
+  }
+
+  paintPageMotion(progress) {
+    const travel = this.pageMotion.direction === 0 ? 0 : 168
+    this.blitMotion(this.topContext, this.motionFromTop, this.motionToTop, progress, travel)
+    this.blitMotion(this.context, this.motionFromBottom, this.motionToBottom, progress, travel)
+    this.frameDirty = true
+  }
+
+  blitMotion(context, from, to, progress, travel) {
+    const direction = this.pageMotion.direction
+    const width = context.canvas.width
+    const height = context.canvas.height
+    context.save()
+    context.setTransform(1, 0, 0, 1, 0, 0)
+    context.clearRect(0, 0, width, height)
+    context.globalAlpha = 1 - progress
+    context.drawImage(from, -direction * travel * progress, 0)
+    context.globalAlpha = progress
+    context.drawImage(to, direction * travel * (1 - progress), 0)
+    context.restore()
   }
 
   setNDSStatus({ status, message }) {
@@ -164,6 +263,26 @@ export default class ControllerDisplay {
   }
 
   handleAction(action) {
+    if (action === 'ui:cover:prev' || action === 'ui:cover:next') {
+      const step = action.endsWith('next') ? 1 : -1
+      this.shiftCover(this.coverIndex + step)
+      return null
+    }
+    if (action.startsWith('ui:cover:select:')) {
+      const index = Number(action.slice('ui:cover:select:'.length))
+      if (Number.isInteger(index) && index >= 0 && index < this.gameCovers.length) {
+        this.coverIndex = index
+        this.coverOffset = 0
+        this.coverMotion = null
+        this.setView('home')
+      }
+      return null
+    }
+    if (action.startsWith('ui:cover:jump:')) {
+      const index = Number(action.slice('ui:cover:jump:'.length))
+      if (Number.isInteger(index) && index >= 0 && index < this.gameCovers.length) this.shiftCover(index)
+      return null
+    }
     if (action.startsWith('ui:tab:')) {
       this.setView(action.slice(7))
       return null
@@ -182,6 +301,7 @@ export default class ControllerDisplay {
       return null
     }
     if (action === 'ui:theme') {
+      this.beginPageMotion(0, 320)
       this.theme = this.theme === 'light' ? 'dark' : 'light'
       this.drawGameHome()
       return null
@@ -199,6 +319,13 @@ export default class ControllerDisplay {
     this.focusables = []
     this.drawTop()
     this.drawBottom()
+    if (this.pageMotion) {
+      this.copyCanvas(this.topCanvas, this.motionToTop)
+      this.copyCanvas(this.canvas, this.motionToBottom)
+      const elapsed = performance.now() - this.pageMotion.start
+      const progress = Math.min(1, elapsed / this.pageMotion.duration)
+      this.paintPageMotion(this.easeInOutCubic(progress))
+    }
     this.frameDirty = true
   }
 
@@ -617,54 +744,213 @@ export default class ControllerDisplay {
 
   drawTop() {
     const c = this.topContext
-    this.backdrop(c, 1400, 1000)
-    const time = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: false }).format(new Date())
-    this.label(c, time, 63, 72, 27, 750)
-    this.label(c, '●  ▰▰▰  100%', 1125, 72, 24, 650)
-    this.label(c, 'DUO  /  ARCADE', 63, 148, 32, 800)
-    this.label(c, this.view.toUpperCase(), 64, 186, 21, 750, this.colors.muted)
+    this.drawTopWallpaper(c)
+    if (this.view === 'home' || this.view === 'media') this.drawTopCarousel(c)
+    else if (this.view === 'library') this.drawTopLibrary(c)
+    else this.drawTopInfo(c)
+    if (this.view === 'home' || this.view === 'media') this.drawTopDots(c)
+    this.drawTopNavigation(c)
+  }
 
-    const headings = {
-      home: ['A new world awaits.', 'Your next adventure is ready on both screens.'],
-      library: ['Your game library.', 'Continue your session or bring a local Nintendo DS game.'],
-      map: ['Find your way.', 'The game world opens inside your Nintendo DS session.'],
-      controller: ['Every button counts.', 'Keyboard and controller input work together.'],
+  drawTopWallpaper(context) {
+    const reference = this.gameHomeReference
+    const width = reference.width
+    const height = reference.height
+    const scale = 1400 / width
+    const sky = context.createLinearGradient(0, 160, 0, 755)
+    sky.addColorStop(0, '#bad3f6')
+    sky.addColorStop(0.7, '#d4d8f2')
+    sky.addColorStop(1, '#f5e4dd')
+    context.fillStyle = sky
+    context.fillRect(0, 0, 1400, 1000)
+    // 仅复用参考图的天空和沙丘带，卡片与导航始终由可点击的 Canvas UI 绘制。
+    context.drawImage(reference, 0, 0, width, 180, 0, 0, 1400, 180 * scale)
+    context.drawImage(reference, 0, 745, width, height - 745,
+      0, 745 * scale, 1400, (height - 745) * scale)
+    // 小范围采样沙丘纹理，擦去原图的三颗静态分页点。
+    for (const x of [668, 700, 731]) {
+      context.drawImage(reference, 620, 762, 26, 28, x - 11, 721, 22, 27)
     }
-    this.label(c, headings[this.view][0], 64, 282, 62, 760)
-    this.label(c, headings[this.view][1], 67, 331, 27, 500, this.colors.muted)
-    this.art(c, 61, 383, 904, 502)
-    this.label(c, this.view === 'home' ? 'FEATURED  /  NINTENDO DS' : 'DUO GAME CENTER',
-      106, 455, 23, 750, '#e9eaff')
-    const title = this.view === 'controller' ? 'Play your way'
-      : this.view === 'map' ? 'Explore the world' : this.gameInfo.title
-    this.label(c, this.short(c, title, 720, 62, 760), 106, 550, 62, 760, '#ffffff')
-    this.label(c, this.short(c, this.view === 'controller' ? 'Arrows · X/Z · S/A · Enter · Escape'
-      : this.view === 'map' ? 'Open the game to see its real map.'
-        : this.gameInfo.detail, 715, 27, 500), 108, 603, 27, 500, '#e9eaff')
-    const topAction = this.view === 'controller' ? 'ui:tab:home'
-      : this.view === 'library' ? 'choose-file' : 'continue'
-    const topLabel = this.view === 'controller' ? 'Back to Home'
-      : this.view === 'library' ? 'Choose game' : this.primaryLabel
-    if (this.ndsStatus !== 'loading' || topAction !== 'continue') {
-      this.round(c, 105, 749, 310, 88, 44, '#ffffff')
-      this.label(c, topLabel + '  ↗', 142, 806, 29, 750, '#173566', 246)
-      this.region(this.topRegions, 105, 749, 310, 88, topAction)
-    }
+  }
 
-    this.glass(c, 989, 383, 350, 237, 38)
-    this.label(c, 'SESSION', 1026, 448, 21, 760, this.colors.muted)
-    this.label(c, this.hasLoadedGame ? 'Resume play' : 'Ready to play', 1026, 511, 34, 760)
-    this.label(c, this.short(c, this.displayStatus, 285, 21, 500),
-      1026, 551, 21, 500, this.colors.muted)
-    this.glass(c, 989, 645, 350, 240, 38)
-    this.label(c, this.view === 'home' ? 'EXPLORE' : 'QUICK ACCESS', 1026, 707, 21, 760, this.colors.muted)
-    this.label(c, this.view === 'home' ? 'Your library' : 'Main menu', 1026, 772, 35, 760)
-    this.label(c, this.view === 'home' ? 'Open games  ↗' : 'Open menu  ↗',
-      1026, 831, 24, 750, this.colors.accent)
-    this.region(this.topRegions, 989, 645, 350, 240,
-      this.view === 'home' ? 'ui:tab:library' : 'ui:tab:home')
-    this.label(c, 'DESIGNED FOR TWO SCREENS', 64, 958, 19, 750, this.colors.muted)
-    this.label(c, 'NDS  ·  CONTROLLER READY', 975, 958, 19, 750, this.colors.muted)
+  drawTopCover(context, image, x, y, width, height) {
+    const scale = Math.max(width / image.width, height / image.height)
+    const imageWidth = image.width * scale
+    const imageHeight = image.height * scale
+    context.save()
+    context.shadowColor = 'rgba(49,59,102,0.2)'
+    context.shadowBlur = 23
+    context.shadowOffsetY = 14
+    this.round(context, x, y, width, height, 39, '#ffffff')
+    context.restore()
+    context.save()
+    context.beginPath()
+    context.roundRect(x, y, width, height, 39)
+    context.clip()
+    context.drawImage(image, x + (width - imageWidth) / 2,
+      y + (height - imageHeight) / 2, imageWidth, imageHeight)
+    context.restore()
+    context.strokeStyle = 'rgba(255,255,255,0.95)'
+    context.lineWidth = 1.5
+    context.beginPath()
+    context.roundRect(x + 0.75, y + 0.75, width - 1.5, height - 1.5, 39)
+    context.stroke()
+  }
+
+  getCoverAction(index = this.coverIndex) {
+    const platinumLoaded = this.hasLoadedGame && /platinum|白金/i.test(this.gameInfo.title)
+    return index === 0 && (platinumLoaded || (!this.hasLoadedGame && this.hasTestGame))
+      ? 'continue' : 'choose-file'
+  }
+
+  drawTopCarousel(context) {
+    const reference = this.gameHomeReference
+    // 这两条窄带还原卡片两侧的壁纸细节，主体始终是六张可切换的封面。
+    context.drawImage(reference, 0, 180, 93, 565, 0, 170, 88, 533)
+    context.drawImage(reference, 1125, 180, 19, 565, 1062, 170, 18, 533)
+    const count = this.gameCovers.length
+    const slots = []
+    context.save()
+    context.beginPath()
+    context.rect(0, 150, 1400, 575)
+    context.clip()
+    const firstSlot = Math.floor((-974 - 88 - this.coverOffset) / COVER_PITCH)
+    const lastSlot = Math.ceil((1400 - 88 - this.coverOffset) / COVER_PITCH)
+    for (let slot = firstSlot; slot <= lastSlot; slot++) {
+      const x = 88 + this.coverOffset + slot * COVER_PITCH
+      const index = (this.coverIndex + slot % count + count) % count
+      this.drawTopCover(context, this.gameCovers[index], x, 172, 974, 531)
+      slots.push({ slot, x, index })
+    }
+    context.restore()
+    const main = slots.reduce((best, item) => (
+      Math.abs(item.x - 88) < Math.abs(best.x - 88) ? item : best
+    ), slots[0])
+    if (this.ndsStatus !== 'loading' && main) {
+      this.addVisibleRegion(this.topRegions, main.x, 172, 974, 531, this.getCoverAction(main.index), 1400)
+    }
+    const next = slots.find(item => item.slot === (main?.slot ?? 0) + 1)
+    if (next) this.addVisibleRegion(this.topRegions, next.x, 172, 974, 531, 'ui:cover:next', 1400)
+  }
+
+  drawTopLibrary(context) {
+    const grid = { x: 88, y: 179, width: 386, height: 211, gapX: 30, gapY: 30 }
+    this.gameCovers.forEach((image, index) => {
+      const x = grid.x + (index % 3) * (grid.width + grid.gapX)
+      const y = grid.y + Math.floor(index / 3) * (grid.height + grid.gapY)
+      this.drawTopCover(context, image, x, y, grid.width, grid.height)
+      this.region(this.topRegions, x, y, grid.width, grid.height, `ui:cover:select:${index}`)
+    })
+    this.label(context, '选择封面查看  ·  PageUp / PageDown 切换', 91, 682, 21, 600, '#476083')
+  }
+
+  drawTopInfo(context) {
+    this.glass(context, 88, 172, 1224, 531, 40)
+    const isMap = this.view === 'map'
+    if (isMap) this.drawMapIcon(context, 370, 400)
+    else this.drawControllerIcon(context, 370, 400)
+    this.label(context, isMap ? '游戏地图' : '控制器已就绪', 610, 337, 57, 780)
+    this.label(context, isMap ? '进入游戏后查看当前游戏的地图。' : '方向键选择  ·  Enter 确认',
+      614, 401, 28, 550, this.colors.muted)
+    this.label(context, isMap ? '继续你的双屏冒险。' : 'PageUp / PageDown 切换游戏封面',
+      614, 446, 26, 500, this.colors.muted)
+    this.round(context, 610, 533, 240, 82, 41, '#ffffff')
+    this.label(context, isMap ? '继续游戏  ›' : '返回首页  ›', 649, 586, 27, 750, '#174071')
+    this.region(this.topRegions, 610, 533, 240, 82, isMap ? 'continue' : 'ui:tab:home')
+  }
+
+  drawTopDots(context) {
+    const start = 638
+    this.gameCovers.forEach((_, index) => {
+      const x = start + index * 25
+      context.fillStyle = index === this.coverIndex ? '#ffffff' : 'rgba(255,255,255,0.55)'
+      context.beginPath()
+      context.arc(x, 735, 7, 0, Math.PI * 2)
+      context.fill()
+      this.region(this.topRegions, x - 12, 721, 24, 28, `ui:cover:jump:${index}`)
+    })
+  }
+
+  drawTopNavigation(context) {
+    const x = 294
+    const y = 761
+    const width = 812
+    const height = 106
+    const glass = context.createLinearGradient(x, y, x, y + height)
+    glass.addColorStop(0, 'rgba(249,248,255,0.91)')
+    glass.addColorStop(1, 'rgba(235,232,244,0.93)')
+    context.save()
+    context.shadowColor = 'rgba(83,78,126,0.15)'
+    context.shadowBlur = 23
+    context.shadowOffsetY = 10
+    this.round(context, x, y, width, height, 53, glass)
+    context.restore()
+    context.strokeStyle = 'rgba(255,255,255,0.96)'
+    context.lineWidth = 1.6
+    context.beginPath()
+    context.roundRect(x, y, width, height, 53)
+    context.stroke()
+    const tabs = [
+      { x: 355, width: 207, label: 'Home', icon: 'home', view: 'home' },
+      { x: 597, width: 218, label: 'Library', icon: 'library', view: 'library' },
+      { x: 842, width: 217, label: 'Media', icon: 'media', view: 'media' },
+    ]
+    tabs.forEach((tab) => {
+      const active = this.view === tab.view
+      if (active) {
+        context.save()
+        context.shadowColor = 'rgba(82,94,134,0.12)'
+        context.shadowBlur = 13
+        context.shadowOffsetY = 4
+        this.round(context, tab.x, y + 14, tab.width, 77, 39, '#ffffff')
+        context.restore()
+      }
+      const color = active ? '#076de0' : '#687182'
+      this.drawTopNavIcon(context, tab.icon, tab.x + 53, y + 52, color)
+      this.label(context, tab.label, tab.x + 89, y + 65, 23, active ? 740 : 650, color)
+      this.region(this.topRegions, tab.x, y + 10, tab.width, 85, `ui:tab:${tab.view}`)
+    })
+  }
+
+  drawTopNavIcon(context, icon, x, y, color) {
+    context.save()
+    context.fillStyle = color
+    if (icon === 'home') {
+      context.beginPath()
+      context.moveTo(x - 18, y - 3)
+      context.lineTo(x, y - 20)
+      context.lineTo(x + 18, y - 3)
+      context.lineTo(x + 18, y + 17)
+      context.quadraticCurveTo(x + 18, y + 21, x + 14, y + 21)
+      context.lineTo(x + 5, y + 21)
+      context.lineTo(x + 5, y + 6)
+      context.lineTo(x - 5, y + 6)
+      context.lineTo(x - 5, y + 21)
+      context.lineTo(x - 14, y + 21)
+      context.quadraticCurveTo(x - 18, y + 21, x - 18, y + 17)
+      context.closePath()
+      context.fill()
+    }
+    if (icon === 'library') {
+      for (let row = 0; row < 2; row++) {
+        for (let column = 0; column < 2; column++) {
+          this.round(context, x - 19 + column * 22, y - 19 + row * 22, 18, 18, 5, color)
+        }
+      }
+    }
+    if (icon === 'media') {
+      context.beginPath()
+      context.arc(x, y, 21, 0, Math.PI * 2)
+      context.fill()
+      context.fillStyle = '#ffffff'
+      context.beginPath()
+      context.moveTo(x - 5, y - 10)
+      context.lineTo(x + 10, y)
+      context.lineTo(x - 5, y + 10)
+      context.closePath()
+      context.fill()
+    }
+    context.restore()
   }
 
   drawBottom() {
@@ -694,6 +980,7 @@ export default class ControllerDisplay {
       library: ['收藏库', 'LIBRARY'],
       map: ['地图', 'MAP'],
       controller: ['控制器', 'CONTROLLER'],
+      media: ['封面画廊', 'MEDIA'],
     }
     this.label(c, titles[this.view][0], 70, 183, 56, 780)
     this.spacedLabel(c, titles[this.view][1], 72, 221, 22, 6, this.colors.muted)
@@ -731,6 +1018,34 @@ export default class ControllerDisplay {
         this.theme === 'light' ? '日间 · 切至夜间' : '夜间 · 切至日间', 'ui:theme')
       this.tile(c, 517, 719, 447, 203, '↻', '重播装配', '再次观看产品动画', 'replay-intro')
     }
+    if (this.view === 'media') {
+      const width = 880
+      const height = 471
+      const pitch = 940
+      const offset = this.coverOffset * (pitch / COVER_PITCH)
+      const count = this.gameCovers.length
+      c.save()
+      c.beginPath()
+      c.rect(36, 248, 952, 510)
+      c.clip()
+      const firstSlot = Math.floor((-width - 72 - offset) / pitch)
+      const lastSlot = Math.ceil((1024 - 72 - offset) / pitch)
+      for (let slot = firstSlot; slot <= lastSlot; slot++) {
+        const x = 72 + offset + slot * pitch
+        const index = (this.coverIndex + slot % count + count) % count
+        this.drawTopCover(c, this.gameCovers[index], x, 268, width, height)
+      }
+      c.restore()
+      this.tile(c, 60, 759, 438, 165, '‹', '上一张封面', '', 'ui:cover:prev')
+      this.tile(c, 517, 759, 447, 165, '›', '下一张封面', '', 'ui:cover:next')
+    }
+  }
+
+  addVisibleRegion(list, x, y, width, height, action, boundsWidth) {
+    const left = Math.max(0, x)
+    const right = Math.min(boundsWidth, x + width)
+    if (right - left < 24) return
+    this.region(list, left, y, right - left, height, action)
   }
 
   getActionAtUv(uv, surface = 'bottom') {
@@ -756,10 +1071,33 @@ export default class ControllerDisplay {
   }
 
   update() {
-    const minute = Math.floor(Date.now() / 60000)
-    if (minute !== this.lastDrawnMinute) {
-      this.lastDrawnMinute = minute
+    const now = performance.now()
+    let redrew = false
+    if (this.coverMotion && !this.pageMotion) {
+      const t = Math.min(1, (now - this.coverMotion.start) / this.coverMotion.duration)
+      const eased = 1 - ((1 - t) ** 3)
+      this.coverOffset = this.coverMotion.from * (1 - eased)
+      if (t >= 1) {
+        this.coverOffset = 0
+        this.coverMotion = null
+      }
       this.drawGameHome()
+      redrew = true
+    }
+    if (this.pageMotion) {
+      const t = Math.min(1, (now - this.pageMotion.start) / this.pageMotion.duration)
+      if (t >= 1) {
+        this.pageMotion = null
+        this.drawGameHome()
+      }
+      else this.paintPageMotion(this.easeInOutCubic(t))
+    }
+    else if (!redrew) {
+      const minute = Math.floor(Date.now() / 60000)
+      if (minute !== this.lastDrawnMinute) {
+        this.lastDrawnMinute = minute
+        this.drawGameHome()
+      }
     }
     if (!this.frameDirty) return
     this.texture.needsUpdate = true
@@ -774,6 +1112,13 @@ export default class ControllerDisplay {
     this.context = null
     this.topContext = null
     this.canvas = null
+    this.topCanvas?.remove()
     this.topCanvas = null
+    this.pageMotion = null
+    this.coverMotion = null
+    this.motionFromTop = null
+    this.motionToTop = null
+    this.motionFromBottom = null
+    this.motionToBottom = null
   }
 }

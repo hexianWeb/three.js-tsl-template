@@ -12,6 +12,8 @@ export default class ScreenManager {
     bottomScreen,
     bottomDisplay,
     phoneHomeTexture,
+    gameHomeReference,
+    gameCovers,
     onPreviewAngle,
     onDebugModeChange,
   }) {
@@ -31,7 +33,11 @@ export default class ScreenManager {
     this.validateScreens()
     this.captureOriginalState()
     this.createOffMaterials()
-    this.controllerDisplay = new ControllerDisplay({ screen: bottomDisplay })
+    this.controllerDisplay = new ControllerDisplay({
+      screen: bottomDisplay,
+      gameHomeReference,
+      gameCovers,
+    })
     this.phoneSurface = new PhoneScreenSurface({
       topScreen,
       bottomScreen,

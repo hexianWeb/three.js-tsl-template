@@ -73,6 +73,8 @@ export default class World {
       bottomScreen: this.product.nodes.bottomScreen,
       bottomDisplay: this.product.nodes.bottomDisplay,
       phoneHomeTexture: this.resources.items.phoneHomeTexture,
+      gameHomeReference: this.resources.items.gameHomeReference,
+      gameCovers: Array.from({ length: 6 }, (_, index) => this.resources.items[`gameCover${index}`]),
       onPreviewAngle: angle => this.product.productRig.setDebugAngle(angle),
       onDebugModeChange: mode => this.setProductMode(mode),
     })

@@ -41,4 +41,14 @@ export default [
     type: 'texture',
     path: phoneHomeUrl,
   },
+  {
+    name: 'gameHomeReference',
+    type: 'texture',
+    path: '/12.png',
+  },
+  ...Array.from({ length: 6 }, (_, index) => ({
+    name: `gameCover${index}`,
+    type: 'texture',
+    path: `/img/game${index}.png`,
+  })),
 ]
