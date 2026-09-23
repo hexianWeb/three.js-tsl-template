@@ -22,7 +22,7 @@ export default class ControllerFeedback {
       releaseStiffness: 900,
       dampingRatio: 0.45,
       soundEnabled: true,
-      soundVolume: 0.45,
+      soundVolume: 0.20,
       hapticEnabled: true,
       hapticStrength: 0.35,
       hapticDuration: 24,
