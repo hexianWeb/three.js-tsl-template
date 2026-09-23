@@ -3,7 +3,7 @@
 > 2026-09-22（决定变更 · 重要）：**HDR 环境贴图方案取消。** 用户实测接入 `scene.environment` 后整体观感更差，决定不设置环境贴图。A 里程碑的 HDR 部分作废，第 3 节 A 已改写为"展台 + 灯光 + 主光阴影"。该决定的连带影响见第 2 节"取消 HDR 的后果"。
 > 2026-09-22（决定变更）：展台恢复为**程序化倒角桌板占位**。此前"改为用户导入的外部模型"的决定暂缓——外部模型尚未提供，先用占位件验收接触阴影与构图，外部模型到位后再替换 `Stage.js` 的几何来源。
 > 2026-09-22（已实施）：`World/Environment/Environment.js` 与 `World/Environment/Stage.js` 已建立，A 里程碑（不含已取消的 HDR）完成，详见第 7 节。
-> 2026-09-22（本轮实施）：已新增 `src/js/Core/ScenePipeline.js` 并接入 Renderer。B（GTAO）已进入源码，构建与 CPU 生命周期检查通过；GPU 编译、视觉与性能待浏览器验收。此前“尚未进入源码”的复核记录已被本轮实现取代。
+> 2026-09-23（验收完成）：`src/js/Core/ScenePipeline.js` 已接入 Renderer；B（GTAO）的构建、CPU 生命周期、GPU 编译、视觉与性能验收均已通过。
 > 材质基线提交：`a7a141d`（Controller 磨砂外壳与按键清漆材质）。
 
 ## 1. 用户已确认
@@ -53,7 +53,7 @@ HDR 被否决的原因是实测观感更差：外壳 EXR Lightmap 本身就是�
 5. ✅ 灯光能量保持基线（Hemisphere 2.4 / Key 5 / Fill 2 / 曝光 1.1）。取消 HDR 后不存在重复计光，`lightMapIntensity` 保持 1，无需下调。
 6. ✅ Stage 使用 `RoundedBoxGeometry` + 非金属 `MeshStandardNodeMaterial`。表面为 Plastic010 1K JPG（颜色 sRGB，法线 GL 与粗糙度为 `NoColorSpace`），roughness 作为贴图乘数默认 1。
 7. ✅ 主光阴影相机范围与 near/far 已按光源距离收紧。`Key shadow` 面板可调 `shadow.radius`（当前源码值 10，范围 0–20）、bias、normalBias。
-8. ⚠️ `showKeyLightHelper` 默认仍是 `true`。生产前应改为默认隐藏，Tweakpane 开关已具备。
+8. ✅ `showKeyLightHelper` 默认隐藏，Tweakpane 开关仍可用于调试。
 
 ### B. GTAO（第二个可验收里程碑）
 
@@ -188,13 +188,11 @@ Core/
 
 已知问题：Bind Pose 180° 时整机最低点落到桌面下方 `-0.04463`，即上半屏摊平后穿过桌板。180° 只是 Tweakpane 的调试姿态，Intro 与 Hero 都不会到达，暂不处理；若之后要在 180° 做展示，需要抬高产品或下沉桌板。
 
-尚未验收的点：Controller Entry/Slide/Lock 全程与桌板的穿插关系、四组镜头下的桌板构图、收紧后的阴影相机是否裁切到桌板边缘、`ModelInspector` 的 GridHelper 位于 y = 0 会浮在桌面之上遮挡 LookDev 视图。
+Controller Entry/Slide/Lock 与桌板的穿插关系、四组镜头构图、阴影相机边缘、GTAO 及材质效果均已通过用户视觉验收。`ModelInspector` 的 GridHelper 已下调至桌面以下，避免遮挡 LookDev 视图。
 
 ### 待办
 
-1. **B（GTAO）浏览器验收** — 接入已完成；本轮 build（53 modules）与 diff 检查通过，CPU 检查覆盖目标尺寸、分辨率、旁路、预览与释放。尚未进行 GPU 编译、视觉与性能验收，需按第 6 节检查，尤其注意透明转场、装配运动、孔沿叠黑与半分辨率边缘。
-2. **C（LightProbeGrid 对照）**，有收益再保留。
-3. 生产前把 `showKeyLightHelper` 默认值改为 `false`。
-4. 若清漆高光在验收中显得单薄，评估低强度 `RectAreaLight`——这是不引入 IBL 时唯一能造出面光源高光的路径。
+1. **C（LightProbeGrid 对照）**，仅在现有 GTAO 与 Lightmap 仍有明确不足时评估。
+2. 若后续认为清漆高光单薄，再评估低强度 `RectAreaLight`——这是不引入 IBL 时唯一能造出面光源高光的路径。
 
 已关闭的条目：A 的 HDR 部分（否决）、Lightmap 去留决策（前提消失，保留 `lightMapIntensity = 1`）。

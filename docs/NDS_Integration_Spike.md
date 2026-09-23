@@ -29,8 +29,8 @@
 | `node scripts/verify-nds.mjs "public/nds/Pokemon - Platinum Version (USA) (Rev 1).nds"` | 真实 WASM 创建、载入、360 帧执行、双屏数据、active-low 按键掩码、暂停不推进、追帧上限与重复销毁通过 |
 | Chrome headless / 开发页 | 已载入本地 ROM，按 A 后观察到 Platinum 标题页，上下屏均有游戏内容 |
 | Chrome 短测性能 | 观察约 59–60 模拟 fps、约 99–100% 速度；WASM 分配内存约 309 MiB。不是 3D 同时运行的数据，也不是整段游戏的性能保证 |
-| 音频 | AudioWorklet 加载成功，AudioContext 进入 running；实际听感和连续音画同步待人工验证 |
-| 页面交互 | 键盘事件、下屏 Pointer 派发、Escape 暂停、按钮继续、窗口失焦自动暂停通过；游戏内触控精度待人工确认 |
+| 音频 | AudioWorklet 加载成功，AudioContext 进入 running；实际听感和连续音画同步通过用户验收 |
+| 页面交互 | 键盘、真实 Gamepad、下屏 Pointer、Escape 暂停、按钮继续与窗口失焦自动暂停均通过用户验收 |
 | 无效 ROM | 页面可见错误，文件选择与重试入口恢复 |
 | 构建资源 | `dist/nds-test.html` 与 vendor 产物存在；`dist/nds/` 不存在 |
 | `node scripts/verify-nds-mapping.mjs` | 物理比例、非均匀缩放与旋转、4:3 contain / 整数像素 cover、延展区触控拒绝、镜像/旋转/flipY 触控闭环与新帧标记通过 |
@@ -55,8 +55,9 @@
 
 ## 当前边界与下一步
 
+- 用户已确认主产品中的 NDS 上下屏映射、整数像素延展背景、连续游玩、声音与音画同步、触控、真实 Gamepad 及暂停恢复符合预期，Phase 5 验收完成。
 - 主产品已替换 Playing 占位内容；独立验证页继续保留，用来对比纯模拟与 3D 合并负载。
 - 当前不含 IndexedDB 持久存档和 3D 按键反馈。ROM 重新载入或页面刷新会开始新会话；后续可复用上游 IDBFS 存档桥接。
 - 测试 ROM 不进入生产构建或 Git；预览构建使用本地文件选择器。Vite 保留开发期 public 服务，构建期显式复制除 `public/nds` 外的公共资源。
 - 上游仓库提供预编译 web 产物，README 所述完整 C++ 构建树不在当前快照中；完整源码与二进制可复现关系仍未确认，已在 vendor NOTICE 记录。
-- Phase 5 仍需用户在支持 WebGPU 的最新版浏览器中进行连续十分钟游玩、实际听感、真实手柄及最终视觉验收，不能以构建成功或自动化短测代替完整验收。
+- Phase 5 已完成；下一阶段实现由现有语义 Action 驱动的 Controller 3D 按键阻尼弹簧反馈。IndexedDB 持久存档仍是可选演示增强项。

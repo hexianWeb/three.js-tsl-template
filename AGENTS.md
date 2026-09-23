@@ -12,7 +12,7 @@
 - 使用 README 约定的 npm 流程：`npm install`、`npm run dev`、`npm run build`、`npm run preview`。仓库同时跟踪两个 lockfile；不要顺手删除或重生成未使用的 `pnpm-lock.yaml`。
 - Vite 8 要求 Node `^20.19.0 || >=22.12.0`。Vite 的 root 是 `src/`，构建输出为根目录 `dist/`，公共目录仍是根目录 `public/`。
 - 当前唯一可执行的代码检查是 `npm run build`；没有 test、lint、format 或 typecheck script，也没有测试框架。
-- `eslint.config.js` 引用了未声明的 `@antfu/eslint-config`，因此不要把 ESLint 当作可运行检查，除非任务明确补齐该依赖和脚本。
+- `@antfu/eslint-config` 已安装，但 `package.json` 没有 lint script；当前唯一约定的可执行检查仍是 `npm run build`，除非任务明确补充 lint 流程。
 - Three.js WebGPU bundle 目前会触发 Vite 的 500 kB chunk 警告；构建成功时该警告不是失败。
 
 ## 当前执行流

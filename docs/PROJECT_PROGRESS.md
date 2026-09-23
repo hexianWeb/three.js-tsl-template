@@ -1,8 +1,8 @@
 # iPhone Duo WebGPU 项目进度
 
 > 最后更新：2026-09-23
-> 当前阶段：Phase 5 已接入主产品 3D 双屏；Phase 6 游戏输入已接入，按键反馈待实现
-> 当前状态：已在 WebGPU 主场景显示本地 Platinum ROM 的真实双屏，Continue / 返回 / Replay、键盘、标准 Gamepad 与 3D 下屏触控已接入并通过自动化短测；连续游玩、听感及最终视觉待用户验收
+> 当前阶段：Phase 5 已完成验收；Phase 6 游戏输入已接入，3D 按键反馈待实现
+> 当前状态：NDS 双屏、连续游玩、声音与音画同步、触控、真实 Gamepad 及暂停恢复均已通过用户验收；下一步实现 Controller 3D 按键弹簧反馈
 
 ## 1. 进度摘要
 
@@ -17,6 +17,8 @@ Phase 1 / 7：完成
 Phase 2 / 7：完成
 Phase 3 / 7：完成
 Phase 4 / 7：完成（用户确认视觉校验通过）
+Phase 5 / 7：完成（用户确认 NDS 综合验收通过）
+Phase 6 / 7：部分实现
 功能验证：完成
 装配视觉校验：通过
 Git 提交：本轮已执行
@@ -34,7 +36,7 @@ Git 提交：本轮已执行
 | Phase 2 | BottomRig、HingePivot、折叠原型 | 已完成 | 折叠方向、阴影和 Lightmap 已完成视觉校准 |
 | Phase 3 | Controller Reveal / Assembly | 已完成 | 精密吸合时间线已通过用户视觉校验 |
 | Phase 4 | Intro、Camera Shot、Ready / Play | 已完成 | 用户已确认浏览器视觉校验完成；进入 Phase 5 前增加 Controller Shell 材质 LookDev |
-| Phase 5 | NDS 模拟器技术验证与双屏桥接 | 进行中 | 独立页及主产品 3D 双屏桥接已实现；连续十分钟游玩与音画同步待用户验收 |
+| Phase 5 | NDS 模拟器技术验证与双屏桥接 | 已完成 | 独立页及主产品 3D 双屏桥接、连续游玩、音画同步、触控与真实 Gamepad 均已通过验收 |
 | Phase 6 | Keyboard / Gamepad 与 3D 按键反馈 | 部分实现 | 键盘、标准 Gamepad、3D 下屏触控与输入释放已接入；3D 按键弹簧反馈未实现 |
 | Phase 7 | 性能、兼容性、Loading 与视觉精修 | 未开始 | 最终视觉验收由用户完成 |
 
@@ -75,9 +77,9 @@ Git 提交：本轮已执行
 
 | 项目 | 数量 |
 |---|---:|
-| JavaScript 文件 | 28 |
-| `src/js` 架构模块 | 25 |
-| `src` 内全部文件 | 30 |
+| JavaScript 文件 | 37 |
+| `src/js` 架构模块 | 34 |
+| `src` 内全部文件 | 42 |
 
 ### 3.4 模型加载与适配
 
@@ -216,7 +218,7 @@ Bottom_Display_Plane
 - 使用 r186 `RenderPipeline`、几何法线 / 深度预通道、`GTAONode` 与 `DenoiseNode`；通过 `builtinAOContext` 影响间接光照，不直接乘最终颜色，保留屏幕自发光与直射高光。
 - 预通道排除透明对象；默认半分辨率 AO、16 samples、radius 0.12、thickness 0.08、strength 1，全分辨率边缘保持降噪。不启用时间累积，避免引入历史帧拖影。
 - `GTAO` 面板提供完全旁路开关、Scene / Raw AO / Denoised AO 预览及采样、分辨率、半径、厚度、强度和降噪半径。正常输出仅执行一次色调映射 / 色彩转换。
-- `npm run build` 通过（53 modules），`git diff --check` 通过；CPU 检查覆盖目标尺寸、分辨率切换、旁路、预览、uniform 与目标释放。GPU 编译、视觉、帧耗时仍待浏览器验收。
+- `npm run build` 与 `git diff --check` 通过；CPU 检查覆盖目标尺寸、分辨率切换、旁路、预览、uniform 与目标释放。GPU 编译、视觉和合并运行性能已通过浏览器验收。
 
 ### 3.15 NDS 3D 双屏与游戏输入
 
@@ -233,11 +235,11 @@ Bottom_Display_Plane
 | 检查 | 结果 |
 |---|---|
 | `npm run build` | 通过 |
-| Vite 模块转换 | 46 modules，通过 |
+| Vite 模块转换 | 65 modules，通过 |
 | `git diff --check` | 通过 |
-| Controller 塑料 TSL | 当前 WGSLNodeBuilder 已生成含噪声、法线梯度与 uv1 Lightmap 的代码；层纹开关两种状态通过，GPU 驱动编译与视觉待浏览器验收 |
+| Controller 塑料 TSL | WGSLNodeBuilder 已生成含噪声、法线梯度与 uv1 Lightmap 的代码；层纹开关、GPU 编译与视觉验收通过 |
 | Controller 材质生命周期 | Uniform 调参、原材质恢复、独立面板/材质释放及共享 Lightmap 保留检查通过 |
-| 按键清漆塑料 | WGSL 代码生成、清漆 Uniform 开关、5 个按键颜色保留与资源恢复/释放检查通过；浏览器视觉待验收 |
+| 按键清漆塑料 | WGSL 代码生成、清漆 Uniform 开关、5 个按键颜色保留、资源恢复/释放及浏览器视觉验收通过 |
 | 本地首页请求 | HTTP 200 |
 | 本地 `main.js` 请求 | HTTP 200 |
 | 本地 `iphone.glb` 请求 | HTTP 200 |
@@ -251,7 +253,7 @@ Bottom_Display_Plane
 | Runtime Rig 父级与折叠数学检查 | 通过 |
 | EXR 解码 | 2048 × 2048、Half Float、Linear sRGB 通过 |
 | Controller 装配轴向推导 | Rail Z、Align Y 通过 |
-| Controller 装配阶段时序 | 约 1.85s、Reveal/Slide 异向缓动与 Hold 待视觉复核 |
+| Controller 装配阶段时序 | 约 1.85s、Reveal/Slide 异向缓动与 Hold 已通过视觉复核 |
 | Controller 动画终点矩阵 | 最大元素误差 0 |
 | Intro / 产品状态流 | Folded → Unfold → Screen Wake → Assembly → Game Changer → Hero → Ready 已接入 |
 | Camera Shot 状态映射 | Intro 与产品模式事件已分离；Folded / Assembly / Hero / Play 已接入 |
@@ -273,7 +275,7 @@ Bottom_Display_Plane
 - Reveal 浅弧线、Align 与 Slide 的重叠是否自然，阶段之间不应出现明显停顿。
 - 默认 `3°` 对准旋转是否自然；Controller 是否在进入滑轨前已完全对正。
 - Slide 是否沿真实纵向滑轨连续压入，没有横向漂移、穿插手机或在安装点二次启动。
-- Lock 过冲从不可见的 `0.3%–0.5%` 调整为约 `5%`，待确认回弹是否可感知但不夸张。
+- Lock 过冲从不可见的 `0.3%–0.5%` 调整为约 `5%`，回弹幅度已通过视觉确认。
 - 动画过程中 Lightmap 是否稳定跟随，阴影没有闪烁。
 - 连续 Replay、Entry Pose、Skip / Installed 是否不会累计位移或破坏最终姿态。
 
@@ -283,15 +285,13 @@ Bottom_Display_Plane
 
 ### 非阻塞问题
 
-- `eslint.config.js` 引用了尚未安装的 `@antfu/eslint-config`，因此 ESLint 暂时不能运行。
+- `@antfu/eslint-config` 已安装，但 `package.json` 仍未提供 lint script；当前基础检查仍是 `npm run build`。
 - 当前未配置测试脚本或测试框架。
 - 主 JavaScript Chunk 有体积警告，但构建成功。
 - Controller Shell EXR 未压缩且约 50.4 MB，会显著增加首次加载时间；视觉确认后再决定是否压缩或降级。
 - 当前 Camera Shot 参数已由用户完成视觉校准，并已用于 Screen Wake 与 Phone UI 构图基线。
 
 - Bind Pose `180°` 时整机最低点落到桌面下方 `-0.04463`，即上半屏摊平后穿过桌板。`180°` 只是 Tweakpane 调试姿态，Intro 与 Hero 都不会到达，暂不处理。
-- `ModelInspector` 的 GridHelper 位于 `y = 0`，桌面在 `-0.097`，因此网格会浮在桌面之上遮挡 LookDev 视图，调外观时需手动关闭。
-- `Environment` 的 `showKeyLightHelper` 默认仍是 `true`，生产前应改为 `false`。
 - `Stage` 的 `width` / `depth` 滑杆上限就是当前调定的 20；若需更大桌面要先放宽 `Stage.debugInit()` 的 `ranges`。
 
 ### 尚未决定
@@ -310,7 +310,7 @@ Bottom_Display_Plane
 - Screen Wake 与 Phone UI 已接入 `docs/img/主页面.png`，不再沿用 GLB 原始屏幕材质。
 - `NDSRuntime` 已同时接入独立验证页与主产品 Playing；两块真实 NDS Canvas 已绑定到 3D 屏幕。
 - 运行时已使用等比 letterbox 适配屏幕，并接入对应的 3D 触控坐标换算。
-- Phase 4 和 Controller Shell 效果已由用户确认；新增按键清漆材质需独立 LookDev 验收。
+- Phase 4、Controller Shell 与按键清漆材质均已由用户确认。
 
 ## 7. 当前工作区状态
 
@@ -339,10 +339,14 @@ Bottom_Display_Plane
 
 2026-09-23 用户确认：此前全部待验收项目通过。上文待验收描述保留为当时的验证记录，以本次确认及文档顶部状态为准。
 
-Phase 5 下一步：
+Phase 5 验收结论：
 
-1. 在首页完成 Intro 后 Continue，连续游玩十分钟，确认 3D 屏幕朝向、构图、触控与音画同步。保留 `/nds-test.html` 作为独立负载对照页。
-2. 在真实标准 Gamepad 上确认物理布局；已用浏览器模拟 Gamepad 检查映射、断开与导航输入隔离。
-3. 按演示需求补充 IndexedDB 存档与 3D 按键反馈；反馈仍按阻尼弹簧路线实现。
+2026-09-23 用户确认：NDS 上下屏映射、整数像素延展背景、连续十分钟游玩、声音与音画同步、触控、真实 Gamepad、暂停恢复及最终画面呈现均符合预期，Phase 5 完成。
+
+Phase 6 下一步：
+
+1. 让现有语义 Action 同时驱动 Controller 的 ABXY 按压与 D-Pad 倾斜，使用渲染循环中的阻尼弹簧，不增加 GSAP Timeline。
+2. 验证键盘、真实 Gamepad、组合键、失焦释放和手柄断开时的 3D 反馈与模拟器输入一致。
+3. IndexedDB 持久存档仍为演示增强项，不阻塞 Phase 6 的按键反馈实现。
 
 本轮实现、测试结果和使用方法见 `docs/NDS_Integration_Spike.md`。固定上游版本为 `7adc554ce1dc5318fef3797e8f00a6e9286dac3b`；ROM 仅本地验证，不进入生产构建。
