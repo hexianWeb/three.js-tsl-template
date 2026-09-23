@@ -151,6 +151,12 @@ export default class InputRouter {
         event.preventDefault()
         this.dispatch('ui:activate', { userGesture: true })
       }
+      // Enter 只确认菜单。其余映射键从 Controller 锁上就开始压 3D 按键，不等进入游戏。
+      if (KEY_ACTIONS[event.code] && event.code !== 'Enter' && !event.repeat) {
+        event.preventDefault()
+        this.keys.add(event.code)
+        this.publishButtons()
+      }
       return
     }
     if (this.mode !== 'playing' || !KEY_ACTIONS[event.code]) return
@@ -205,7 +211,7 @@ export default class InputRouter {
   }
 
   publishButtons() {
-    if (this.mode !== 'playing') return
+    if (this.mode !== 'playing' && this.mode !== 'game-home') return
     const actions = new Set([...this.keys].map(code => KEY_ACTIONS[code]))
     this.padActions.forEach(action => actions.add(action))
     const key = [...actions].sort().join(',')
@@ -256,10 +262,11 @@ export default class InputRouter {
       this.gamepadArmed = true
       this.navigationArmed = true
     }
-    const acceptsPad = this.mode === 'playing' && this.gamepadArmed
-    this.padActions = acceptsPad ? actions : new Set()
+    // Playing 要等启动键松开才把这帧交给模拟器；Game Home 立刻用于 3D 按键动画。
+    const showController = this.mode === 'game-home' || (this.mode === 'playing' && this.gamepadArmed)
+    this.padActions = showController ? actions : new Set()
     // 须在 publishButtons 之前更新：本帧的按下边沿会同步回调 rumble()，要震到正在按的那只手柄。
-    this.activeGamepads = acceptsPad ? activeGamepads : []
+    this.activeGamepads = showController ? activeGamepads : []
     this.publishButtons()
   }
 

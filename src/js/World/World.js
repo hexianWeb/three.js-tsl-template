@@ -99,8 +99,9 @@ export default class World {
       resolvePointerAction: (uv, screen) => this.screenManager.getActionAtUv(uv, screen),
       resolvePointerTouch: uv => this.screenManager.getNDSTouchAtUv(uv),
       onGameButtons: (actions) => {
-        this.ndsPlayer.setButtons(actions)
         this.controllerFeedback.setActions(actions)
+        // Game Home 只驱动 3D 按键；模拟器在暂停后不再接收按键，清空仍要送到 Runtime。
+        if (this.state.productMode === 'playing' || actions.length === 0) this.ndsPlayer.setButtons(actions)
       },
       onGameTouch: point => this.ndsPlayer.touch(point),
       onAction: (action, options) => this.handleAction(action, options),
