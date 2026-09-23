@@ -1,8 +1,8 @@
 # iPhone Duo WebGPU 项目进度
 
 > 最后更新：2026-09-23
-> 当前阶段：Phase 6 已完成验收；下一步进入 Phase 7
-> 当前状态：NDS 双屏、连续游玩、声音与音画同步、触控、真实 Gamepad、暂停恢复，以及 Controller 按键弹簧、点击音与手柄轻震均已通过用户验收
+> 当前阶段：Phase 6 已完成验收；Phase 7 的 Game Home UI 精修进行中
+> 当前状态：Controller 接入后的 Game Home 上下屏已改为可交互 Canvas UI；最终视觉验收仍由用户完成
 
 ## 1. 进度摘要
 
@@ -38,7 +38,7 @@ Git 提交：本轮已执行
 | Phase 4 | Intro、Camera Shot、Ready / Play | 已完成 | 用户已确认浏览器视觉校验完成；进入 Phase 5 前增加 Controller Shell 材质 LookDev |
 | Phase 5 | NDS 模拟器技术验证与双屏桥接 | 已完成 | 独立页及主产品 3D 双屏桥接、连续游玩、音画同步、触控与真实 Gamepad 均已通过验收 |
 | Phase 6 | Keyboard / Gamepad 与 3D 按键反馈 | 已完成 | 键盘、标准 Gamepad、3D 下屏触控、输入释放、ABXY 下沉 / D-Pad 倾斜弹簧、点击音与手柄轻震均已通过验收 |
-| Phase 7 | 性能、兼容性、Loading 与视觉精修 | 未开始 | 最终视觉验收由用户完成 |
+| Phase 7 | 性能、兼容性、Loading 与视觉精修 | 进行中 | Game Home UI 已改造；最终视觉验收由用户完成 |
 
 ## 3. 已完成内容
 
@@ -185,10 +185,10 @@ Bottom_Display_Plane
 ### 3.12 ScreenManager 与 InputRouter
 
 - `ScreenManager` 只协调 `phone`、`attaching`、`game-home`、`playing` 模式、三屏可见性和 Game Changer Timeline。
-- `PhoneScreenSurface` 管理 Phone / Top Game 纹理、Node Material、Fold TSL 参数和 GPU 资源；`ControllerDisplay` 管理 Controller Canvas、显示材质、Continue 命中与按需纹理上传。
-- Controller Game Home 使用运行时 `CanvasTexture`；原 Alto's Odyssey 占位卡片已改为 NDS / 实际载入文件名称，Continue 进入真实 NDS Playing。
-- Pointer 通过 Three.js Raycaster 命中 `Bottom_Display_Plane`，读取交点 UV 并命中测试 Continue 区域。
-- Continue 的 Pointer、Enter 与标准 Gamepad button 0 / A 均路由到同一语义 Action；Escape 从 Playing 返回 Game Home。
+- `PhoneScreenSurface` 保留原生 Phone UI 与 Fold TSL，并采样动态 Game Home 上屏纹理；`ControllerDisplay` 绘制 Game Home 上下屏的 Apple 风格游戏中心、栏目、游戏状态和焦点。
+- Controller Game Home 的上屏静态图片已替换为运行时 `CanvasTexture`；Controller 下屏首页按 `public/bottom_Screen.png` 绘制四宫格，包含继续冒险、收藏库、地图和控制器，仍支持 Continue、选取本地 ROM 与主题切换。
+- Pointer 通过 Three.js Raycaster 命中 `Top_Screen_Plane` 或 `Bottom_Display_Plane`，点击与显示复用各自的纹理 UV 变换。
+- Game Home 使用方向键在四宫格中移动焦点、Enter 确认、Escape 返回主菜单；标准 Gamepad D-Pad 和底部面键也可导航。Playing 时保留原有 NDS 键盘映射与 Escape 返回。
 - Phone Mode 与 Controller 装配、Game Changer 转场阶段不响应产品导航动作；只有转场完成进入 Game Home 后才激活 Continue。
 - Controller CanvasTexture 已统一应用水平镜像与逆时针 `90°` 旋转，Continue 命中测试复用同一纹理 UV 变换。
 - `ScreenManager.update()` 只在 Canvas 内容变化时上传纹理；销毁时只释放本模块创建的纹理和材质，并恢复 GLB 原始屏幕状态。
@@ -196,7 +196,7 @@ Bottom_Display_Plane
 - Phone UI 从 Fold 第一帧开始显示。Top Screen 使用 9-tap TSL 方向模糊、UV 位移与折痕阴影，默认从 `24°` 开始恢复并在 `85°` 清晰；Bottom Screen 在 `45°` 前完成轻度模糊和亮度恢复。
 - Screen Wake 不再从黑场点亮，而是在 Unfold 完成后以默认 `1.5s` 稳定曝光与焦点，并额外停留 `4s` 供观察。
 - Controller 装配期间 `Bottom_Display_Plane` 完全不可见，使镂空区域显示 `Bottom_Screen_Plane` 的 Phone UI。
-- Lock 完成后停顿 `0.15s`，再以 `0.75s` Blur / Scale / Crossfade 将 Top Screen 切换到 `游戏模式主页面.png`、激活 Controller UI，并在结束时隐藏手机下屏。
+- Lock 完成后停顿 `0.15s`，再以 `0.75s` Blur / Scale / Crossfade 将 Top Screen 切换到动态 Game Home Canvas、激活 Controller UI，并在结束时隐藏手机下屏。
 - Phone UI 使用受 ACES 色调映射管理的 `MeshStandardNodeMaterial`，由独立 `Phone Screens` 面板调节自发光亮度、漫反射细节和粗糙度；默认亮度已从无色调映射的全亮状态降至 `0.38`。
 - Phone UI 先裁成两张独立半幅 `CanvasTexture`，再执行镜像和旋转；当前校准基线为 `180°` 与上下屏面板对调，面板仍可切换 X / Y 镜像和四档旋转。
 - Intro 面板新增 `screenWakeHold`、`Pause at Screen Wake`、`Inspect Screen Wake` 与 `Continue Assembly`；可无限期停留在完整点亮状态调试，再恢复装配流程。
@@ -335,7 +335,7 @@ Bottom_Display_Plane
 - `State` 已将 Intro 编排与产品模式拆分为 `introState`、`productMode`。
 - `ScreenManager` 已接入双联 Phone UI 分屏采样，`IntroDirector` 已接入可重播的 Screen Wake 时间线。
 - 新增 `src/shaders/screenEffects.js`，通过 TSL 实现角度驱动 Fold 效果和 Game Changer 双屏转场。
-- 接入 `游戏模式主页面.png`，并重绘 Controller Game Home Canvas UI。
+- 原先的 `游戏模式主页面.png` 已由动态 Game Home 上屏 Canvas 替代；Controller 下屏 UI 与上屏共享栏目状态。
 - 将原 812 行 `ScreenManager` 拆分为模式协调器、`PhoneScreenSurface` 与 `ControllerDisplay`，保持 `World` / `IntroDirector` 公开调用不变。
 - `src/js/World/` 已按 `Product/`、`Directors/`、`Screens/`、`Input/` 分层，根级只保留 `World.js` 作为装配入口。
 
