@@ -5,6 +5,7 @@ import IntroDirector from './Directors/IntroDirector.js'
 import Environment from './Environment/Environment.js'
 import Stage from './Environment/Stage.js'
 import InputRouter from './Input/InputRouter.js'
+import ControllerFeedback from './Product/ControllerFeedback.js'
 import ModelAdapter from './Product/ModelAdapter.js'
 import ScreenManager from './Screens/ScreenManager.js'
 
@@ -19,6 +20,7 @@ export default class World {
 
     this.setEnvironment()
     this.setProduct()
+    this.setControllerFeedback()
     this.setStage()
     this.setScreenManager()
     this.setCameraDirector()
@@ -50,6 +52,15 @@ export default class World {
     }
 
     this.product = new ModelAdapter(gltf.scene)
+  }
+
+  setControllerFeedback() {
+    this.controllerFeedback = new ControllerFeedback({
+      buttons: this.product.buttons,
+      shell: this.product.nodes.controllerShell,
+      debug: this.debug,
+      onHaptic: effect => this.inputRouter?.rumble(effect),
+    })
   }
 
   setCameraDirector() {
@@ -86,7 +97,10 @@ export default class World {
       interactionSurface: this.product.nodes.bottomDisplay,
       resolvePointerAction: uv => this.screenManager.getActionAtUv(uv),
       resolvePointerTouch: uv => this.screenManager.getNDSTouchAtUv(uv),
-      onGameButtons: actions => this.ndsPlayer.setButtons(actions),
+      onGameButtons: (actions) => {
+        this.ndsPlayer.setButtons(actions)
+        this.controllerFeedback.setActions(actions)
+      },
       onGameTouch: point => this.ndsPlayer.touch(point),
       onAction: (action, options) => this.handleAction(action, options),
     })
@@ -133,6 +147,7 @@ export default class World {
   update() {
     this.product.update()
     this.inputRouter.update()
+    this.controllerFeedback.update(this.experience.time.delta)
     // Time.delta 是秒，模拟器使用毫秒；由 Experience 唯一循环驱动，不能另起 rAF。
     this.ndsPlayer.update(this.experience.time.delta * 1000)
     this.screenManager.setProductAngle(this.product.productRig.params.productAngle)
@@ -147,6 +162,7 @@ export default class World {
     this.cameraDirector?.destroy()
     this.screenManager?.destroy()
     this.stage?.destroy()
+    this.controllerFeedback?.destroy()
     this.product?.destroy()
     this.environment?.destroy()
   }

@@ -1,8 +1,8 @@
 # iPhone Duo WebGPU 项目进度
 
 > 最后更新：2026-09-23
-> 当前阶段：Phase 5 已完成验收；Phase 6 游戏输入已接入，3D 按键反馈待实现
-> 当前状态：NDS 双屏、连续游玩、声音与音画同步、触控、真实 Gamepad 及暂停恢复均已通过用户验收；下一步实现 Controller 3D 按键弹簧反馈
+> 当前阶段：Phase 6 已完成验收；下一步进入 Phase 7
+> 当前状态：NDS 双屏、连续游玩、声音与音画同步、触控、真实 Gamepad、暂停恢复，以及 Controller 按键弹簧、点击音与手柄轻震均已通过用户验收
 
 ## 1. 进度摘要
 
@@ -18,7 +18,7 @@ Phase 2 / 7：完成
 Phase 3 / 7：完成
 Phase 4 / 7：完成（用户确认视觉校验通过）
 Phase 5 / 7：完成（用户确认 NDS 综合验收通过）
-Phase 6 / 7：部分实现
+Phase 6 / 7：完成（用户确认按键反馈验收通过）
 功能验证：完成
 装配视觉校验：通过
 Git 提交：本轮已执行
@@ -37,7 +37,7 @@ Git 提交：本轮已执行
 | Phase 3 | Controller Reveal / Assembly | 已完成 | 精密吸合时间线已通过用户视觉校验 |
 | Phase 4 | Intro、Camera Shot、Ready / Play | 已完成 | 用户已确认浏览器视觉校验完成；进入 Phase 5 前增加 Controller Shell 材质 LookDev |
 | Phase 5 | NDS 模拟器技术验证与双屏桥接 | 已完成 | 独立页及主产品 3D 双屏桥接、连续游玩、音画同步、触控与真实 Gamepad 均已通过验收 |
-| Phase 6 | Keyboard / Gamepad 与 3D 按键反馈 | 部分实现 | 键盘、标准 Gamepad、3D 下屏触控与输入释放已接入；3D 按键弹簧反馈未实现 |
+| Phase 6 | Keyboard / Gamepad 与 3D 按键反馈 | 已完成 | 键盘、标准 Gamepad、3D 下屏触控、输入释放、ABXY 下沉 / D-Pad 倾斜弹簧、点击音与手柄轻震均已通过验收 |
 | Phase 7 | 性能、兼容性、Loading 与视觉精修 | 未开始 | 最终视觉验收由用户完成 |
 
 ## 3. 已完成内容
@@ -77,9 +77,9 @@ Git 提交：本轮已执行
 
 | 项目 | 数量 |
 |---|---:|
-| JavaScript 文件 | 37 |
-| `src/js` 架构模块 | 34 |
-| `src` 内全部文件 | 42 |
+| JavaScript 文件 | 39 |
+| `src/js` 架构模块 | 36 |
+| `src` 内全部文件 | 44 |
 
 ### 3.4 模型加载与适配
 
@@ -230,6 +230,17 @@ Bottom_Display_Plane
 - Escape、返回按钮和窗口失焦/隐藏暂停并返回 Game Home，释放按键/触控；再次 Continue 恢复同一会话。Playing 禁止 OrbitControls 抢占下屏拖动。
 - Chrome headless 合并负载短测观察到模拟与场景均约 60 fps、模拟速度约 100%、核心约 5.35 ms/帧（单次采样），WASM 约 309 MiB；默认 GTAO 开启。完整验证记录见 `NDS_Integration_Spike.md`。
 
+### 3.16 Controller 3D 按键反馈与点击音
+
+- 新增 `World/Product/ControllerFeedback.js`：`InputRouter.onGameButtons` 的同一组语义 Action 同时送入 NDS 与 3D 反馈，同一帧生效；失焦、模式切换、手柄断开时的清空也会同步让按键回弹。
+- 按压轴取每个按键最薄的局部轴（当前 GLB 为 Y），并令其指向 `Controller_Shell` 中心；行程为按键厚度的比例（默认 `0.22`）。D-Pad 的上 / 右由 ABXY 菱形位置推导（X 在上、A 在右），倾斜轴为面外法线 × 方向，未硬编码世界轴；斜向按住保持单方向最大倾角（默认 `5°`）。
+- 弹簧按 PRD 28.5 的指数阻尼形式，以 `1/240 s` 固定子步积分；按下与松开分别使用刚度 `3200` / `900`，阻尼比 `0.45`。按到底是硬限位（约 42 ms，无穿模），松开约 79 ms 回位并越过静止位约 19% 行程形成回弹。
+- 新增 `World/Product/ButtonClickSound.js`：独立 AudioContext，以带通噪声 + 下滑三角波实时合成，无音频素材；按下 / 松开、面键 / D-Pad / Start·Select·L·R 音色不同，每次 ±5% 随机音高。声音跟随输入边沿，不等弹簧触底。手柄输入缺少用户激活且 AudioContext 未运行时直接丢弃该声，避免之后集中爆发。
+- `ModelAdapter` 以语义键（`a`/`b`/`x`/`y`/`dpad`）导出按键 Mesh，节点名仍只在此集中。销毁时恢复按键静止位姿并关闭 AudioContext。
+- 点击音与 NDS 面板的静音开关保持独立（用户确认）。
+- 手柄轻震：按下边沿由 `ControllerFeedback` 决定强度（面键 1、D-Pad 0.7、Start / Select / L / R 0.6，乘以默认强度 `0.35`），`InputRouter.rumble()` 以 `dual-rumble` 下发，weak 马达为主、strong 马达仅 25%，默认 `24 ms`；松开不震。只震当前正在提供输入的手柄，纯键盘操作不震；不支持 `vibrationActuator` 的浏览器静默跳过。
+- `Controller Feedback` 面板可调行程、D-Pad 倾角、按下 / 松开刚度、阻尼比、点击音开关与音量、手柄震动开关 / 强度 / 时长，并可在任意模式下 Tap 测试单个按键（Tap 测试不触发震动）。
+
 ## 4. 验证记录
 
 | 检查 | 结果 |
@@ -343,10 +354,13 @@ Phase 5 验收结论：
 
 2026-09-23 用户确认：NDS 上下屏映射、整数像素延展背景、连续十分钟游玩、声音与音画同步、触控、真实 Gamepad、暂停恢复及最终画面呈现均符合预期，Phase 5 完成。
 
-Phase 6 下一步：
+Phase 6 验收结论：
 
-1. 让现有语义 Action 同时驱动 Controller 的 ABXY 按压与 D-Pad 倾斜，使用渲染循环中的阻尼弹簧，不增加 GSAP Timeline。
-2. 验证键盘、真实 Gamepad、组合键、失焦释放和手柄断开时的 3D 反馈与模拟器输入一致。
-3. IndexedDB 持久存档仍为演示增强项，不阻塞 Phase 6 的按键反馈实现。
+2026-09-23 用户确认：ABXY 下沉 / D-Pad 倾斜弹簧、合成点击音与手柄轻震验收通过，默认参数即为当前基线，Phase 6 完成。点击音与 NDS 静音开关保持独立。
+
+后续：
+
+1. 进入 Phase 7：性能、兼容性、Loading 与视觉精修。
+2. IndexedDB 持久存档仍为演示增强项，按演示需要再实现。
 
 本轮实现、测试结果和使用方法见 `docs/NDS_Integration_Spike.md`。固定上游版本为 `7adc554ce1dc5318fef3797e8f00a6e9286dac3b`；ROM 仅本地验证，不进入生产构建。

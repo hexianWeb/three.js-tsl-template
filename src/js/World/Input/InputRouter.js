@@ -25,6 +25,7 @@ export default class InputRouter {
     this.gamepadButtonState = new Map()
     this.keys = new Set()
     this.padActions = new Set()
+    this.activeGamepads = []
     this.focused = document.hasFocus()
     this.listeners = new AbortController()
     const listen = (target, type, handler) => target.addEventListener(type, handler, { signal: this.listeners.signal })
@@ -149,6 +150,7 @@ export default class InputRouter {
   clearInputs() {
     this.keys.clear()
     this.padActions.clear()
+    this.activeGamepads = []
     this.gamepadArmed = false
     this.navigationArmed = false
     this.clearPointer()
@@ -177,6 +179,7 @@ export default class InputRouter {
     const gamepads = navigator.getGamepads?.() ?? []
     const connectedIndices = new Set()
     const actions = new Set()
+    const activeGamepads = []
 
     for (const gamepad of gamepads) {
       if (!gamepad || gamepad.mapping !== 'standard') continue
@@ -188,13 +191,16 @@ export default class InputRouter {
       // 标准 Gamepad button 0 只在上升沿触发，避免按住 A 时逐帧重复 Continue。
       if (this.mode === 'game-home' && this.navigationArmed && pressed && !wasPressed) this.dispatch('continue')
       this.gamepadButtonState.set(gamepad.index, pressed)
+      const padActions = new Set()
       Object.entries(PAD_ACTIONS).forEach(([index, action]) => {
-        if (gamepad.buttons[index]?.pressed) actions.add(action)
+        if (gamepad.buttons[index]?.pressed) padActions.add(action)
       })
-      if (gamepad.axes[0] > 0.5) actions.add('right')
-      if (gamepad.axes[0] < -0.5) actions.add('left')
-      if (gamepad.axes[1] > 0.5) actions.add('down')
-      if (gamepad.axes[1] < -0.5) actions.add('up')
+      if (gamepad.axes[0] > 0.5) padActions.add('right')
+      if (gamepad.axes[0] < -0.5) padActions.add('left')
+      if (gamepad.axes[1] > 0.5) padActions.add('down')
+      if (gamepad.axes[1] < -0.5) padActions.add('up')
+      padActions.forEach(action => actions.add(action))
+      if (padActions.size > 0) activeGamepads.push(gamepad)
     }
 
     this.gamepadButtonState.forEach((_, index) => {
@@ -205,8 +211,20 @@ export default class InputRouter {
       this.gamepadArmed = true
       this.navigationArmed = true
     }
-    this.padActions = this.mode === 'playing' && this.gamepadArmed ? actions : new Set()
+    const acceptsPad = this.mode === 'playing' && this.gamepadArmed
+    this.padActions = acceptsPad ? actions : new Set()
+    // 须在 publishButtons 之前更新：本帧的按下边沿会同步回调 rumble()，要震到正在按的那只手柄。
+    this.activeGamepads = acceptsPad ? activeGamepads : []
     this.publishButtons()
+  }
+
+  // 只震动当前正在提供输入的手柄，纯键盘操作时不会惊动闲置在一旁的手柄。
+  rumble(effect) {
+    this.activeGamepads.forEach((gamepad) => {
+      const actuator = gamepad.vibrationActuator
+      if (!actuator || actuator.effects?.includes('dual-rumble') === false) return
+      actuator.playEffect('dual-rumble', effect).catch(() => {})
+    })
   }
 
   destroy() {

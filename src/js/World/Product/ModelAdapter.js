@@ -18,7 +18,7 @@ const REQUIRED_NODES = {
   bottomDisplay: 'Bottom_Display_Plane',
 }
 
-const BUTTON_NODE_NAMES = ['Button_A', 'Button_B', 'Button_X', 'Button_Y', 'DPad']
+const BUTTON_NODES = { a: 'Button_A', b: 'Button_B', x: 'Button_X', y: 'Button_Y', dpad: 'DPad' }
 
 // 用户在 Blender 中确认的桌面上表面位于 Z = -0.035，导出后对应 GLB 模型局部 Y。
 const STAGE_SURFACE_MODEL_Y = -0.035
@@ -89,12 +89,12 @@ export default class ModelAdapter {
   }
 
   configureButtonMaterials() {
-    const buttons = BUTTON_NODE_NAMES.map((name) => {
+    this.buttons = Object.fromEntries(Object.entries(BUTTON_NODES).map(([key, name]) => {
       const node = this.nodes.controllerRoot.getObjectByName(name)
       if (!node?.isMesh) throw new Error(`Controller 缺少按键 Mesh：${name}`)
-      return node
-    })
-    this.controllerButtonMaterial = new ControllerButtonMaterial({ buttons, debug: this.debug })
+      return [key, node]
+    }))
+    this.controllerButtonMaterial = new ControllerButtonMaterial({ buttons: Object.values(this.buttons), debug: this.debug })
   }
 
   configureControllerLightmap() {

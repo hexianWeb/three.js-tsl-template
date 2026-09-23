@@ -20,7 +20,7 @@
 - `src/index.html` 加载 `src/main.js`；`main.js` 检查 `navigator.gpu`，创建 `Experience`，等待 WebGPU、资源和 `World` 初始化，并在 Vite HMR dispose 时销毁实例。
 - `Experience` 是全局生命周期单例。首次构造必须传 Canvas；Class 组件通过 `new Experience()` 取得同一实例。创建全局服务或动画循环时保持该边界。
 - 初始化顺序是 Camera -> Renderer/WebGPU -> `Resources.load()` -> World -> `setAnimationLoop()`。资源完成前不要创建依赖模型的 World 组件。
-- `World` 装配环境、`ModelAdapter`、`ScreenManager`、`CameraDirector`、`IntroDirector`、`NDSPlayer` 与 `InputRouter`；`ScreenManager` 协调模式与 Timeline，显示委托给 `PhoneScreenSurface`、`ControllerDisplay`、`NDSScreenBridge` 与 `NDSGameSurface`。`NDSPlayer` 持有 `NDSRuntime`、音频和 DOM 控制面板，由 Experience 唯一循环更新。键盘、标准 Gamepad 和 3D 下屏触控已接入；持久存档与 3D 按键反馈仍待实现。
+- `World` 装配环境、`ModelAdapter`、`ScreenManager`、`CameraDirector`、`IntroDirector`、`NDSPlayer` 与 `InputRouter`；`ScreenManager` 协调模式与 Timeline，显示委托给 `PhoneScreenSurface`、`ControllerDisplay`、`NDSScreenBridge` 与 `NDSGameSurface`。`NDSPlayer` 持有 `NDSRuntime`、音频和 DOM 控制面板，由 Experience 唯一循环更新。键盘、标准 Gamepad 和 3D 下屏触控已接入；同一组游戏 Action 同时驱动 `ControllerFeedback`（ABXY / D-Pad 阻尼弹簧与合成点击音）；持久存档仍待实现。
 - NDS Continue 首次按需载入 WASM / ROM，完成后才进入 Playing；Escape、失焦和隐藏暂停并返回 Game Home，下一次 Continue 恢复会话。Replay、取消和销毁必须使未完成的异步启动失效。音频仅在有效用户激活期间自动解锁，其他情况保留独立启用按钮。
 - NDS 映射固定为上屏 `1.4:1`、下屏 `1:1`；4:3 主画面由 `NDSGameSurface` 等比显示，空余区域使用当前帧的整数倍最近邻像素并略微压暗后延展。触控共用纹理矩阵且只响应清晰主画面；Playing 期间禁用 OrbitControls。`public/nds/` 是本地测试资源，已从 Git 和生产构建排除；`/nds-test.html` 保留独立验证入口。
 - `Experience.init()` 在启动渲染循环后调用 `World.start()` 自动播放 Intro。IntroDirector 负责 Folded、Unfold、Screen Wake、Assembly、Game Changer、Hero 与 Ready 编排；Replay、Skip、Continue 收束和销毁必须停止自身、Controller 与屏幕转场 Timeline。`phone`、`attaching`、`game-home`、`playing` 是独立产品模式，不并入 `intro:state`。
