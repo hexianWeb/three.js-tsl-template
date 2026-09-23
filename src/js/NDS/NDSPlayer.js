@@ -174,6 +174,10 @@ export default class NDSPlayer {
     if (this.mode === 'playing') this.onFocus()
   }
 
+  chooseFile() {
+    if (this.mode === 'game-home' && !this.loading) this.controls.chooseFile()
+  }
+
   setButtons(actions) {
     this.runtime.setButtons(actions)
   }

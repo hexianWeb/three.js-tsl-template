@@ -77,8 +77,8 @@ export default class PhoneScreenSurface {
   createTextures() {
     this.phonePanelCanvases = []
     this.phonePanelTextures = this.createPhonePanelTextures()
-    this.gameHomeTexture = this.gameHomeSourceTexture.clone()
-    this.gameHomeTexture.name = 'Game_Home_Top_Screen'
+    // 动态 Game Home CanvasTexture 由 ControllerDisplay 持有并更新，这里只配置采样方向。
+    this.gameHomeTexture = this.gameHomeSourceTexture
     this.configureUiTexture(this.gameHomeTexture)
     this.gameTextureWidth = this.gameHomeTexture.image?.naturalWidth
       ?? this.gameHomeTexture.image?.width
@@ -394,6 +394,5 @@ export default class PhoneScreenSurface {
     this.phonePanelTextures.forEach(texture => texture.dispose())
     this.phonePanelTextures.length = 0
     this.phonePanelCanvases.length = 0
-    this.gameHomeTexture.dispose()
   }
 }

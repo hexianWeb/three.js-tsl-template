@@ -12,7 +12,6 @@ export default class ScreenManager {
     bottomScreen,
     bottomDisplay,
     phoneHomeTexture,
-    gameHomeTexture,
     onPreviewAngle,
     onDebugModeChange,
   }) {
@@ -32,15 +31,15 @@ export default class ScreenManager {
     this.validateScreens()
     this.captureOriginalState()
     this.createOffMaterials()
+    this.controllerDisplay = new ControllerDisplay({ screen: bottomDisplay })
     this.phoneSurface = new PhoneScreenSurface({
       topScreen,
       bottomScreen,
       phoneHomeTexture,
-      gameHomeTexture,
+      gameHomeTexture: this.controllerDisplay.topTexture,
       onPreviewAngle,
       onDebugModeChange,
     })
-    this.controllerDisplay = new ControllerDisplay({ screen: bottomDisplay })
     this.ndsBridge = new NDSScreenBridge(document.createElement('canvas'), document.createElement('canvas'))
     this.ndsSurfaces = [
       new NDSGameSurface(topScreen, { flipY: false, mirrorX: false, aspect: 1.4 }),
@@ -92,6 +91,7 @@ export default class ScreenManager {
     if (this.mode === mode) return
 
     this.mode = mode
+    if (mode === 'game-home') this.controllerDisplay.setView('home')
     this.applyMode()
   }
 
@@ -219,9 +219,17 @@ export default class ScreenManager {
     this.setScreenMaterial(screen, this.offMaterials.get(screen), visible)
   }
 
-  getActionAtUv(uv) {
+  getActionAtUv(uv, screen) {
     if (this.mode !== 'game-home') return null
-    return this.controllerDisplay.getActionAtUv(uv)
+    return this.controllerDisplay.getActionAtUv(
+      uv,
+      screen === this.screens.topScreen ? 'top' : 'bottom',
+    )
+  }
+
+  handleUiAction(action) {
+    if (this.mode !== 'game-home') return undefined
+    return this.controllerDisplay.handleAction(action)
   }
 
   drawNDSFrame(pixels) {
@@ -236,6 +244,10 @@ export default class ScreenManager {
 
   setGameInfo(info) {
     this.controllerDisplay.setGameInfo(info)
+  }
+
+  setNDSStatus(info) {
+    this.controllerDisplay.setNDSStatus(info)
   }
 
   debugInit() {

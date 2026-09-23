@@ -73,7 +73,6 @@ export default class World {
       bottomScreen: this.product.nodes.bottomScreen,
       bottomDisplay: this.product.nodes.bottomDisplay,
       phoneHomeTexture: this.resources.items.phoneHomeTexture,
-      gameHomeTexture: this.resources.items.gameHomeTexture,
       onPreviewAngle: angle => this.product.productRig.setDebugAngle(angle),
       onDebugModeChange: mode => this.setProductMode(mode),
     })
@@ -94,8 +93,8 @@ export default class World {
     this.inputRouter = new InputRouter({
       camera: this.experience.camera.instance,
       canvas: this.experience.canvas,
-      interactionSurface: this.product.nodes.bottomDisplay,
-      resolvePointerAction: uv => this.screenManager.getActionAtUv(uv),
+      interactionSurfaces: [this.product.nodes.topScreen, this.product.nodes.bottomDisplay],
+      resolvePointerAction: (uv, screen) => this.screenManager.getActionAtUv(uv, screen),
       resolvePointerTouch: uv => this.screenManager.getNDSTouchAtUv(uv),
       onGameButtons: (actions) => {
         this.ndsPlayer.setButtons(actions)
@@ -107,6 +106,7 @@ export default class World {
   }
 
   setNDSPlayer() {
+    this.unsubscribeNDSStatus = this.events.on('nds:status', info => this.screenManager.setNDSStatus(info))
     this.ndsPlayer = new NDSPlayer({
       state: this.state,
       events: this.events,
@@ -132,8 +132,17 @@ export default class World {
   }
 
   handleAction(action, options) {
+    const uiAction = this.screenManager.handleUiAction(action)
+    if (uiAction === null) return
+    if (uiAction !== undefined) action = uiAction
     if (action === 'continue' && this.state.productMode === 'game-home') {
       return this.ndsPlayer.play(null, options)
+    }
+    else if (action === 'choose-file' && this.state.productMode === 'game-home') {
+      this.ndsPlayer.chooseFile()
+    }
+    else if (action === 'replay-intro' && this.state.productMode === 'game-home') {
+      this.intro.play()
     }
     else if (action === 'back' || action === 'suspend') {
       this.ndsPlayer.back()
@@ -156,6 +165,7 @@ export default class World {
   }
 
   destroy() {
+    this.unsubscribeNDSStatus?.()
     this.inputRouter?.destroy()
     this.ndsPlayer?.destroy()
     this.intro?.destroy()

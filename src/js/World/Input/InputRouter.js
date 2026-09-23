@@ -9,12 +9,15 @@ const PAD_ACTIONS = {
   0: 'b', 1: 'a', 2: 'y', 3: 'x', 4: 'l', 5: 'r',
   8: 'select', 9: 'start', 12: 'up', 13: 'down', 14: 'left', 15: 'right',
 }
+const NAVIGATION_KEYS = {
+  ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+}
 
 export default class InputRouter {
-  constructor({ camera, canvas, interactionSurface, resolvePointerAction, resolvePointerTouch, onAction, onGameButtons, onGameTouch }) {
+  constructor({ camera, canvas, interactionSurfaces, resolvePointerAction, resolvePointerTouch, onAction, onGameButtons, onGameTouch }) {
     this.camera = camera
     this.canvas = canvas
-    this.interactionSurface = interactionSurface
+    this.interactionSurfaces = interactionSurfaces
     this.resolvePointerAction = resolvePointerAction
     this.resolvePointerTouch = resolvePointerTouch
     this.onAction = onAction
@@ -22,7 +25,7 @@ export default class InputRouter {
     this.onGameTouch = onGameTouch
     this.raycaster = new THREE.Raycaster()
     this.pointer = new THREE.Vector2()
-    this.gamepadButtonState = new Map()
+    this.homePadPrevious = new Map()
     this.keys = new Set()
     this.padActions = new Set()
     this.activeGamepads = []
@@ -34,7 +37,7 @@ export default class InputRouter {
     listen(canvas, 'pointerup', event => this.handlePointerUp(event))
     listen(canvas, 'pointercancel', () => this.clearPointer())
     listen(canvas, 'lostpointercapture', event => {
-      if (event.pointerId === this.pointerId) this.clearPointer()
+      if (event.pointerId === this.pointerId || event.pointerId === this.homePointerId) this.clearPointer()
     })
     listen(window, 'keydown', event => this.handleKeyDown(event))
     listen(window, 'keyup', event => {
@@ -53,27 +56,45 @@ export default class InputRouter {
     })
   }
 
-  hitUv(event) {
-    for (let node = this.interactionSurface; node; node = node.parent) {
-      if (!node.visible) return null
-    }
+  hit(event, surfaces = this.interactionSurfaces) {
+    const visibleSurfaces = surfaces.filter((surface) => {
+      for (let node = surface; node; node = node.parent) {
+        if (!node.visible) return false
+      }
+      return true
+    })
+    if (!visibleSurfaces.length) return null
     const bounds = this.canvas.getBoundingClientRect()
     if (bounds.width <= 0 || bounds.height <= 0) return null
     this.pointer.set(
       ((event.clientX - bounds.left) / bounds.width) * 2 - 1,
       -((event.clientY - bounds.top) / bounds.height) * 2 + 1,
     )
-    this.interactionSurface.updateWorldMatrix(true, false)
+    visibleSurfaces.forEach(surface => surface.updateWorldMatrix(true, false))
     this.camera.updateWorldMatrix(true, false)
     this.raycaster.setFromCamera(this.pointer, this.camera)
-    const intersection = this.raycaster.intersectObject(this.interactionSurface, false)[0]
-    return intersection?.uv ?? null
+    return this.raycaster.intersectObjects(visibleSurfaces, false)[0] ?? null
+  }
+
+  hitUv(event) {
+    return this.hit(event, [this.interactionSurfaces[1]])?.uv ?? null
+  }
+
+  hitAction(event) {
+    const intersection = this.hit(event)
+    return intersection ? this.resolvePointerAction(intersection.uv, intersection.object) : null
   }
 
   handlePointerDown(event) {
-    if (event.button !== 0 || this.pointerId != null) return
+    if (event.button !== 0 || this.pointerId != null || this.homePointerId != null) return
     if (this.mode === 'game-home') {
+      const action = this.hitAction(event)
+      if (!action) return
+      event.preventDefault()
+      this.canvas.focus({ preventScroll: true })
       this.homePointerId = event.pointerId
+      this.homePressAction = action
+      this.canvas.setPointerCapture(event.pointerId)
       return
     }
     if (this.mode !== 'playing') return
@@ -98,9 +119,12 @@ export default class InputRouter {
     }
     if (event.button !== 0 || event.pointerId !== this.homePointerId) return
     this.homePointerId = null
+    const pressedAction = this.homePressAction
+    this.homePressAction = null
+    if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId)
     if (this.mode !== 'game-home') return
-    const action = this.resolvePointerAction(this.hitUv(event))
-    if (action) {
+    const action = this.hitAction(event)
+    if (action && action === pressedAction) {
       event.preventDefault()
       this.dispatch(action, { userGesture: true })
     }
@@ -108,13 +132,21 @@ export default class InputRouter {
 
   handleKeyDown(event) {
     if (event.code === 'Escape' && !event.repeat) {
-      this.dispatch('back')
+      if (this.mode === 'game-home') this.dispatch('ui:back')
+      else this.dispatch('back')
       return
     }
     if (this.isEditableTarget(event.target)) return
-    if (this.mode === 'game-home' && event.code === 'Enter' && !event.repeat) {
-      event.preventDefault()
-      this.dispatch('continue', { userGesture: true })
+    if (this.mode === 'game-home') {
+      const direction = NAVIGATION_KEYS[event.code]
+      if (direction) {
+        event.preventDefault()
+        this.dispatch('ui:move:' + direction)
+      }
+      else if ((event.code === 'Enter' || event.code === 'Space') && !event.repeat) {
+        event.preventDefault()
+        this.dispatch('ui:activate', { userGesture: true })
+      }
       return
     }
     if (this.mode !== 'playing' || !KEY_ACTIONS[event.code]) return
@@ -141,9 +173,12 @@ export default class InputRouter {
 
   clearPointer() {
     const pointerId = this.pointerId
+    const homePointerId = this.homePointerId
     this.pointerId = null
     this.homePointerId = null
+    this.homePressAction = null
     if (pointerId != null && this.canvas.hasPointerCapture(pointerId)) this.canvas.releasePointerCapture(pointerId)
+    if (homePointerId != null && this.canvas.hasPointerCapture(homePointerId)) this.canvas.releasePointerCapture(homePointerId)
     this.onGameTouch(null)
   }
 
@@ -153,6 +188,7 @@ export default class InputRouter {
     this.activeGamepads = []
     this.gamepadArmed = false
     this.navigationArmed = false
+    this.homePadPrevious.clear()
     this.clearPointer()
     this.lastButtons = ''
     this.onGameButtons([])
@@ -185,12 +221,6 @@ export default class InputRouter {
       if (!gamepad || gamepad.mapping !== 'standard') continue
 
       connectedIndices.add(gamepad.index)
-      const pressed = Boolean(gamepad.buttons?.[0]?.pressed)
-      const wasPressed = this.gamepadButtonState.get(gamepad.index) ?? false
-
-      // 标准 Gamepad button 0 只在上升沿触发，避免按住 A 时逐帧重复 Continue。
-      if (this.mode === 'game-home' && this.navigationArmed && pressed && !wasPressed) this.dispatch('continue')
-      this.gamepadButtonState.set(gamepad.index, pressed)
       const padActions = new Set()
       Object.entries(PAD_ACTIONS).forEach(([index, action]) => {
         if (gamepad.buttons[index]?.pressed) padActions.add(action)
@@ -199,12 +229,21 @@ export default class InputRouter {
       if (gamepad.axes[0] < -0.5) padActions.add('left')
       if (gamepad.axes[1] > 0.5) padActions.add('down')
       if (gamepad.axes[1] < -0.5) padActions.add('up')
+      const previous = this.homePadPrevious.get(gamepad.index) ?? new Set()
+      if (this.mode === 'game-home' && this.navigationArmed) {
+        // 导航只在按下边沿触发，长按不会逐帧越过多个卡片。
+        for (const direction of ['up', 'down', 'left', 'right']) {
+          if (padActions.has(direction) && !previous.has(direction)) this.dispatch('ui:move:' + direction)
+        }
+        if (padActions.has('b') && !previous.has('b')) this.dispatch('ui:activate')
+      }
+      this.homePadPrevious.set(gamepad.index, padActions)
       padActions.forEach(action => actions.add(action))
       if (padActions.size > 0) activeGamepads.push(gamepad)
     }
 
-    this.gamepadButtonState.forEach((_, index) => {
-      if (!connectedIndices.has(index)) this.gamepadButtonState.delete(index)
+    this.homePadPrevious.forEach((_, index) => {
+      if (!connectedIndices.has(index)) this.homePadPrevious.delete(index)
     })
     // Continue 使用的手柄按键须回到中立后才接管游戏，断开也会清空该来源的按键。
     if (actions.size === 0) {
@@ -230,6 +269,6 @@ export default class InputRouter {
   destroy() {
     this.listeners.abort()
     this.clearInputs()
-    this.gamepadButtonState.clear()
+    this.homePadPrevious.clear()
   }
 }

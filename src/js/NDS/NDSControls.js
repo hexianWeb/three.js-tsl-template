@@ -20,8 +20,9 @@ export default class NDSControls {
       <output class="nds-player__metrics" data-field="metrics">等待游戏开始</output>
       <details>
         <summary>操作说明</summary>
-        <p>方向键移动 · X/Z = A/B · S/A = X/Y · Q/W = L/R · Enter = Start · Shift = Select。点击或拖动 3D 下屏进行触控。</p>
-        <p>标准手柄：右/下/上/左面键 = A/B/X/Y，肩键 = L/R，菜单键 = Start/Select。Home 下底部面键可 Continue。</p>
+        <p>Game Home：方向键在下屏四宫格中选择，Enter 确认，Escape 返回主菜单；上下屏均可点击。</p>
+        <p>游戏中：方向键移动 · X/Z = A/B · S/A = X/Y · Q/W = L/R · Enter = Start · Shift = Select。点击或拖动 3D 下屏进行触控。</p>
+        <p>标准手柄：右/下/上/左面键 = A/B/X/Y，肩键 = L/R，菜单键 = Start/Select。Game Home 下 D-Pad 导航、底部面键确认。</p>
         <p>Escape 返回并暂停；切换窗口自动返回。再次 Continue 接续当前会话，刷新页面不保留存档。</p>
       </details>`
     this.fields = Object.fromEntries([...this.element.querySelectorAll('[data-field]')].map(node => [node.dataset.field, node]))

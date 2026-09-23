@@ -1,5 +1,4 @@
 import phoneHomeUrl from '../../docs/img/主页面.png?url'
-import gameHomeUrl from '../../docs/img/游戏模式主页面.png?url'
 
 // Spike 资源按需加载，不进入产品首屏的 Resources.load()。
 export const ndsSources = {
@@ -41,10 +40,5 @@ export default [
     name: 'phoneHomeTexture',
     type: 'texture',
     path: phoneHomeUrl,
-  },
-  {
-    name: 'gameHomeTexture',
-    type: 'texture',
-    path: gameHomeUrl,
   },
 ]
