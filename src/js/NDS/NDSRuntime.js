@@ -69,11 +69,15 @@ export default class NDSRuntime {
     return pointer
   }
 
-  async loadUrl(url) {
+  async loadUrl(url, { signal } = {}) {
     this.onStatus('正在读取本地测试 ROM…')
-    const response = await fetch(url, { signal: this.abortController.signal })
+    const requestSignal = signal
+      ? AbortSignal.any([signal, this.abortController.signal])
+      : this.abortController.signal
+    const response = await fetch(url, { signal: requestSignal })
     if (!response.ok) throw new Error(`ROM 读取失败：HTTP ${response.status}`)
     const bytes = new Uint8Array(await response.arrayBuffer())
+    requestSignal.throwIfAborted()
     if (this.destroyed) return
     this.loadBytes(bytes, decodeURIComponent(new URL(url, location.href).pathname.split('/').pop()))
   }

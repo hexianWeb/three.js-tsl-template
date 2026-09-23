@@ -21,6 +21,7 @@ export default class ControllerDisplay {
       scale: 1.03,
     }
     this.transitionProgress = 0
+    this.gameInfo = { title: 'Nintendo DS', detail: 'Choose a local NDS game' }
 
     this.createCanvas()
     this.createMaterial()
@@ -129,10 +130,10 @@ export default class ControllerDisplay {
     context.fillStyle = '#24334f'
     context.textAlign = 'left'
     context.font = '700 34px Inter, system-ui, sans-serif'
-    context.fillText("Alto's Odyssey", gameCard.x + 238, gameCard.y + 92)
+    context.fillText(this.gameInfo.title.slice(0, 21), gameCard.x + 238, gameCard.y + 92, 330)
     context.fillStyle = '#75849a'
     context.font = '500 23px Inter, system-ui, sans-serif'
-    context.fillText('Last played today', gameCard.x + 238, gameCard.y + 130)
+    context.fillText(this.gameInfo.detail.slice(0, 32), gameCard.x + 238, gameCard.y + 130, 330)
     context.fillStyle = '#0a6ee8'
     context.font = '650 25px Inter, system-ui, sans-serif'
     context.fillText('Continue  ›', gameCard.x + 238, gameCard.y + 184)
@@ -159,27 +160,9 @@ export default class ControllerDisplay {
     this.context.fillText(label, x + width / 2, y + height * 0.73)
   }
 
-  drawPlayingPlaceholder() {
-    const context = this.context
-    const size = this.canvas.width
-    const gradient = context.createLinearGradient(0, 0, 0, size)
-    gradient.addColorStop(0, '#151922')
-    gradient.addColorStop(1, '#080a0f')
-    context.fillStyle = gradient
-    context.fillRect(0, 0, size, size)
-    context.fillStyle = '#91a7c8'
-    context.font = '600 30px Inter, system-ui, sans-serif'
-    context.textAlign = 'center'
-    context.fillText('PLAYING', size / 2, 190)
-    context.fillStyle = '#f7f9fc'
-    context.font = '700 62px Inter, system-ui, sans-serif'
-    context.fillText('Game output', size / 2, 430)
-    context.fillText('placeholder', size / 2, 510)
-    context.fillStyle = '#9299a8'
-    context.font = '500 28px Inter, system-ui, sans-serif'
-    context.fillText('NDS runtime is not connected yet', size / 2, 650)
-    context.fillText('Press ESC to return', size / 2, 820)
-    this.frameDirty = true
+  setGameInfo(info) {
+    this.gameInfo = { ...this.gameInfo, ...info }
+    this.drawGameHome()
   }
 
   getContinueRegionPixels() {

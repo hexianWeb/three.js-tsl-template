@@ -45,11 +45,11 @@ export default class CameraDirector {
       },
       play: {
         positionX: 0,
-        positionY: 2,
-        positionZ: 3.8,
+        positionY: 3.75,
+        positionZ: 4.0,
         targetX: 0,
-        targetY: 0.5,
-        targetZ:-0.15,
+        targetY: 0.2,
+        targetZ: 0.05,
         fov: 30,
         duration: 1.1,
       },
@@ -60,12 +60,12 @@ export default class CameraDirector {
       'screen-wake': 'assembly',
       'controller-assembly': 'assembly',
       'game-changer': 'assembly',
-      hero: 'hero',
-      ready: 'hero',
+      'hero': 'hero',
+      'ready': 'hero',
     }
     this.productShots = {
       'game-home': 'hero',
-      playing: 'play',
+      'playing': 'play',
     }
 
     this.camera.controls.enabled = true
@@ -80,7 +80,8 @@ export default class CameraDirector {
 
   handleState(state) {
     const shotName = this.stateShots[state]
-    if (!shotName) return
+    if (!shotName)
+      return
 
     this.transitionTo(shotName, {
       immediate: state === 'intro-folded',
@@ -89,14 +90,16 @@ export default class CameraDirector {
 
   handleProductMode(mode) {
     const shotName = this.productShots[mode]
-    if (!shotName) return
+    if (!shotName)
+      return
 
     this.transitionTo(shotName)
   }
 
   transitionTo(name, { immediate = false, force = false } = {}) {
     const shot = this.shots[name]
-    if (!shot || (!force && this.params.currentShot === name)) return
+    if (!shot || (!force && this.params.currentShot === name))
+      return
 
     this.killTransition()
     this.params.currentShot = name
@@ -173,7 +176,10 @@ export default class CameraDirector {
   }
 
   restoreOrbitState() {
+    // Playing 时指针属于 NDS 下屏，即使调试 Orbit 开关开启，也不能抢走触控拖动。
     this.camera.controls.enabled = this.params.orbitEnabled
+      && !this.timeline
+      && this.experience.state.productMode !== 'playing'
   }
 
   debugInit() {
@@ -187,9 +193,7 @@ export default class CameraDirector {
     })
     folder.addBinding(this.params, 'orbitEnabled', {
       label: 'Orbit Enabled',
-    }).on('change', ({ value }) => {
-      this.camera.controls.enabled = value && !this.timeline
-    })
+    }).on('change', () => this.restoreOrbitState())
 
     this.shotBindings = {}
     Object.entries(this.shots).forEach(([name, shot]) => {

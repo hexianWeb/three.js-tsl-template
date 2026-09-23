@@ -1,7 +1,9 @@
 import { gsap } from 'gsap'
 import * as THREE from 'three/webgpu'
 import Experience from '../../Experience.js'
+import NDSScreenBridge from '../../NDS/NDSScreenBridge.js'
 import ControllerDisplay from './ControllerDisplay.js'
+import NDSGameSurface from './NDSGameSurface.js'
 import PhoneScreenSurface from './PhoneScreenSurface.js'
 
 export default class ScreenManager {
@@ -39,6 +41,11 @@ export default class ScreenManager {
       onDebugModeChange,
     })
     this.controllerDisplay = new ControllerDisplay({ screen: bottomDisplay })
+    this.ndsBridge = new NDSScreenBridge(document.createElement('canvas'), document.createElement('canvas'))
+    this.ndsSurfaces = [
+      new NDSGameSurface(topScreen, { flipY: false, mirrorX: false, aspect: 1.4 }),
+      new NDSGameSurface(bottomDisplay, { flipY: true, mirrorX: true, aspect: 1 }),
+    ]
     this.applyMode()
     this.debugInit()
   }
@@ -110,10 +117,9 @@ export default class ScreenManager {
     }
 
     if (this.mode === 'playing') {
-      this.controllerDisplay.drawPlayingPlaceholder()
-      this.setScreenMaterial(topScreen, this.phoneSurface.topMaterial, true)
+      this.setScreenMaterial(topScreen, this.ndsSurfaces[0].material, true)
       this.setScreenMaterial(bottomScreen, this.phoneSurface.bottomMaterial, false)
-      this.setScreenMaterial(bottomDisplay, this.controllerDisplay.material, true)
+      this.setScreenMaterial(bottomDisplay, this.ndsSurfaces[1].material, true)
       this.setGameChangerProgress(1)
       return
     }
@@ -218,6 +224,20 @@ export default class ScreenManager {
     return this.controllerDisplay.getActionAtUv(uv)
   }
 
+  drawNDSFrame(pixels) {
+    this.ndsBridge.draw(pixels)
+    this.ndsSurfaces.forEach((surface, index) => surface.draw(this.ndsBridge.screens[index].canvas))
+  }
+
+  getNDSTouchAtUv(uv) {
+    if (this.mode !== 'playing') return null
+    return this.ndsSurfaces[1].getTouchAtUv(uv)
+  }
+
+  setGameInfo(info) {
+    this.controllerDisplay.setGameInfo(info)
+  }
+
   debugInit() {
     const folder = this.debug.ui.addFolder({ title: 'Game Changer Transition' })
     this.transitionProgressBinding = folder.addBinding(this.params, 'transitionProgress', {
@@ -260,6 +280,8 @@ export default class ScreenManager {
     })
     this.phoneSurface.destroy()
     this.controllerDisplay.destroy()
+    this.ndsSurfaces.forEach(surface => surface.destroy())
+    this.ndsBridge.destroy()
     this.offMaterials.forEach(material => material.dispose())
     this.offMaterials.clear()
   }

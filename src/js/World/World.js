@@ -1,4 +1,5 @@
 import Experience from '../Experience.js'
+import NDSPlayer from '../NDS/NDSPlayer.js'
 import CameraDirector from './Directors/CameraDirector.js'
 import IntroDirector from './Directors/IntroDirector.js'
 import Environment from './Environment/Environment.js'
@@ -22,6 +23,7 @@ export default class World {
     this.setScreenManager()
     this.setCameraDirector()
     this.setIntro()
+    this.setNDSPlayer()
     this.setInputRouter()
   }
 
@@ -83,7 +85,25 @@ export default class World {
       canvas: this.experience.canvas,
       interactionSurface: this.product.nodes.bottomDisplay,
       resolvePointerAction: uv => this.screenManager.getActionAtUv(uv),
-      onAction: action => this.handleAction(action),
+      resolvePointerTouch: uv => this.screenManager.getNDSTouchAtUv(uv),
+      onGameButtons: actions => this.ndsPlayer.setButtons(actions),
+      onGameTouch: point => this.ndsPlayer.touch(point),
+      onAction: (action, options) => this.handleAction(action, options),
+    })
+  }
+
+  setNDSPlayer() {
+    this.ndsPlayer = new NDSPlayer({
+      state: this.state,
+      events: this.events,
+      onFrame: pixels => this.screenManager.drawNDSFrame(pixels),
+      onGameInfo: info => this.screenManager.setGameInfo(info),
+      onEnter: () => {
+        this.intro.complete()
+        this.setProductMode('playing')
+      },
+      onExit: () => this.setProductMode('game-home'),
+      onFocus: () => this.experience.canvas.focus({ preventScroll: true }),
     })
   }
 
@@ -91,17 +111,18 @@ export default class World {
     if (this.state.productMode === mode) return
 
     this.state.setProductMode(mode)
+    this.ndsPlayer?.setMode(mode)
+    this.inputRouter?.setMode(mode)
     this.screenManager.setMode(mode)
     this.events.emit('product:mode', { mode })
   }
 
-  handleAction(action) {
+  handleAction(action, options) {
     if (action === 'continue' && this.state.productMode === 'game-home') {
-      this.intro.complete()
-      this.setProductMode('playing')
+      return this.ndsPlayer.play(null, options)
     }
-    else if (action === 'back' && this.state.productMode === 'playing') {
-      this.setProductMode('game-home')
+    else if (action === 'back' || action === 'suspend') {
+      this.ndsPlayer.back()
     }
   }
 
@@ -111,14 +132,17 @@ export default class World {
 
   update() {
     this.product.update()
+    this.inputRouter.update()
+    // Time.delta 是秒，模拟器使用毫秒；由 Experience 唯一循环驱动，不能另起 rAF。
+    this.ndsPlayer.update(this.experience.time.delta * 1000)
     this.screenManager.setProductAngle(this.product.productRig.params.productAngle)
     this.screenManager.update()
-    this.inputRouter.update()
     this.environment.update()
   }
 
   destroy() {
     this.inputRouter?.destroy()
+    this.ndsPlayer?.destroy()
     this.intro?.destroy()
     this.cameraDirector?.destroy()
     this.screenManager?.destroy()
