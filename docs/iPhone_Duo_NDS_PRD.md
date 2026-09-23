@@ -664,10 +664,11 @@ Playable Demo 优先考虑真正的 NDS 双屏内容，而不是 NES 单屏游�
 
 首选验证候选：
 
-- [Desmond](https://github.com/js-emulators/desmond)：可嵌入网页的 DeSmuME WebAssembly 封装，支持通过 Web Component 加载 `.nds`。
+- 2026-09-23 决定：优先验证 [pilas-melonds](https://github.com/josepilas/pilas-melonds) 现成 WASM 与浏览器桥接，目标为 i7-14700 + RTX 4060 桌面浏览器上的简短可玩演示。先在独立页面验证用户提供的本地 `.nds`，再接入 3D 屏幕。测试 ROM 不纳入生产构建。
 
 备选：
 
+- [Desmond](https://github.com/js-emulators/desmond)：原首选，可嵌入网页的 DeSmuME WebAssembly 封装。
 - [dust](https://github.com/kelpsyberry/dust)：Rust 编写、包含 Web 前端的 NDS 模拟器，许可为 GPL-3.0，现代但嵌入改造成本可能更高。
 - [EmulatorJS 的 Nintendo DS 支持](https://emulatorjs.org/docs/systems/nintendo-ds/)：可使用 melonDS Core，集成完整，但 UI 和内部输出管线可能需要较多裁剪。
 

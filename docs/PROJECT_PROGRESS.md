@@ -1,8 +1,8 @@
 # iPhone Duo WebGPU 项目进度
 
-> 最后更新：2026-09-22
-> 当前阶段：Phase 4 已完成；Phase 5 前进行材质与场景环境 LookDev
-> 当前状态：外壳、按键塑料、场景环境与展台已接入；HDR 环境贴图经实测否决；GTAO 已接入源码并通过构建，待 WebGPU 浏览器验收
+> 最后更新：2026-09-23
+> 当前阶段：Phase 4 与阶段前 LookDev 验收完成；Phase 5 独立 NDS 最小验证已实现
+> 当前状态：用户确认全部视觉待验收项通过；pilas-melonds 已在独立验证页启动本地 Platinum ROM 并显示标题页，主产品 3D 双屏桥接与连续游玩验收待完成
 
 ## 1. 进度摘要
 
@@ -34,7 +34,7 @@ Git 提交：本轮已执行
 | Phase 2 | BottomRig、HingePivot、折叠原型 | 已完成 | 折叠方向、阴影和 Lightmap 已完成视觉校准 |
 | Phase 3 | Controller Reveal / Assembly | 已完成 | 精密吸合时间线已通过用户视觉校验 |
 | Phase 4 | Intro、Camera Shot、Ready / Play | 已完成 | 用户已确认浏览器视觉校验完成；进入 Phase 5 前增加 Controller Shell 材质 LookDev |
-| Phase 5 | NDS 模拟器技术验证与双屏桥接 | 未开始 | 模拟器与 Homebrew 尚未选定 |
+| Phase 5 | NDS 模拟器技术验证与双屏桥接 | 进行中 | pilas-melonds 独立验证页已启动用户提供的 Platinum ROM；3D 桥接与连续游玩待完成 |
 | Phase 6 | Keyboard / Gamepad 与 3D 按键反馈 | 部分实现 | Continue 已支持 Enter / 标准 Gamepad A，Escape 可返回；通用游戏输入与 3D 按键反馈未实现 |
 | Phase 7 | 性能、兼容性、Loading 与视觉精修 | 未开始 | 最终视觉验收由用户完成 |
 
@@ -298,7 +298,7 @@ Bottom_Display_Plane
 - 三块屏幕 UV 均已确认覆盖完整 `0–1`。
 - `ScreenManager` 已实现 Phone Mode、Controller 装配、Game Home 与 Playing 的三屏材质和可见性规则。
 - Screen Wake 与 Phone UI 已接入 `docs/img/主页面.png`，不再沿用 GLB 原始屏幕材质。
-- `NDSRuntime` 和真实 NDS 上下屏 Canvas 尚未接入，Playing 明确使用占位内容。
+- `NDSRuntime` 和真实 NDS 上下屏 Canvas 已在 `/nds-test.html` 独立接入；主产品 Playing 仍使用占位内容，待完成 3D 桥接。
 - 屏幕宽高比差异后续统一在运行时使用 fit、letterbox 或 crop 处理；触控输入尚未实现。
 - Phase 4 和 Controller Shell 效果已由用户确认；新增按键清漆材质需独立 LookDev 验收。
 
@@ -327,9 +327,12 @@ Bottom_Display_Plane
 
 ## 8. 下一步
 
-Phase 5 前下一步：
+2026-09-23 用户确认：此前全部待验收项目通过。上文待验收描述保留为当时的验证记录，以本次确认及文档顶部状态为准。
 
-1. 在最新版支持 WebGPU 的浏览器中验收展台构图、接触阴影，以及 ABXY / DPad 清漆高光与磨砂外壳的质感对比。
-2. 验收已接入的 GTAO：先关闭外壳 Lightmap 调节 AO，再开启复核孔沿叠黑；检查全流程、Replay / Skip、窗口与 DPR 变化，并记录开关前后帧耗时。此轮尚未完成 GPU 运行及视觉验收。
-3. 在 Phase 5 接入 `NDSRuntime` 与真实 NDS 上下屏 Canvas，替换 Playing 占位内容。
-4. 后续补充触控与通用游戏输入；3D 按键反馈仍按阻尼弹簧路线实现。
+Phase 5 下一步：
+
+1. 打开 `/nds-test.html`，在用户的 i7-14700 + RTX 4060 上连续游玩本地测试 ROM，确认声音、输入及运行速度。独立页已完成键盘、下屏触控、音频初始化和暂停 / 恢复的自动化短测。
+2. 将已封装的 `NDSRuntime` 与 `NDSScreenBridge` 接入现有 Playing 模式，把真实上下屏映射到 Top Screen / Controller Display，并测量与 3D 场景同时运行的性能。
+3. 补充 IndexedDB 存档、Gamepad 与 3D 下屏触控映射；3D 按键反馈仍按阻尼弹簧路线实现。
+
+本轮实现、测试结果和使用方法见 `docs/NDS_Integration_Spike.md`。固定上游版本为 `7adc554ce1dc5318fef3797e8f00a6e9286dac3b`；ROM 仅本地验证，不进入生产构建。

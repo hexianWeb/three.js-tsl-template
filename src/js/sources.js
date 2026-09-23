@@ -1,6 +1,16 @@
 import phoneHomeUrl from '../../docs/img/主页面.png?url'
 import gameHomeUrl from '../../docs/img/游戏模式主页面.png?url'
 
+// Spike 资源按需加载，不进入产品首屏的 Resources.load()。
+export const ndsSources = {
+  core: '/vendor/pilas-melonds/pilas-melonds-core.js',
+  wasm: '/vendor/pilas-melonds/pilas-melonds-core.wasm',
+  audioWorklet: '/vendor/pilas-melonds/audio-worklet.js',
+  testRom: import.meta.env.DEV
+    ? '/nds/Pokemon%20-%20Platinum%20Version%20(USA)%20(Rev%201).nds'
+    : null,
+}
+
 export default [
   {
     name: 'iphoneModel',

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NDS / Runtime Lab — iPhone Duo</title>
+    <link rel="stylesheet" href="/nds-test.css">
+  </head>
+  <body>
+    <main>
+      <header><a href="/">IPHONE DUO</a><span>ENGINEERING / 005</span></header>
+      <section class="intro">
+        <p class="eyebrow">PHASE 5 · RUNTIME PROOF</p>
+        <h1>Two screens.<br>One real game.</h1>
+        <p>melonDS / WASM 最小接入验证。先确认游戏运行，再接入产品双屏。</p>
+      </section>
+      <div class="lab">
+        <section class="device" aria-label="NDS 双屏输出">
+          <div class="screen-label"><span>01 / TOP</span><span>256 × 192</span></div>
+          <canvas id="top-screen" aria-label="NDS 上屏"></canvas>
+          <div class="hinge"><span></span><span></span></div>
+          <canvas id="bottom-screen" tabindex="0" aria-label="NDS 下屏，可用鼠标或触摸操作"></canvas>
+          <div class="screen-label"><span>02 / TOUCH</span><span>256 × 192</span></div>
+        </section>
+        <aside>
+          <section class="panel">
+            <h2><span class="dot"></span>运行控制</h2>
+            <p id="status" role="status" aria-live="polite">等待载入测试游戏</p>
+            <button id="load-default" class="primary">载入 public/nds 测试游戏 ↗</button>
+            <label class="file-label" for="rom-file">或选择本地 .nds 文件<input id="rom-file" type="file" accept=".nds,.srl"></label>
+            <div class="buttons">
+              <button id="pause" disabled>暂停</button>
+              <button id="audio" disabled>启用声音</button>
+            </div>
+            <p id="audio-status" class="note">载入后点击「启用声音」，由用户操作解锁音频。</p>
+          </section>
+          <section class="panel">
+            <h2>实时测量 <small>EMULATOR / NOT DISPLAY</small></h2>
+            <dl class="metrics">
+              <div><dt>模拟速度</dt><dd><output id="speed">—</output><small>%</small></dd></div>
+              <div><dt>模拟帧率</dt><dd><output id="fps">—</output><small>fps</small></dd></div>
+              <div><dt>核心单帧均耗时</dt><dd><output id="frame-ms">—</output><small>ms</small></dd></div>
+              <div><dt>WASM 已分配内存</dt><dd><output id="heap">—</output><small>MiB</small></dd></div>
+            </dl>
+            <p id="load-time" class="note">目标约 59.83 fps / 100% 速度。内存读数不含浏览器与 ROM 下载缓冲。</p>
+          </section>
+          <section class="panel controls">
+            <h2>输入映射</h2>
+            <p><kbd>↑ ↓ ← →</kbd><span>方向</span></p>
+            <p><kbd>X / Z</kbd><span>A / B</span></p>
+            <p><kbd>S / A</kbd><span>X / Y</span></p>
+            <p><kbd>Q / W</kbd><span>L / R</span></p>
+            <p><kbd>Enter / Shift</kbd><span>Start / Select</span></p>
+            <p><kbd>Esc</kbd><span>暂停 / 继续</span></p>
+            <p class="note">下屏支持点击与拖动。切换窗口自动暂停，点击「继续」恢复。当前验证页为单次会话，刷新不保留游戏存档。</p>
+          </section>
+        </aside>
+      </div>
+      <footer><span>LOCAL RUNTIME LAB · DESKTOP FIRST</span><a href="/vendor/pilas-melonds/NOTICE.md">pilas-melonds · 7adc554 · MPL-2.0</a></footer>
+    </main>
+    <script type="module" src="/js/NDS/NDSTestPage.js"></script>
+  </body>
+</html>
