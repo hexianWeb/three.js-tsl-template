@@ -465,7 +465,7 @@ DUO_NDS_ROOT
 
 当前下一步：
 
-> Camera Shot、Fold / Screen Wake、Game Changer 与最小 Ready / Play 交互已接入；下一步完成 WebGPU 浏览器视觉验收并进入 NDS 技术验证。
+> Phase 4 与 LookDev 已通过用户验收；pilas-melonds 已接入独立验证页与主产品真实 3D 双屏，键盘、标准 Gamepad、3D 触控与暂停恢复已实现。下一步完成连续游玩验收，再按演示需要补充持久存档与 3D 按键反馈。
 
 ---
 
@@ -702,6 +702,8 @@ NDSScreenBridge
 
 三块屏幕 UV 已确认覆盖完整 `0–1`。`NDSScreenBridge` 或 `ScreenManager` 必须按目标显示面的宽高比执行 fit、letterbox 或 crop；不得为填满显示面而非等比拉伸画面或扭曲 UV。
 
+当前 Playing 映射固定为上屏 `1.4:1`、下屏 `1:1`。NDS 的 4:3 主画面保持等比清晰显示；剩余区域不使用纯黑硬切，而是由同一帧按整数倍最近邻 cover 成离散像素并略微压暗。该延展只承担视觉填充，触控仍限定在清晰主画面范围。
+
 ### 21.4 开源游戏选择原则
 
 优先使用：
@@ -811,9 +813,9 @@ App
 
 ### 待技术验证
 
-- 最终采用 Desmond、dust 或其他 NDS Web 模拟方案。
+- pilas-melonds 在目标设备上的连续游玩表现，以及预编译产物与完整 C++ 源码的对应关系。
 - 选定 Homebrew 游戏及其完整许可证链路。
-- 模拟器上下屏帧缓冲的具体获取方式。
+- 已实现的双屏 Canvas → 3D letterbox 桥接在最终构图中的视觉确认。
 - NDS 音频、存档和 ROM 加载在目标浏览器中的兼容性。
 - WebGPU 渲染循环与模拟器 Canvas 更新频率的性能预算。
 
@@ -880,6 +882,8 @@ App
 完成条件：Intro 可重复播放、可跳过，状态切换无竞态。
 
 ### Phase 5 — NDS 技术验证
+
+当前状态（2026-09-23）：独立页与主产品已接入 pilas-melonds，真实 3D 双屏、语义输入、下屏触控及异步启动取消已通过自动化短测。十分钟连续游玩、听感和最终 WebGPU 视觉仍待用户验收，详见 `NDS_Integration_Spike.md`。
 
 目标：先证明模拟器能够作为纹理源，再决定正式依赖。
 

@@ -1,8 +1,8 @@
 # iPhone Duo WebGPU 项目进度
 
 > 最后更新：2026-09-23
-> 当前阶段：Phase 4 与阶段前 LookDev 验收完成；Phase 5 独立 NDS 最小验证已实现
-> 当前状态：用户确认全部视觉待验收项通过；pilas-melonds 已在独立验证页启动本地 Platinum ROM 并显示标题页，主产品 3D 双屏桥接与连续游玩验收待完成
+> 当前阶段：Phase 5 已接入主产品 3D 双屏；Phase 6 游戏输入已接入，按键反馈待实现
+> 当前状态：已在 WebGPU 主场景显示本地 Platinum ROM 的真实双屏，Continue / 返回 / Replay、键盘、标准 Gamepad 与 3D 下屏触控已接入并通过自动化短测；连续游玩、听感及最终视觉待用户验收
 
 ## 1. 进度摘要
 
@@ -34,8 +34,8 @@ Git 提交：本轮已执行
 | Phase 2 | BottomRig、HingePivot、折叠原型 | 已完成 | 折叠方向、阴影和 Lightmap 已完成视觉校准 |
 | Phase 3 | Controller Reveal / Assembly | 已完成 | 精密吸合时间线已通过用户视觉校验 |
 | Phase 4 | Intro、Camera Shot、Ready / Play | 已完成 | 用户已确认浏览器视觉校验完成；进入 Phase 5 前增加 Controller Shell 材质 LookDev |
-| Phase 5 | NDS 模拟器技术验证与双屏桥接 | 进行中 | pilas-melonds 独立验证页已启动用户提供的 Platinum ROM；3D 桥接与连续游玩待完成 |
-| Phase 6 | Keyboard / Gamepad 与 3D 按键反馈 | 部分实现 | Continue 已支持 Enter / 标准 Gamepad A，Escape 可返回；通用游戏输入与 3D 按键反馈未实现 |
+| Phase 5 | NDS 模拟器技术验证与双屏桥接 | 进行中 | 独立页及主产品 3D 双屏桥接已实现；连续十分钟游玩与音画同步待用户验收 |
+| Phase 6 | Keyboard / Gamepad 与 3D 按键反馈 | 部分实现 | 键盘、标准 Gamepad、3D 下屏触控与输入释放已接入；3D 按键弹簧反馈未实现 |
 | Phase 7 | 性能、兼容性、Loading 与视觉精修 | 未开始 | 最终视觉验收由用户完成 |
 
 ## 3. 已完成内容
@@ -184,7 +184,7 @@ Bottom_Display_Plane
 
 - `ScreenManager` 只协调 `phone`、`attaching`、`game-home`、`playing` 模式、三屏可见性和 Game Changer Timeline。
 - `PhoneScreenSurface` 管理 Phone / Top Game 纹理、Node Material、Fold TSL 参数和 GPU 资源；`ControllerDisplay` 管理 Controller Canvas、显示材质、Continue 命中与按需纹理上传。
-- Controller Game Home 使用参考图视觉语言重绘的运行时 `CanvasTexture`，Alto's Odyssey 卡片提供唯一真实 UI 动作 Continue；Playing 显示明确占位内容，不伪装为已接入 NDS 模拟器。
+- Controller Game Home 使用运行时 `CanvasTexture`；原 Alto's Odyssey 占位卡片已改为 NDS / 实际载入文件名称，Continue 进入真实 NDS Playing。
 - Pointer 通过 Three.js Raycaster 命中 `Bottom_Display_Plane`，读取交点 UV 并命中测试 Continue 区域。
 - Continue 的 Pointer、Enter 与标准 Gamepad button 0 / A 均路由到同一语义 Action；Escape 从 Playing 返回 Game Home。
 - Phone Mode 与 Controller 装配、Game Changer 转场阶段不响应产品导航动作；只有转场完成进入 Game Home 后才激活 Continue。
@@ -217,6 +217,16 @@ Bottom_Display_Plane
 - 预通道排除透明对象；默认半分辨率 AO、16 samples、radius 0.12、thickness 0.08、strength 1，全分辨率边缘保持降噪。不启用时间累积，避免引入历史帧拖影。
 - `GTAO` 面板提供完全旁路开关、Scene / Raw AO / Denoised AO 预览及采样、分辨率、半径、厚度、强度和降噪半径。正常输出仅执行一次色调映射 / 色彩转换。
 - `npm run build` 通过（53 modules），`git diff --check` 通过；CPU 检查覆盖目标尺寸、分辨率切换、旁路、预览、uniform 与目标释放。GPU 编译、视觉、帧耗时仍待浏览器验收。
+
+### 3.15 NDS 3D 双屏与游戏输入
+
+- `World` 持有 `NDSPlayer`，后者管理 `NDSRuntime`、音频、加载状态与 `NDSControls`。由 Experience 的唯一渲染循环驱动，`Time.delta` 从秒换算为毫秒传给模拟器。
+- WASM 与 ROM 仅在首次 Continue 时加载；开发环境可使用预置测试 ROM，生产构建使用本地文件选择器。加载失败可见，取消、Replay、模式切换和销毁会使旧异步启动失效。
+- `ScreenManager` 持有 `NDSScreenBridge` 和两块 `NDSGameSurface`，将真实帧映射到 `Top_Screen_Plane` / `Bottom_Display_Plane`，Playing 隐藏 `Bottom_Screen_Plane`。
+- NDS 显示映射明确使用上屏 `1.4:1`、下屏 `1:1`。4:3 主画面保持清晰等比显示；空余区域以当前帧的整数倍最近邻像素 cover 铺满并略微压暗，取代低分辨率模糊和纯黑硬切。模型 UV 物理比例推导保留为诊断回退；触控复用同一纹理矩阵并只响应清晰主画面区域。
+- 键盘、标准 Gamepad 和 3D 下屏 Pointer 输入经 `InputRouter` 转成语义动作；NDS 键码仅在 Runtime 内部转换。Continue 的 Enter / 手柄按键不会穿透成游戏输入。
+- Escape、返回按钮和窗口失焦/隐藏暂停并返回 Game Home，释放按键/触控；再次 Continue 恢复同一会话。Playing 禁止 OrbitControls 抢占下屏拖动。
+- Chrome headless 合并负载短测观察到模拟与场景均约 60 fps、模拟速度约 100%、核心约 5.35 ms/帧（单次采样），WASM 约 309 MiB；默认 GTAO 开启。完整验证记录见 `NDS_Integration_Spike.md`。
 
 ## 4. 验证记录
 
@@ -290,16 +300,16 @@ Bottom_Display_Plane
 - 最终 Hero / Play Camera 参数。
 - 外部展台模型是否替换当前程序化桌板占位。
 - 若清漆高光在验收中显得单薄，是否引入低强度 `RectAreaLight`（取消 HDR 后这是唯一能造出面光源高光的路径）。
-- NDS 模拟器与 Homebrew ROM 选型。
-- NDS 上下屏 Canvas 输出的具体获取方式。
+- 最终可公开演示的 Homebrew ROM 选型；当前使用用户提供的本地 Platinum ROM 做技术验证。
+- pilas-melonds 预编译产物与完整 C++ 构建源码的对应关系。
 
 ### 已确认、后续实现
 
 - 三块屏幕 UV 均已确认覆盖完整 `0–1`。
 - `ScreenManager` 已实现 Phone Mode、Controller 装配、Game Home 与 Playing 的三屏材质和可见性规则。
 - Screen Wake 与 Phone UI 已接入 `docs/img/主页面.png`，不再沿用 GLB 原始屏幕材质。
-- `NDSRuntime` 和真实 NDS 上下屏 Canvas 已在 `/nds-test.html` 独立接入；主产品 Playing 仍使用占位内容，待完成 3D 桥接。
-- 屏幕宽高比差异后续统一在运行时使用 fit、letterbox 或 crop 处理；触控输入尚未实现。
+- `NDSRuntime` 已同时接入独立验证页与主产品 Playing；两块真实 NDS Canvas 已绑定到 3D 屏幕。
+- 运行时已使用等比 letterbox 适配屏幕，并接入对应的 3D 触控坐标换算。
 - Phase 4 和 Controller Shell 效果已由用户确认；新增按键清漆材质需独立 LookDev 验收。
 
 ## 7. 当前工作区状态
@@ -331,8 +341,8 @@ Bottom_Display_Plane
 
 Phase 5 下一步：
 
-1. 打开 `/nds-test.html`，在用户的 i7-14700 + RTX 4060 上连续游玩本地测试 ROM，确认声音、输入及运行速度。独立页已完成键盘、下屏触控、音频初始化和暂停 / 恢复的自动化短测。
-2. 将已封装的 `NDSRuntime` 与 `NDSScreenBridge` 接入现有 Playing 模式，把真实上下屏映射到 Top Screen / Controller Display，并测量与 3D 场景同时运行的性能。
-3. 补充 IndexedDB 存档、Gamepad 与 3D 下屏触控映射；3D 按键反馈仍按阻尼弹簧路线实现。
+1. 在首页完成 Intro 后 Continue，连续游玩十分钟，确认 3D 屏幕朝向、构图、触控与音画同步。保留 `/nds-test.html` 作为独立负载对照页。
+2. 在真实标准 Gamepad 上确认物理布局；已用浏览器模拟 Gamepad 检查映射、断开与导航输入隔离。
+3. 按演示需求补充 IndexedDB 存档与 3D 按键反馈；反馈仍按阻尼弹簧路线实现。
 
 本轮实现、测试结果和使用方法见 `docs/NDS_Integration_Spike.md`。固定上游版本为 `7adc554ce1dc5318fef3797e8f00a6e9286dac3b`；ROM 仅本地验证，不进入生产构建。
