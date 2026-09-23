@@ -47,7 +47,8 @@ export default class NDSControls {
 
   render({ mode, status, message, loading, loaded, audioEnabled, audioBusy, audioMessage }) {
     this.playing = mode === 'playing'
-    this.element.hidden = mode !== 'game-home' && !this.playing
+    // 文件选择器仍要留在文档里，供 3D 界面程序化打开；面板本身不再占页面左下角。
+    this.element.hidden = true
     this.element.dataset.state = status
     this.fields.mode.textContent = this.playing ? 'PLAYING' : 'GAME HOME'
     this.fields.status.textContent = message
