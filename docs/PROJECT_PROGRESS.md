@@ -180,7 +180,8 @@ Bottom_Display_Plane
 - 新增 `CameraDirector`，监听 `intro:state` 驱动 Folded、Assembly、Hero，并监听 `product:mode` 驱动 Game Home / Playing 的 Hero、Play 镜头。
 - Folded 立即落位；Unfold 与 Assembly 镜头并行过渡；Hero 与 Ready 共用 Hero 镜头；Play 使用独立镜头。
 - 镜头 Timeline 同步动画 Camera Position、OrbitControls Target 与 FOV，过渡期间禁用手动 Orbit。
-- Tweakpane 支持单镜头预览、临时开启 OrbitControls 取景，以及将当前 Position、Target、FOV 回写到镜头参数。
+- Tweakpane 支持单镜头预览、临时开启自由 OrbitControls 取景，以及将当前 Position、Target、FOV 回写到镜头参数。
+- Game Home 与 Playing 在镜头落位后开放小范围 Orbit：默认方位 ±16°、极角 ±10°、距离 ±10%，禁止平移。锚点取自镜头本身，松手不会把范围向外扩。拖动上下屏时暂停旋转，把指针留给点击和 NDS 触控。
 
 ### 3.12 ScreenManager 与 InputRouter
 
@@ -227,12 +228,13 @@ Bottom_Display_Plane
 - `ScreenManager` 持有 `NDSScreenBridge` 和两块 `NDSGameSurface`，将真实帧映射到 `Top_Screen_Plane` / `Bottom_Display_Plane`，Playing 隐藏 `Bottom_Screen_Plane`。
 - NDS 显示映射明确使用上屏 `1.4:1`、下屏 `1:1`。4:3 主画面保持清晰等比显示；空余区域以当前帧的整数倍最近邻像素 cover 铺满并略微压暗，取代低分辨率模糊和纯黑硬切。模型 UV 物理比例推导保留为诊断回退；触控复用同一纹理矩阵并只响应清晰主画面区域。
 - 键盘、标准 Gamepad 和 3D 下屏 Pointer 输入经 `InputRouter` 转成语义动作；NDS 键码仅在 Runtime 内部转换。Continue 的 Enter / 手柄按键不会穿透成游戏输入。
-- Escape、返回按钮和窗口失焦/隐藏暂停并返回 Game Home，释放按键/触控；再次 Continue 恢复同一会话。Playing 禁止 OrbitControls 抢占下屏拖动。
+- Escape、返回按钮和窗口失焦/隐藏暂停并返回 Game Home，释放按键/触控；再次 Continue 恢复同一会话。拖动上下屏时 Orbit 让路，空白处和机身仍可在小范围内环视。
+- NDS DOM 控制面板保持隐藏。Continue、返回和声音仍走 3D Game Home 与用户激活；隐藏节点只负责程序化打开本地 ROM 选择器。
 - Chrome headless 合并负载短测观察到模拟与场景均约 60 fps、模拟速度约 100%、核心约 5.35 ms/帧（单次采样），WASM 约 309 MiB；默认 GTAO 开启。完整验证记录见 `NDS_Integration_Spike.md`。
 
 ### 3.16 Controller 3D 按键反馈与点击音
 
-- 新增 `World/Product/ControllerFeedback.js`：`InputRouter.onGameButtons` 的同一组语义 Action 同时送入 NDS 与 3D 反馈，同一帧生效；失焦、模式切换、手柄断开时的清空也会同步让按键回弹。
+- 新增 `World/Product/ControllerFeedback.js`：`InputRouter.onGameButtons` 的同一组语义 Action 驱动 3D 反馈。Controller 锁上进入 Game Home 后键盘和手柄就会压按键；NDS 只在 Playing 接收这些 Action。失焦、模式切换、手柄断开时的清空也会同步让按键回弹。
 - 按压轴取每个按键最薄的局部轴（当前 GLB 为 Y），并令其指向 `Controller_Shell` 中心；行程为按键厚度的比例（默认 `0.22`）。D-Pad 的上 / 右由 ABXY 菱形位置推导（X 在上、A 在右），倾斜轴为面外法线 × 方向，未硬编码世界轴；斜向按住保持单方向最大倾角（默认 `5°`）。
 - 弹簧按 PRD 28.5 的指数阻尼形式，以 `1/240 s` 固定子步积分；按下与松开分别使用刚度 `3200` / `900`，阻尼比 `0.45`。按到底是硬限位（约 42 ms，无穿模），松开约 79 ms 回位并越过静止位约 19% 行程形成回弹。
 - 新增 `World/Product/ButtonClickSound.js`：独立 AudioContext，以带通噪声 + 下滑三角波实时合成，无音频素材；按下 / 松开、面键 / D-Pad / Start·Select·L·R 音色不同，每次 ±5% 随机音高。声音跟随输入边沿，不等弹簧触底。手柄输入缺少用户激活且 AudioContext 未运行时直接丢弃该声，避免之后集中爆发。
