@@ -17,7 +17,7 @@ export default class Stage {
       width: 40,
       depth: 20,
       wallRadius: 3,
-      wallHeight: 10,
+      wallHeight: 16,
       tint: '#d8d5cf',
       roughness: 0.85,
       normalScale: 0.22,

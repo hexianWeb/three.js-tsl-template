@@ -25,6 +25,7 @@ export default class Environment {
       shadowRadius: 10.0,
       shadowBias: 0,
       shadowNormalBias: 0.006,
+      fitExhibitionShadow: true,
       showKeyLightHelper: true,
     }
 
@@ -60,6 +61,11 @@ export default class Environment {
     this.applyShadowSettings()
   }
 
+  setShadowBounds(bounds) {
+    this.shadowBounds = bounds.clone()
+    this.applyShadowSettings()
+  }
+
   applyShadowSettings() {
     const { shadow } = this.keyLight
     const camera = shadow.camera
@@ -74,6 +80,31 @@ export default class Environment {
     camera.bottom = -extent
     camera.near = Math.max(0.1, distance - this.params.shadowDepth)
     camera.far = distance + this.params.shadowDepth
+    if (this.params.fitExhibitionShadow && this.shadowBounds) {
+      // 在灯光视空间包围展品及其落到地面的投影，保持用户的灯位/方向，
+      // 只扩大必要的投影边界；2048² 贴图与原有主机覆盖范围保持不变。
+      camera.position.copy(this.keyLight.position)
+      camera.lookAt(this.keyLight.target.position)
+      camera.updateMatrixWorld(true)
+      const bounds = this.shadowBounds
+      const lightBounds = new THREE.Box3()
+      const point = new THREE.Vector3()
+      const direction = this.keyLight.target.position.clone().sub(this.keyLight.position).normalize()
+      for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) {
+        point.set(x, y, z)
+        lightBounds.expandByPoint(point.clone().applyMatrix4(camera.matrixWorldInverse))
+        if (direction.y < -0.01) {
+          point.addScaledVector(direction, (bounds.min.y - y) / direction.y)
+          lightBounds.expandByPoint(point.applyMatrix4(camera.matrixWorldInverse))
+        }
+      }
+      camera.left = Math.min(camera.left, lightBounds.min.x)
+      camera.right = Math.max(camera.right, lightBounds.max.x)
+      camera.bottom = Math.min(camera.bottom, lightBounds.min.y)
+      camera.top = Math.max(camera.top, lightBounds.max.y)
+      camera.near = Math.max(0.1, Math.min(camera.near, -lightBounds.max.z))
+      camera.far = Math.max(camera.far, -lightBounds.min.z)
+    }
     camera.updateProjectionMatrix()
 
     // PCFShadowMap 的软边由 radius 控制，单位是阴影贴图像素；1 接近硬边。
@@ -126,6 +157,8 @@ export default class Environment {
     }).on('change', ({ value }) => { this.keyLightHelper.visible = value })
 
     const shadows = this.folder.addFolder({ title: 'Key shadow' })
+    shadows.addBinding(this.params, 'fitExhibitionShadow', { label: 'Fit exhibition' })
+      .on('change', () => this.applyShadowSettings())
     shadows.addBinding(this.params, 'shadowExtent', {
       label: 'Extent',
       min: 1,
