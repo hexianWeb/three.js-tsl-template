@@ -1092,6 +1092,8 @@ value += velocity * dt
 
 详细实施计划、取舍过程与验收清单在 `docs/Scene_Lighting_Stage_Plan.md`。本节只固化对其它模块有约束力的产品决定。
 
+2026-09-24 新增场景细节提案见 [Scene_Detail_Implementation_Plan.md](Scene_Detail_Implementation_Plan.md)：拟将大地面与产品小底座分层，增加左右配件展示及环境细节。该文档目前为待实施方案；本节现有展台描述仍记录已实现基线。
+
 ### 29.1 照明方案
 
 场景采用三盏实时灯，**不使用 HDR 环境贴图**：
