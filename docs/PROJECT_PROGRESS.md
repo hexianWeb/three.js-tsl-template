@@ -271,6 +271,7 @@ Bottom_Display_Plane
 - 新增 `ExhibitProps`：前左侧实体铭牌、前右侧原创卡带；两张静态标签、自有几何/材质和 Tweakpane 面板进入 Exhibition 销毁路径。
 - 两件道具位于底座外并跟随地面高度，避开装配与 Hero 立起路径；窄屏隐藏卡带、保留铭牌。
 - 背景墙补高至 16，展区阴影按布局自动扩展，沿用用户灯位、灯强、曝光、网格与光环参数。
+- Parts 竖板接入 ektogamat WebGPU transmission 玻璃：`GlassPhysicalNodeMaterial` + Renderer 持有的 `TransmissionBackdrop` 离屏背景；已修复与 GLB 镜头内建透射共享视口纹理冲突的 WebGPU 校验错误。上游无 LICENSE，发布前需授权；玻璃视觉待用户验收。
 - 构建（76 modules）、241 个装配与 121 个立起采样、Orbit 屏幕九点遮挡、接地、阴影覆盖、Replay / Skip、纹理静态更新及资源释放检查通过。
 - 当前用户扩大后的 Orbit 最近距离会裁切部分机身，既有展组 AABB 与底座有交叠，已单独记录；不声称旧 S1 的全范围不裁切/灰盒互斥结论继续成立。详见场景细节实施方案第 14 节。
 

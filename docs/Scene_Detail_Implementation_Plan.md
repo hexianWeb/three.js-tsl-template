@@ -444,6 +444,7 @@ S1 固定提交为 `39511cb`（`feat: 完成 S1 展台空间与布局校准`）�
 
 ### 14.2 调参入口
 
+- 用户追加玻璃竖板：Parts 接入 ektogamat/webgpu-mesh-transmission-material（固定 commit `847a68c`，上游 TSL 原样保存在 `src/js/Materials/Transmission/upstream/`）。`GlassPhysicalNodeMaterial` 默认 transmission 0.88、roughness 0.12、IOR 1.45、厚度 0.025、dispersion 0.5、blur 0.12、4 samples；`Core/TransmissionBackdrop` 由 Renderer 持有，每帧以 0.75 分辨率离屏捕获不含玻璃、纸签与样件的干净背景，可选背面通道。捕获时隐藏 Three 内建透射网格（`iphone.glb` 的镜头 `glass`），避免共享视口纹理同帧两种尺寸重建导致 WebGPU "Destroyed texture" 校验错误。原整面标签改为透明底加局部暖白纸签，保持已加粗字体。`Parts Display / S2 → WebGPU transmission` 提供光学参数、采样数、背景分辨率与背面通道。上游仓库在该 commit 无 LICENSE，发布前需取得作者授权。程序化盆栽已按用户要求删除，后续使用用户自选模型。
 - `Exhibit Props / S3`：铭牌/卡带开关、各自 X / Z / Yaw；X / Z 分别以产品 W / D 为单位，相对底座中心。
 - `Environment → Key shadow → Fit exhibition`：展区阴影覆盖；原 Extent / Depth range 仍作为最低覆盖范围。
 - `Stage / Cyclorama → Continuous backdrop`：背景墙高、宽、深与弧半径。

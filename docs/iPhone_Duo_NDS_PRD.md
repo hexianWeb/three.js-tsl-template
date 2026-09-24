@@ -1133,6 +1133,7 @@ Renderer 保持 ACES 与用户校准曝光 0.84。主光投 2048² 阴影，固�
 
 ### 29.4 零件展示与配色 Dock
 
+- 用户要求将 Parts 竖板改为半透明玻璃：使用接入 ektogamat/webgpu-mesh-transmission-material 的 Physical Node 透射材质，折射源为 Renderer 持有的离屏干净背景（不走 Three 内建视口拷贝），底脚仍为实体材质；标签仅纸签区域不透明，其余画布镂空。玻璃不投不透明矩形阴影，并从 GTAO 透明对象预通道排除。
 - 左展板使用当前模型已识别的完整外壳、D-Pad 与 ABXY；右 Dock 使用三套悬浮横握 Controller 主题样品（独立外壳、ABXY、D-Pad 配色），沿用用户最新布局。
 - 展品面内右/上由静止 ABXY 布局推导；GLB 节点名称仍集中在 ModelAdapter，展示模块仅接收语义化几何/矩阵/颜色快照。
 - 共享 Geometry 只读，展示材质和 uniform 独立；主机装配、可见性和按键动作不驱动展示副本，展示件不进入屏幕命中列表。
