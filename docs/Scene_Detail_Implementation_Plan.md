@@ -389,8 +389,8 @@ S1 固定提交为 `39511cb`（`feat: 完成 S1 展台空间与布局校准`）�
 
 - `PartsDisplay`：完整 `Controller_Shell`、D-Pad 与按原菱形排列的 ABXY，共六个真实零件 Mesh；保留实体背板与底脚。
 - 左侧标签：`01 / COMPONENT STUDY`、`Controller Shell`、`D-Pad`、`Button Caps` 与 `3D Printed`。没有标注未确认的打印材料、独立上下壳或滑轨。
-- `ColorDock`：三件竖放的真实外壳样品，蓝色取主机初始化色，暖白 `#d9d7d0`、石墨 `#272c32`；每件有独立承托面。
-- Dock 标签：`Color Studies`、三枚对应色点及颜色名称，调整样件颜色会同步更新色点。
+- `ColorDock`：三套横握朝向（D-Pad 左、ABXY 右）、悬浮于承托面上方并错相位缓慢起伏摇摆的完整 Controller 主题样品（外壳 + ABXY + D-Pad，按键保持 GLB 安装相对位置）。Classic 取主机初始外壳色与 GLB 按键色；Retro 为暖白 `#d9d7d0` 外壳、紫 `#6c4f9e` ABXY、深灰 `#34373c` D-Pad；Midnight 为石墨 `#272c32` 外壳、橙 `#e8743b` ABXY、银灰 `#aab2ba` D-Pad。每件有独立承托面。
+- Dock 标签：`Controller Themes`，每个主题三枚色点（外壳 / ABXY / D-Pad）及主题名，调整主题颜色会同步更新色点。
 - 左板与 Dock 各使用一张受光照的静态 CanvasTexture，尺寸为 1024×1041 和 1024×128；仅内容变化时上传。
 
 本阶段复用当前 `/iphone.glb`，没有加载额外模型或贴图。S3 的产品铭牌和卡带尚未加入。
@@ -410,7 +410,7 @@ S1 固定提交为 `39511cb`（`feat: 完成 S1 展台空间与布局校准`）�
 |---|---|
 | `Exhibition` → `Display layout` | 用户确认的左右布局、朝向和比例；整体显隐及窄屏策略 |
 | `Parts Display / S2` | 背板颜色、展示外壳颜色、粗糙度和微颗粒强度 |
-| `Color Dock / S2` | 蓝/暖白/石墨样件颜色、统一样件粗糙度和微颗粒强度 |
+| `Controller Themes / S2` | Classic / Retro / Midnight 各自的外壳、ABXY、D-Pad 颜色，统一外壳粗糙度和微颗粒强度 |
 | `Controller Shell Plastic` | 仍只控制主机外壳 |
 
 第 12 节中的 `Exhibition / S1` 面板在 S2 更名为 `Exhibition`。用户确认的左右布局参数保持不变，较窄横屏下仍允许展板边缘部分出画。

@@ -70,7 +70,7 @@ export default class PartsDisplay {
       this.boardMaterial.color.set(value)
       this.drawLabels()
     })
-    this.folder.addBinding(this.params, 'shellColor').on('change', ({ value }) => this.shell.setColor(value))
+    this.folder.addBinding(this.params, 'shellColor').on('change', ({ value }) => this.shell.setColors({ shell: value }))
     for (const [key, min, max] of [['roughness', 0.2, 0.8], ['bumpStrength', 0, 0.3]]) {
       this.folder.addBinding(this.params, key, { min, max, step: 0.01 }).on('change', () => this.shell.setFinish(this.params))
     }

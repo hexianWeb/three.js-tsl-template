@@ -221,10 +221,11 @@ export default class ModelAdapter {
     const frame = new THREE.Matrix4().makeBasis(right, up, normal)
     frame.setPosition(centerOf(this.nodes.controllerShell))
     const inverseFrame = frame.clone().invert()
-    const describe = (mesh) => {
+    const describe = (mesh, part) => {
       const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
       return {
         name: mesh.name,
+        part,
         geometry: mesh.geometry,
         // 保留完整仿射矩阵；副本的矩阵与 GLB 节点脱钩，非均匀缩放也无需分解成不准确的 TRS。
         matrix: inverseFrame.clone().multiply(mesh.matrixWorld),
@@ -232,8 +233,8 @@ export default class ModelAdapter {
       }
     }
     return {
-      shell: describe(this.nodes.controllerShell),
-      buttons: Object.fromEntries(Object.entries(this.buttons).map(([key, mesh]) => [key, describe(mesh)])),
+      shell: describe(this.nodes.controllerShell, 'shell'),
+      buttons: Object.fromEntries(Object.entries(this.buttons).map(([key, mesh]) => [key, describe(mesh, key)])),
       plasticParams: { ...this.controllerShellMaterial.params },
     }
   }

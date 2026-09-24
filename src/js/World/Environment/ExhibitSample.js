@@ -8,6 +8,7 @@ export default class ExhibitSample {
     this.group.name = name
     this.materials = new Set()
     this.plastics = []
+    this.buttonMaterials = []
     this.meshes = []
     const bounds = new THREE.Box3()
     const orientation = new THREE.Matrix4().makeRotationZ(rotation)
@@ -36,7 +37,8 @@ export default class ExhibitSample {
       mesh.receiveShadow = true
       this.group.add(mesh)
       this.meshes.push(mesh)
-      if (plasticParams) {
+      if (source.part === 'shell') {
+        if (!plasticParams) throw new Error(`${name} 的外壳缺少塑料材质参数`)
         const plastic = createControllerPlasticMaterial(mesh, { ...plasticParams, side: source.materials[0].side })
         plastic.material.name = `${name}_Plastic`
         mesh.material = plastic.material
@@ -51,6 +53,7 @@ export default class ExhibitSample {
             metalness: 0, roughness: 0.28, clearcoat: 0.85, clearcoatRoughness: 0.12, ior: 1.47,
           })
           this.materials.add(material)
+          this.buttonMaterials.push({ part: source.part, material })
           return material
         })
         mesh.material = materials.length === 1 ? materials[0] : materials
@@ -58,10 +61,17 @@ export default class ExhibitSample {
     })
   }
 
-  setColor(value) {
-    for (const plastic of this.plastics) {
-      plastic.params.color = value
-      plastic.uniforms.color.value.set(value)
+  // 未传入的部位保持原色，便于只含外壳或只含按键的展品复用同一入口。
+  setColors({ shell, buttons, dpad }) {
+    if (shell) {
+      for (const plastic of this.plastics) {
+        plastic.params.color = shell
+        plastic.uniforms.color.value.set(shell)
+      }
+    }
+    for (const { part, material } of this.buttonMaterials) {
+      const value = part === 'dpad' ? dpad : buttons
+      if (value) material.color.set(value)
     }
   }
 

@@ -176,6 +176,7 @@ export default class World {
     this.ndsPlayer.update(this.experience.time.delta * 1000)
     this.screenManager.setProductAngle(this.product.productRig.params.productAngle)
     this.screenManager.update()
+    this.exhibition.update(this.experience.time.elapsed)
     this.environment.update()
   }
 

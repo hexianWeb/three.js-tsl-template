@@ -272,8 +272,8 @@ try {
     const originalMainColor = main.uniforms.color.value.getHexString()
     const originalMainRoughness = main.uniforms.roughness.value
     const originalColors = plastics.map(plastic => plastic.uniforms.color.value.getHexString())
-    const originalBlue = dock.params.blue
-    dock.params.blue = '#b947ac'
+    const originalBlue = dock.themes[0].shell
+    dock.themes[0].shell = '#b947ac'
     dock.applyColors()
     const changedColors = plastics.map(plastic => plastic.uniforms.color.value.getHexString())
     dock.samples[0].setFinish({ roughness: 0.68, bumpStrength: 0.07 })
@@ -284,7 +284,7 @@ try {
       && plastics[0].uniforms.roughness.value === 0.45
       && plastics[2].uniforms.roughness.value === 0.45
       && plastics[3].uniforms.roughness.value === 0.45
-    dock.params.blue = originalBlue
+    dock.themes[0].shell = originalBlue
     dock.applyColors()
     dock.samples[0].setFinish(dock.params)
     const capture = () => {
@@ -324,7 +324,7 @@ try {
   assert.equal(s2.displayStaticOnInput, true, '展示件响应了主机按键')
   assert.equal(s2.sourceGeometryShared, true)
   assert.equal(s2.uniqueUniforms, 5)
-  assert.equal(s2.sampleMeshCount, 9)
+  assert.equal(s2.sampleMeshCount, 24)
   assert.equal(s2.inputSurfaces, 2)
   assert.equal(s2.noExhibitLightmaps, true)
   assert.equal(s2.mainLightmapPreserved, true)

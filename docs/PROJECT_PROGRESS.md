@@ -258,7 +258,7 @@ Bottom_Display_Plane
 ### 3.18 场景细节 S2
 
 - S1 已按用户确认布局提交为 `39511cb`。S2 保留该布局、底座参数与镜头，替换左右灰盒内容。
-- 新增 `PartsDisplay`：真实完整外壳、D-Pad、ABXY 和静态标签；新增 `ColorDock`：蓝、暖白、石墨三件真实外壳样品及色点铭牌。
+- 新增 `PartsDisplay`：真实完整外壳、D-Pad、ABXY 和静态标签；新增 `ColorDock`：Classic、Retro、Midnight 三套完整 Controller 主题样品（外壳、ABXY、D-Pad 各自配色）及色点铭牌。
 - `ModelAdapter.getExhibitSources()` 提供静止坐标快照；`ExhibitSample` 共享只读 GLB Geometry，使用独立变换与材质，不加入输入或装配。
 - 抽取独立 uniform 的塑料材质工厂，主机外观参数和 EXR 保持原用途；展示外壳使用实时光照/GTAO，展示按键保留原底色。
 - 两张 `ExhibitLabel` CanvasTexture 仅在内容改变时上传；样件改色同步更新 Dock 色点。

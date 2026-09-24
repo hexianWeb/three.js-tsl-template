@@ -32,11 +32,11 @@ export default class Exhibition {
       partsX: -1.26,
       partsZ: -1.15,
       partsYaw: 45,
-      partsScale: 1.5,
-      dockX: 1.1,
-      dockZ: -1.35,
-      dockYaw: -40,
-      dockScale: 1.37,
+      partsScale: 1.6,
+      dockX: 1.76,
+      dockZ: -1.95,
+      dockYaw: -31,
+      dockScale: 2.86,
     }
     this.group = new THREE.Group()
     this.group.name = 'Exhibition'
@@ -82,6 +82,11 @@ export default class Exhibition {
     this.resize()
   }
 
+  update(elapsed) {
+    if (this.group.visible && this.dock.visible)
+      this.colorDock.update(elapsed)
+  }
+
   resize() {
     const p = this.params
     p.compact = this.sizes.width / this.sizes.height < p.narrowAspect
@@ -119,7 +124,7 @@ export default class Exhibition {
     }
     const sides = this.folder.addFolder({ title: 'Display layout' })
     for (const prefix of ['parts', 'dock']) {
-      for (const [suffix, min, max, step] of [['X', -3, 3, 0.01], ['Z', -2, 2, 0.01], ['Yaw', -90, 90, 1], ['Scale', 0.5, 2, 0.01]]) {
+      for (const [suffix, min, max, step] of [['X', -3, 3, 0.01], ['Z', -2, 2, 0.01], ['Yaw', -90, 90, 1], ['Scale', 0.5, 4, 0.01]]) {
         sides.addBinding(this.params, `${prefix}${suffix}`, { min, max, step }).on('change', () => this.applyLayout())
       }
     }
