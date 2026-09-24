@@ -17,6 +17,11 @@ export default [
     path: '/iphone.glb',
   },
   {
+    name: 'rhyzomePlant',
+    type: 'gltfModel',
+    path: '/glb/rhyzome_plant.glb',
+  },
+  {
     name: 'controllerShellLightmap',
     type: 'exrTexture',
     path: '/lightmaps/Controller_Shell_lightmap.exr',

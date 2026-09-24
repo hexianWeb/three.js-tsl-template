@@ -26,6 +26,7 @@ export default class World {
     this.exhibition = new Exhibition({
       metrics: this.product.getExhibitionMetrics(),
       sources: this.product.getExhibitSources(),
+      plantGltf: this.resources.items.rhyzomePlant,
       stage: this.stage,
       onLayout: bounds => this.environment.setShadowBounds(bounds),
     })

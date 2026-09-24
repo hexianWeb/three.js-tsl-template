@@ -1,7 +1,7 @@
 import * as THREE from 'three/webgpu'
 
 export default class ExhibitLabel {
-  constructor({ width, height, name }) {
+  constructor({ width, height, name, cutout = false }) {
     this.canvas = document.createElement('canvas')
     this.canvas.width = 1024
     this.canvas.height = Math.max(128, Math.round(1024 * height / width))
@@ -14,6 +14,8 @@ export default class ExhibitLabel {
     this.texture.anisotropy = 8
     this.material = new THREE.MeshStandardNodeMaterial({
       name: `${name}_Label_Surface`, map: this.texture, roughness: 0.65, metalness: 0,
+      // 镂空标签仍走不透明深度通道，只保留纸签/文字像素，避免整张画布盖住玻璃。
+      alphaTest: cutout ? 0.5 : 0,
     })
     this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), this.material)
     this.mesh.name = name
@@ -23,8 +25,11 @@ export default class ExhibitLabel {
   redraw(background, draw) {
     const ctx = this.context
     ctx.setTransform(this.canvas.width / 1000, 0, 0, this.canvas.height / this.logicalHeight, 0, 0)
-    ctx.fillStyle = background
-    ctx.fillRect(0, 0, 1000, this.logicalHeight)
+    ctx.clearRect(0, 0, 1000, this.logicalHeight)
+    if (background) {
+      ctx.fillStyle = background
+      ctx.fillRect(0, 0, 1000, this.logicalHeight)
+    }
     ctx.textBaseline = 'alphabetic'
     ctx.textAlign = 'left'
     draw(ctx, this.logicalHeight)

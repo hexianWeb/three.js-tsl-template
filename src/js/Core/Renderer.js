@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu'
 import Experience from '../Experience.js'
 import ScenePipeline from './ScenePipeline.js'
+import TransmissionBackdrop from './TransmissionBackdrop.js'
 
 export default class Renderer {
   constructor() {
@@ -25,6 +26,7 @@ export default class Renderer {
     this.resize()
     await this.instance.init()
     this.pipeline = new ScenePipeline(this.instance, this.scene, this.camera.instance, this.experience.debug)
+    this.transmissionBackdrop = new TransmissionBackdrop(this.instance, this.scene, this.camera.instance)
   }
 
   setExposure(value) {
@@ -32,6 +34,8 @@ export default class Renderer {
   }
 
   update() {
+    // Camera.update 已在 Experience 中完成；每帧仅在最终镜头下捕获一次玻璃背景。
+    if (!this.pipeline.params.enabled || this.pipeline.params.view === 'scene') this.transmissionBackdrop.capture()
     this.pipeline.update()
   }
 
@@ -39,6 +43,7 @@ export default class Renderer {
     this.instance.setPixelRatio(this.sizes.pixelRatio)
     this.instance.setSize(this.sizes.width, this.sizes.height)
     this.pipeline?.resize()
+    this.transmissionBackdrop?.resize()
   }
 
   destroy() {
@@ -46,6 +51,7 @@ export default class Renderer {
 
     this.instance.setAnimationLoop(null)
     this.pipeline?.destroy()
+    this.transmissionBackdrop?.destroy()
     this.instance.dispose()
   }
 }

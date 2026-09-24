@@ -1,12 +1,13 @@
 import * as THREE from 'three/webgpu'
 import Experience from '../../Experience.js'
 import ColorDock from './ColorDock.js'
+import ExhibitPlant from './ExhibitPlant.js'
 import ExhibitProps from './ExhibitProps.js'
 import PartsDisplay from './PartsDisplay.js'
 import ProductPlinth from './ProductPlinth.js'
 
 export default class Exhibition {
-  constructor({ metrics, stage, sources, onLayout }) {
+  constructor({ metrics, stage, sources, plantGltf, onLayout }) {
     const experience = new Experience()
     this.scene = experience.scene
     this.debug = experience.debug
@@ -44,13 +45,14 @@ export default class Exhibition {
     this.group.name = 'Exhibition'
     this.plinth = new ProductPlinth()
     this.group.add(this.plinth.group)
-    this.partsDisplay = new PartsDisplay({ sources, debug: this.debug })
+    this.partsDisplay = new PartsDisplay({ sources, debug: this.debug, transmissionBackdrop: experience.renderer.transmissionBackdrop })
     this.colorDock = new ColorDock({ sources, debug: this.debug })
     this.parts = this.partsDisplay.group
     this.dock = this.colorDock.group
     this.group.add(this.parts, this.dock)
     this.props = new ExhibitProps({ debug: this.debug, onLayout: () => this.notifyLayout() })
-    this.group.add(this.props.group)
+    this.plant = new ExhibitPlant({ gltf: plantGltf, debug: this.debug, onLayout: () => this.notifyLayout() })
+    this.group.add(this.props.group, this.plant.group)
     this.scene.add(this.group)
     this.applyLayout()
     this.debugInit()
@@ -84,6 +86,7 @@ export default class Exhibition {
     this.dock.rotation.y = THREE.MathUtils.degToRad(p.dockYaw)
     this.dock.scale.setScalar(w * p.dockScale)
     this.props.setLayout({ width: w, depth: d, centerX, centerZ, floorY })
+    this.plant.setLayout({ width: w, depth: d, centerX, centerZ, floorY })
     this.resize()
   }
 
@@ -107,6 +110,7 @@ export default class Exhibition {
     this.parts.visible = p.showParts && showSides
     this.dock.visible = p.showDock && showSides
     this.props.setCompact(!showSides)
+    this.plant.setCompact(!showSides)
     this.compactBinding?.refresh()
   }
 
@@ -149,6 +153,7 @@ export default class Exhibition {
     this.partsDisplay.destroy()
     this.colorDock.destroy()
     this.props.destroy()
+    this.plant.destroy()
     this.onLayout = null
     this.group.removeFromParent()
   }
