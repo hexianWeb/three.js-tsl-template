@@ -125,6 +125,15 @@ try {
     e.scene.updateMatrixWorld(true)
     const plinthBounds = new THREE.Box3().setFromObject(w.exhibition.plinth.group, true)
     const sides = [w.exhibition.parts, w.exhibition.dock].map(group => new THREE.Box3().setFromObject(group, true))
+    const displaySnapshot = () => {
+      w.exhibition.group.updateMatrixWorld(true)
+      const matrices = []
+      for (const group of [w.exhibition.parts, w.exhibition.dock]) group.traverseVisible(mesh => {
+        if (mesh.isMesh) matrices.push(mesh.matrixWorld.toArray())
+      })
+      return JSON.stringify(matrices)
+    }
+    const initialDisplay = displaySnapshot()
     let foldMinimum = Infinity
     for (let angle = 8; angle <= 110; angle += 2) {
       rig.setProductAngle(angle)
@@ -152,6 +161,7 @@ try {
       if (plinthBounds.intersectsBox(bounds)) plinthIntersections++
     }
     assembly.setInstalledPose()
+    const displayStaticDuringAssembly = initialDisplay === displaySnapshot()
     const matrixError = Math.max(...product.nodes.controllerAssembly.matrix.elements.map((value, i) => Math.abs(value - rig.controllerInstalledMatrix.elements[i])))
     const initialHeight = w.exhibition.params.heightRatio
     const initialProduct = product.presentationRoot.matrixWorld.toArray()
@@ -226,7 +236,7 @@ try {
     }
     w.cameraDirector.transitionTo('hero', { force: true, immediate: true })
     return {
-      restored, matrixError, productUnmoved, tallerTop, foldMinimum, framing, heroExhibits, orbitChecks,
+      restored, matrixError, productUnmoved, tallerTop, foldMinimum, framing, heroExhibits, orbitChecks, displayStaticDuringAssembly,
       sidesIntersectPlinth: sides.some(side => side.intersectsBox(plinthBounds)),
       metrics: { width: metrics.width, depth: metrics.depth, supportY: metrics.supportY, center: metrics.center.toArray() },
       plinth: { min: plinthBounds.min.toArray(), max: plinthBounds.max.toArray() },
@@ -236,6 +246,7 @@ try {
   console.log(JSON.stringify(report, null, 2))
   assert.equal(report.restored, true, '布局测量改变了产品姿态')
   assert.equal(report.productUnmoved, true, '底座厚度改变了产品世界矩阵')
+  assert.equal(report.displayStaticDuringAssembly, true, '主机装配带动了展示件')
   assert.ok(Math.abs(report.tallerTop - report.metrics.supportY) < 1e-5, '底座顶面高度漂移')
   assert.ok(report.matrixError < 1e-12, '装配终点矩阵偏离 GLB')
   assert.equal(report.assembly.sideIntersections, 0, '装配扫掠碰到左右展组')
@@ -249,6 +260,76 @@ try {
     assert.ok(check.extent <= 1, 'Orbit 边界裁切产品：' + JSON.stringify(check))
     assert.equal(check.obscured, false, '展品遮挡屏幕：' + check.shot)
   }
+  const s2 = await evaluate(`(() => {
+    const w = experience.world
+    const exhibit = w.exhibition
+    const dock = exhibit.colorDock
+    const parts = exhibit.partsDisplay
+    const main = w.product.controllerShellMaterial
+    const samples = [parts.shell, parts.dpad, parts.buttons, ...dock.samples]
+    const meshes = samples.flatMap(sample => sample.meshes)
+    const plastics = [parts.shell.plastics[0], ...dock.samples.map(sample => sample.plastics[0])]
+    const originalMainColor = main.uniforms.color.value.getHexString()
+    const originalMainRoughness = main.uniforms.roughness.value
+    const originalColors = plastics.map(plastic => plastic.uniforms.color.value.getHexString())
+    const originalBlue = dock.params.blue
+    dock.params.blue = '#b947ac'
+    dock.applyColors()
+    const changedColors = plastics.map(plastic => plastic.uniforms.color.value.getHexString())
+    dock.samples[0].setFinish({ roughness: 0.68, bumpStrength: 0.07 })
+    const independent = main.uniforms.color.value.getHexString() === originalMainColor
+      && main.uniforms.roughness.value === originalMainRoughness
+      && changedColors[1] !== originalColors[1]
+      && [0, 2, 3].every(i => changedColors[i] === originalColors[i])
+      && plastics[0].uniforms.roughness.value === 0.45
+      && plastics[2].uniforms.roughness.value === 0.45
+      && plastics[3].uniforms.roughness.value === 0.45
+    dock.params.blue = originalBlue
+    dock.applyColors()
+    dock.samples[0].setFinish(dock.params)
+    const capture = () => {
+      exhibit.group.updateMatrixWorld(true)
+      return JSON.stringify(meshes.map(mesh => mesh.matrixWorld.toArray()))
+    }
+    const originalDisplay = capture()
+    const buttonBefore = w.product.buttons.a.position.clone()
+    w.controllerFeedback.setActions(['a', 'up'])
+    for (let i = 0; i < 8; i++) w.controllerFeedback.update(1 / 60)
+    const mainButtonMoved = buttonBefore.distanceTo(w.product.buttons.a.position) > 1e-6
+    const displayStaticOnInput = capture() === originalDisplay
+    w.controllerFeedback.setActions([])
+    for (let i = 0; i < 120; i++) w.controllerFeedback.update(1 / 60)
+    const geometrySet = new Set([w.product.nodes.controllerShell.geometry, ...Object.values(w.product.buttons).map(mesh => mesh.geometry)])
+    window.exhibitVerification = {
+      capture, snapshot: originalDisplay,
+      labelVersions: [parts.label.texture.version, dock.label.texture.version],
+    }
+    return {
+      independent, mainButtonMoved, displayStaticOnInput,
+      sourceGeometryShared: meshes.every(mesh => geometrySet.has(mesh.geometry)),
+      uniqueUniforms: new Set([main.uniforms.color, ...plastics.map(plastic => plastic.uniforms.color)]).size,
+      noExhibitLightmaps: plastics.every(plastic => plastic.material.lightMap === null),
+      mainLightmapPreserved: main.material.lightMap === experience.resources.items.controllerShellLightmap
+        && main.material.lightMap.channel === 1 && main.material.lightMap.flipY,
+      inputSurfaces: w.inputRouter.interactionSurfaces?.length,
+      sampleMeshCount: meshes.length,
+      labelSizes: [parts.label.canvas, dock.label.canvas].map(canvas => [canvas.width, canvas.height]),
+      layout: { parts: [exhibit.params.partsX, exhibit.params.partsZ, exhibit.params.partsYaw, exhibit.params.partsScale],
+        dock: [exhibit.params.dockX, exhibit.params.dockZ, exhibit.params.dockYaw, exhibit.params.dockScale] },
+    }
+  })()`)
+  console.log('S2 isolation:', JSON.stringify(s2, null, 2))
+  assert.equal(s2.independent, true, '样件颜色/粗糙度污染了其他样件或主机')
+  assert.equal(s2.mainButtonMoved, true, '未真正触发主机按压')
+  assert.equal(s2.displayStaticOnInput, true, '展示件响应了主机按键')
+  assert.equal(s2.sourceGeometryShared, true)
+  assert.equal(s2.uniqueUniforms, 5)
+  assert.equal(s2.sampleMeshCount, 9)
+  assert.equal(s2.inputSurfaces, 2)
+  assert.equal(s2.noExhibitLightmaps, true)
+  assert.equal(s2.mainLightmapPreserved, true)
+  assert.deepEqual(s2.layout.parts, [-1.26, -1.15, 45, 1.3], '改变了用户确认的左展组布局')
+  assert.deepEqual(s2.layout.dock, [1.1, -1.35, -40, 1.37], '改变了用户确认的右展组布局')
   await screenshot('hero')
   for (const shot of ['folded', 'assembly', 'play']) {
     await evaluate(`(() => {
@@ -284,22 +365,46 @@ try {
   assert.equal(await evaluate('experience.world.exhibition.params.enabled'), true)
   await evaluate('experience.world.intro.play(); experience.world.intro.skip()')
   await delay(1600)
+  const afterReplay = await evaluate(`(() => {
+    const verification = window.exhibitVerification
+    const e = experience.world.exhibition
+    return {
+      static: verification.capture() === verification.snapshot,
+      labelsUnchanged: JSON.stringify(verification.labelVersions) === JSON.stringify([e.partsDisplay.label.texture.version, e.colorDock.label.texture.version]),
+    }
+  })()`)
+  assert.equal(afterReplay.static, true, 'Replay 改变了展示件矩阵')
+  assert.equal(afterReplay.labelsUnchanged, true, '静态标签在逐帧重复上传')
   const cleanup = await evaluate(`(() => {
     const w = experience.world
+    const exhibit = w.exhibition
+    const sharedGeometry = new Set([w.product.nodes.controllerShell.geometry, ...Object.values(w.product.buttons).map(mesh => mesh.geometry)])
+    const sharedDisposals = new Map([...sharedGeometry].map(geometry => [geometry, 0]))
+    for (const geometry of sharedGeometry) geometry.addEventListener('dispose', () => sharedDisposals.set(geometry, sharedDisposals.get(geometry) + 1))
     const resources = new Set([w.stage.mesh.geometry, w.stage.material, ...Object.values(w.stage.textures)])
-    w.exhibition.group.traverse(child => {
-      if (child.geometry) resources.add(child.geometry)
-      if (child.material) resources.add(child.material)
+    exhibit.group.traverse(child => {
+      if (child.geometry && !sharedGeometry.has(child.geometry)) resources.add(child.geometry)
+      const materials = child.material ? (Array.isArray(child.material) ? child.material : [child.material]) : []
+      for (const material of materials) {
+        resources.add(material)
+        for (const value of Object.values(material)) if (value?.isTexture) resources.add(value)
+      }
     })
     const disposed = new Set()
     for (const resource of resources) resource.addEventListener('dispose', () => disposed.add(resource))
+    exhibit.destroy()
+    const sharedAlive = [...sharedDisposals.values()].every(count => count === 0)
+    w.exhibition = null
     experience.destroy()
-    return { expected: resources.size, disposed: disposed.size, detached: w.exhibition.group.parent === null }
+    return { expected: resources.size, disposed: disposed.size, detached: exhibit.group.parent === null,
+      sharedAlive, sharedReleasedOnce: [...sharedDisposals.values()].every(count => count === 1) }
   })()`)
   assert.equal(cleanup.disposed, cleanup.expected)
   assert.equal(cleanup.detached, true)
+  assert.equal(cleanup.sharedAlive, true, '展示组件提前释放了主机几何')
+  assert.equal(cleanup.sharedReleasedOnce, true, '共享几何未由主机恰好回收一次')
   assert.equal(errors.length, 0, `浏览器错误：${JSON.stringify(errors)}`)
-  console.log(`WebGPU、241 帧装配扫掠、折叠区间、高度/矩阵恢复、窄屏及销毁检查通过。截图：${output}`)
+  console.log(`WebGPU、241 帧装配扫掠、四机位/Orbit、S2 材质与输入隔离、静态标签、窄屏及资源所有权检查通过。截图：${output}`)
 }
 finally {
   if (socket?.readyState === WebSocket.OPEN) {

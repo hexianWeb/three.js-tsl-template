@@ -204,6 +204,40 @@ export default class ModelAdapter {
     }
   }
 
+  getExhibitSources() {
+    this.presentationRoot.updateMatrixWorld(true)
+    const centerOf = (mesh) => {
+      mesh.geometry.computeBoundingBox()
+      return mesh.geometry.boundingBox.getCenter(new THREE.Vector3()).applyMatrix4(mesh.matrixWorld)
+    }
+    // 用 ABXY 静止菱形定义展品面内的右/上，面外法线为 right × up；不假设 GLB 的轴向。
+    const right = centerOf(this.buttons.a).sub(centerOf(this.buttons.y)).normalize()
+    const up = centerOf(this.buttons.x).sub(centerOf(this.buttons.b))
+    up.addScaledVector(right, -up.dot(right)).normalize()
+    const normal = new THREE.Vector3().crossVectors(right, up).normalize()
+    if (right.lengthSq() < 0.99 || up.lengthSq() < 0.99 || normal.lengthSq() < 0.99) {
+      throw new Error('无法从 ABXY 静止布局建立展示件坐标系。')
+    }
+    const frame = new THREE.Matrix4().makeBasis(right, up, normal)
+    frame.setPosition(centerOf(this.nodes.controllerShell))
+    const inverseFrame = frame.clone().invert()
+    const describe = (mesh) => {
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      return {
+        name: mesh.name,
+        geometry: mesh.geometry,
+        // 保留完整仿射矩阵；副本的矩阵与 GLB 节点脱钩，非均匀缩放也无需分解成不准确的 TRS。
+        matrix: inverseFrame.clone().multiply(mesh.matrixWorld),
+        materials: materials.map(material => ({ color: material.color.clone(), side: material.side, vertexColors: material.vertexColors })),
+      }
+    }
+    return {
+      shell: describe(this.nodes.controllerShell),
+      buttons: Object.fromEntries(Object.entries(this.buttons).map(([key, mesh]) => [key, describe(mesh)])),
+      plasticParams: { ...this.controllerShellMaterial.params },
+    }
+  }
+
   applyTransform() {
     this.presentationRoot.position.set(
       this.params.positionX,

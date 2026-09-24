@@ -1,8 +1,8 @@
 # iPhone Duo WebGPU 项目进度
 
 > 最后更新：2026-09-24
-> 当前阶段：Phase 6 已完成验收；Phase 7 的场景细节 S1 已确认
-> 当前状态：用户已调整并确认 S1 布局，可提交；以此为基准进入 S2 零件展示与配色 Dock
+> 当前阶段：Phase 6 已完成验收；Phase 7 的场景细节 S1 已提交，S2 已实现
+> 当前状态：真实零件展板、标签与三配色 Dock 已通过构建和 WebGPU 功能检查，等待用户视觉验收
 
 ## 1. 进度摘要
 
@@ -40,7 +40,7 @@ Git 提交：本轮已执行
 | Phase 4 | Intro、Camera Shot、Ready / Play | 已完成 | 用户已确认浏览器视觉校验完成；进入 Phase 5 前增加 Controller Shell 材质 LookDev |
 | Phase 5 | NDS 模拟器技术验证与双屏桥接 | 已完成 | 独立页及主产品 3D 双屏桥接、连续游玩、音画同步、触控与真实 Gamepad 均已通过验收 |
 | Phase 6 | Keyboard / Gamepad 与 3D 按键反馈 | 已完成 | 键盘、标准 Gamepad、3D 下屏触控、输入释放、ABXY 下沉 / D-Pad 倾斜弹簧、点击音与手柄轻震均已通过验收 |
-| Phase 7 | 性能、兼容性、Loading 与视觉精修 | 进行中 | 场景细节 S1 已由用户调整并确认；准备进入 S2 |
+| Phase 7 | 性能、兼容性、Loading 与视觉精修 | 进行中 | S1 已提交，S2 零件展示与配色 Dock 已实现，等待用户视觉验收 |
 
 ## 3. 已完成内容
 
@@ -255,6 +255,16 @@ Bottom_Display_Plane
 - `npm run build` 通过；新增 Chrome CDP 验证脚本，覆盖 GPU 编译、241 个装配采样、折叠、高度与矩阵恢复、四机位、16 个 Orbit 边界、窄屏、Replay / Skip 与销毁。
 - 用户已调整并确认 S1：底座深 1.61D、高 0.06W，左右灰盒采用新的位置、朝向和比例；复验通过。当前左右展组仍是灰盒，真实配件和标签属于 S2；合并负载性能测量待完成。
 
+### 3.18 场景细节 S2
+
+- S1 已按用户确认布局提交为 `39511cb`。S2 保留该布局、底座参数与镜头，替换左右灰盒内容。
+- 新增 `PartsDisplay`：真实完整外壳、D-Pad、ABXY 和静态标签；新增 `ColorDock`：蓝、暖白、石墨三件真实外壳样品及色点铭牌。
+- `ModelAdapter.getExhibitSources()` 提供静止坐标快照；`ExhibitSample` 共享只读 GLB Geometry，使用独立变换与材质，不加入输入或装配。
+- 抽取独立 uniform 的塑料材质工厂，主机外观参数和 EXR 保持原用途；展示外壳使用实时光照/GTAO，展示按键保留原底色。
+- 两张 `ExhibitLabel` CanvasTexture 仅在内容改变时上传；样件改色同步更新 Dock 色点。
+- 构建通过（75 modules）；Chrome 检查覆盖原 S1 回归、材质/输入隔离、静态标签、共享几何所有权与销毁。
+- S2 最终视觉待用户验收；具体模块、调参入口与验证记录见 [场景细节实施方案第 13 节](Scene_Detail_Implementation_Plan.md#13-s2-实现记录2026-09-24)。
+
 ## 4. 验证记录
 
 | 检查 | 结果 |
@@ -376,6 +386,6 @@ Phase 6 验收结论：
 
 1. 进入 Phase 7：性能、兼容性、Loading 与视觉精修。
 2. IndexedDB 持久存档仍为演示增强项，按演示需要再实现。
-3. 2026-09-24 用户确认 S1 布局可提交，进入 S2 真实配件展示。默认参数、调试入口和验证命令见 [场景细节实施方案第 12 节](Scene_Detail_Implementation_Plan.md#12-s1-实现记录2026-09-24)。
+3. 2026-09-24 S1 已提交为 `39511cb`，S2 真实配件展示已实现并通过工程检查；下一步验收 S2 标签、配色和零件展示效果，再推进 S3。默认参数、调试入口和验证命令见 [场景细节实施方案](Scene_Detail_Implementation_Plan.md) 第 12–13 节。
 
 本轮实现、测试结果和使用方法见 `docs/NDS_Integration_Spike.md`。固定上游版本为 `7adc554ce1dc5318fef3797e8f00a6e9286dac3b`；ROM 仅本地验证，不进入生产构建。

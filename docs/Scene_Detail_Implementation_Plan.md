@@ -2,7 +2,7 @@
 
 > 日期：2026-09-24
 >
-> 状态：S1 已由用户调整布局并确认可提交，构建与 Chrome WebGPU 检查通过；S2–S4 尚未实现。当前实现参数与验证记录见第 12 节，其余章节保留设计提案。
+> 状态：S1 已由用户调整确认并提交；S2 真实零件展示、标签与三配色 Dock 已实现，等待用户视觉验收。S3–S4 尚未实现。第 12 节记录 S1 基线，第 13 节记录 S2；前文保留设计提案。
 >
 > 设计来源：[Scene_Detail_Design.md](Scene_Detail_Design.md) · [Hero 参考图](img/hero_target.png)
 >
@@ -304,7 +304,7 @@ src/shaders/exhibitionFloor.js  拟新增：网格、径向渐变、细环
 | 打印材料与原型编号 | 仅写 `3D Printed` | 确认实际材料后补标签 |
 | 墙面字样、磁吸轨迹、景深 | 默认关闭，进入 S4 再评估 | 静态展厅构图完成后 |
 
-S1 已由用户调整并确认基础布局。下一步以该布局为基准进入 S2 的真实展示件与标签制作。
+S1 已由用户调整并确认基础布局。S2 已按该布局实现真实展示件与标签，当前进入 S2 视觉验收。
 
 ## 12. S1 实现记录（2026-09-24）
 
@@ -380,3 +380,50 @@ node scripts/verify-exhibition.mjs "C:/Program Files/Google/Chrome/Application/c
 | destroy | 所有被跟踪的新增自有 GPU 资源收到 dispose，布景从 Scene 移除 |
 
 上述检查不等同于所有中间视角/屏幕边缘的视觉验收，也未重测 NDS 音画同步、实际手柄或目标设备性能预算。最终请用户在支持 WebGPU 的最新版浏览器中重点确认：Hero 留白与底座厚度、左右灰盒的视觉重量、光环亮度、窄屏主体大小，以及镜头运动过程中的遮挡与阴影。
+
+## 13. S2 实现记录（2026-09-24）
+
+### 13.1 交付内容
+
+S1 固定提交为 `39511cb`（`feat: 完成 S1 展台空间与布局校准`）。S2 沿用用户确认的底座参数、左右展组位置/朝向/比例与镜头，将灰盒替换为真实展示内容：
+
+- `PartsDisplay`：完整 `Controller_Shell`、D-Pad 与按原菱形排列的 ABXY，共六个真实零件 Mesh；保留实体背板与底脚。
+- 左侧标签：`01 / COMPONENT STUDY`、`Controller Shell`、`D-Pad`、`Button Caps` 与 `3D Printed`。没有标注未确认的打印材料、独立上下壳或滑轨。
+- `ColorDock`：三件竖放的真实外壳样品，蓝色取主机初始化色，暖白 `#d9d7d0`、石墨 `#272c32`；每件有独立承托面。
+- Dock 标签：`Color Studies`、三枚对应色点及颜色名称，调整样件颜色会同步更新色点。
+- 左板与 Dock 各使用一张受光照的静态 CanvasTexture，尺寸为 1024×1041 和 1024×128；仅内容变化时上传。
+
+本阶段复用当前 `/iphone.glb`，没有加载额外模型或贴图。S3 的产品铭牌和卡带尚未加入。
+
+### 13.2 坐标、材质与所有权
+
+- `ModelAdapter.getExhibitSources()` 在 Intro 和输入启动前提供语义化快照：共享只读 Geometry、独立矩阵、原按键底色和外壳材质初始参数。
+- 展示坐标由静止 ABXY 菱形的右/上推导，正面为二者叉积；`ExhibitSample` 在该坐标内居中并等比适配展区，不假设 GLB 固定轴向，不修改原几何。
+- 副本保留完整仿射矩阵并关闭自身 matrixAutoUpdate，避免把含缩放的变换错误地拆解；展组位置和尺寸仍由外层 Group 控制。
+- 抽取 `createControllerPlasticMaterial()`，主机和四件展示外壳共用材质算法，但五组颜色/粗糙度/颗粒 uniform 独立。主机保留原默认参数及 uv1 EXR；展示外壳不使用安装态 Lightmap。
+- 展示按键使用独立 Physical 清漆材质，保留 GLB 底色；展示件不接入按键反馈、装配 Timeline 或屏幕命中列表。
+- `ExhibitSample` 只释放自有材质，`ExhibitLabel` 释放画布/纹理/材质/平面，PartsDisplay 和 ColorDock 回收各自背板/底座几何与面板。共享 GLB Geometry 最后由 ModelAdapter 回收。
+
+### 13.3 调参入口
+
+| 面板 | 职责 |
+|---|---|
+| `Exhibition` → `Display layout` | 用户确认的左右布局、朝向和比例；整体显隐及窄屏策略 |
+| `Parts Display / S2` | 背板颜色、展示外壳颜色、粗糙度和微颗粒强度 |
+| `Color Dock / S2` | 蓝/暖白/石墨样件颜色、统一样件粗糙度和微颗粒强度 |
+| `Controller Shell Plastic` | 仍只控制主机外壳 |
+
+第 12 节中的 `Exhibition / S1` 面板在 S2 更名为 `Exhibition`。用户确认的左右布局参数保持不变，较窄横屏下仍允许展板边缘部分出画。
+
+### 13.4 验证与验收
+
+`npm run build` 通过（75 modules，仍有已知 WebGPU chunk 体积提示）。原 `verify-exhibition.mjs` 已扩展 S2 检查，命令不变，Chrome WebGPU 实测通过：
+
+- 241 个装配采样、四组产品机位、16 个 Orbit 边界与屏幕中心遮挡检查仍通过，安装矩阵误差为 0。
+- 展示几何为九个真实 Mesh，全部共享原 GLB Geometry；四件展示外壳与主机的五组颜色 uniform 唯一。
+- 修改蓝色样件的颜色/粗糙度，不影响主机、左板外壳及另外两件样品；主机 EXR 配置保留，展示壳体均不绑定 Lightmap。
+- 主机 ABXY 实际下沉与 D-Pad 倾斜时展示矩阵不变；装配及 Replay / Skip 后展示矩阵不变。
+- 标签在静态渲染及完整 Replay 期间没有重复增加 texture version；窄屏隐藏与横屏恢复通过。
+- 先销毁 Exhibition 时共享 Geometry 仍存活；随后销毁产品时共享 Geometry 恰好回收一次，新增自有 GPU 资源均收到 dispose。
+
+最终视觉验收请在支持 WebGPU 的最新版浏览器中确认：真实壳体朝向与体量、左板标签可读性、三色差异、零件离板阴影和 Dock 承托关系。目标设备性能预算与 NDS 长时间合并负载仍沿用后续验证计划。

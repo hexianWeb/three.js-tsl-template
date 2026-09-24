@@ -511,7 +511,7 @@ CONTROLLER_ASSEMBLY_ROOT
 
 这些内容不再回到 Blender 中补建，统一在 Three.js 中生成。
 
-Controller 最终程序化材质仍在后续阶段实现。当前 `Controller_Shell` 使用 `TEXCOORD_1` 烘焙的 `public/lightmaps/Controller_Shell_lightmap.exr` 提供运行时 GI；PNG 文件只用于预览，不作为运行时纹理。
+Controller 程序化磨砂塑料与按键清漆材质已实现。当前主机 `Controller_Shell` 使用 `TEXCOORD_1` 烘焙的 `public/lightmaps/Controller_Shell_lightmap.exr` 提供运行时 GI；PNG 文件只用于预览。S2 展示外壳共享材质算法，但使用独立 uniform，不绑定主机安装态 Lightmap。
 
 ---
 
@@ -810,7 +810,7 @@ App
 - 已确认三块屏幕节点及职责：`Top_Screen_Plane` 为手机上屏，`Bottom_Screen_Plane` 为手机原生下屏，`Bottom_Display_Plane` 为 Controller 镂空上方、仅在 Lock 后激活的显示层。
 - 已确认三块屏幕 UV 均覆盖完整 `0–1`；比例差异由运行时 fit、letterbox 或 crop 处理。
 - **不使用 HDR 环境贴图**，`scene.environment` 恒为 null。已实测否决，详见第 29 节与 `docs/Scene_Lighting_Stage_Plan.md`。
-- 场景细节 S1 使用程序化连续地面/弧墙和独立产品小底座，左右展组为灰盒；外部资产仍可在后续阶段替换对应组件的几何来源。
+- 场景细节 S1 使用程序化连续地面/弧墙和独立产品小底座；S2 已将左右灰盒替换为真实零件展板和三配色 Dock，复用当前 GLB 几何与独立展示材质。
 
 ### 待技术验证
 
@@ -1093,7 +1093,7 @@ value += velocity * dt
 
 详细实施计划、取舍过程与验收清单在 `docs/Scene_Lighting_Stage_Plan.md`。本节只固化对其它模块有约束力的产品决定。
 
-2026-09-24 场景细节 S1 已实现，见 [Scene_Detail_Implementation_Plan.md](Scene_Detail_Implementation_Plan.md) 第 12 节：地面与产品小底座分层，左右展组灰盒和背景弧墙已接入；真实配件展示、标签与环境精修仍属于后续阶段。
+2026-09-24 场景细节 S1 已按用户确认布局提交，S2 真实零件、标签与三配色 Dock 已实现。详见 [Scene_Detail_Implementation_Plan.md](Scene_Detail_Implementation_Plan.md) 第 12–13 节；产品铭牌、卡带与环境精修属于后续阶段。
 
 ### 29.1 照明方案
 
@@ -1122,8 +1122,16 @@ Renderer 保持 ACES 与曝光 1.1。主光投 2048² 阴影，阴影相机范�
 展台为程序化 S1 实现，用户已完成布局调整并确认可提交：
 
 - `Stage` 是宽 24、深 20、转角半径 3、墙高 10 的连续地面/弧墙。使用 Plastic010 1K JPG、非金属 Node Material 与 TSL 弱网格/Halo，不设置额外透明地面叠层。
-- `Exhibition` 独立挂 Scene，持有 `ProductPlinth` 和左右展组灰盒。产品在 110° 安装态测量宽 W、深 D；底座默认 1.5W × 1.61D × 0.06W，Z 偏移 +0.02D，平面圆角 0.05W 与竖向倒角 0.002W 独立。
+- `Exhibition` 独立挂 Scene，持有 `ProductPlinth`、`PartsDisplay` 和 `ColorDock`。产品在 110° 安装态测量宽 W、深 D；底座默认 1.5W × 1.61D × 0.06W，Z 偏移 +0.02D，平面圆角 0.05W 与竖向倒角 0.002W 独立。
 - 小底座顶面对应 Blender `Z = -0.035` 的原支撑基准。世界高度必须经 `ModelAdapter.getStageSurfaceWorldY()` 换算，**不能写死**；地面高度等于该值减去底座总厚度。
 - 增加底座不移动产品或改变 Controller 安装终点。S1 的装配路径采样中，Controller 最低点高于底座顶面约 `+0.00658`。Bind Pose 180° 是调试姿态，原有穿支撑面问题不属于 Intro / Hero 范围。
 - 左右展组在宽高比小于 1.35 时默认隐藏；所有布景均不进入 `fitModel()` 包围盒，不挂接到折叠或装配节点。
 - 后续外部展台/配件资产可替换对应组件的几何来源，支撑高度换算与布局约束保持一致。
+
+### 29.4 零件展示与配色 Dock
+
+- 左展板使用当前模型已识别的完整外壳、D-Pad 与 ABXY；右 Dock 使用三件竖放外壳配色样品。左右展组沿用用户确认的 S1 布局。
+- 展品面内右/上由静止 ABXY 布局推导；GLB 节点名称仍集中在 ModelAdapter，展示模块仅接收语义化几何/矩阵/颜色快照。
+- 共享 Geometry 只读，展示材质和 uniform 独立；主机装配、可见性和按键动作不驱动展示副本，展示件不进入屏幕命中列表。
+- 标签统一使用 `3D Printed`，不宣称未核实的材料、独立上下壳或滑轨；文字和色点由两张静态 CanvasTexture 显示。
+- 展示组件先销毁自有材质、标签与背板/Dock 几何，共享 GLB 几何最后由 ModelAdapter 回收。

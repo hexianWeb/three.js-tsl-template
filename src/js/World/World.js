@@ -23,7 +23,11 @@ export default class World {
     this.setProduct()
     this.setControllerFeedback()
     this.setStage()
-    this.exhibition = new Exhibition({ metrics: this.product.getExhibitionMetrics(), stage: this.stage })
+    this.exhibition = new Exhibition({
+      metrics: this.product.getExhibitionMetrics(),
+      sources: this.product.getExhibitSources(),
+      stage: this.stage,
+    })
     this.setScreenManager()
     this.setCameraDirector()
     this.setIntro()

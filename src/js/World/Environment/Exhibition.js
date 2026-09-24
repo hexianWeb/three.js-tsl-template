@@ -1,10 +1,11 @@
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import * as THREE from 'three/webgpu'
 import Experience from '../../Experience.js'
+import ColorDock from './ColorDock.js'
+import PartsDisplay from './PartsDisplay.js'
 import ProductPlinth from './ProductPlinth.js'
 
 export default class Exhibition {
-  constructor({ metrics, stage }) {
+  constructor({ metrics, stage, sources }) {
     const experience = new Experience()
     this.scene = experience.scene
     this.debug = experience.debug
@@ -31,7 +32,7 @@ export default class Exhibition {
       partsX: -1.26,
       partsZ: -1.15,
       partsYaw: 45,
-      partsScale: 1.3,
+      partsScale: 1.5,
       dockX: 1.1,
       dockZ: -1.35,
       dockYaw: -40,
@@ -41,43 +42,14 @@ export default class Exhibition {
     this.group.name = 'Exhibition'
     this.plinth = new ProductPlinth()
     this.group.add(this.plinth.group)
-    this.setGrayboxes()
+    this.partsDisplay = new PartsDisplay({ sources, debug: this.debug })
+    this.colorDock = new ColorDock({ sources, debug: this.debug })
+    this.parts = this.partsDisplay.group
+    this.dock = this.colorDock.group
+    this.group.add(this.parts, this.dock)
     this.scene.add(this.group)
     this.applyLayout()
     this.debugInit()
-  }
-
-  setGrayboxes() {
-    this.grayGeometry = new RoundedBoxGeometry(1, 1, 1, 3, 0.06)
-    this.grayMaterials = [
-      new THREE.MeshStandardNodeMaterial({ color: '#d6d3cd', roughness: 0.62 }),
-      new THREE.MeshStandardNodeMaterial({ color: '#a3adb1', roughness: 0.56 }),
-      new THREE.MeshStandardNodeMaterial({ color: '#b9b6ae', roughness: 0.6 }),
-    ]
-    this.parts = new THREE.Group()
-    this.parts.name = 'PartsDisplay_Graybox'
-    this.dock = new THREE.Group()
-    this.dock.name = 'ColorDock_Graybox'
-    const block = (parent, name, dimensions, position, material = 0) => {
-      const mesh = new THREE.Mesh(this.grayGeometry, this.grayMaterials[material])
-      mesh.name = name
-      mesh.scale.set(...dimensions)
-      mesh.position.set(...position)
-      mesh.castShadow = true
-      mesh.receiveShadow = true
-      parent.add(mesh)
-    }
-    // 灰盒只描述展品的体量和支撑关系，不伪装成实际上下壳或滑轨资产。
-    block(this.parts, 'PartsBase', [0.72, 0.07, 0.26], [0, 0.035, 0])
-    block(this.parts, 'PartsBoard', [0.65, 0.66, 0.025], [0, 0.4, -0.025])
-    block(this.parts, 'ShellPlaceholder', [0.35, 0.29, 0.055], [-0.09, 0.44, 0.022], 1)
-    block(this.parts, 'DpadPlaceholder', [0.10, 0.10, 0.035], [0.2, 0.53, 0.025], 2)
-    block(this.parts, 'ButtonsPlaceholder', [0.12, 0.12, 0.035], [0.2, 0.32, 0.025], 2)
-    block(this.dock, 'DockBase', [0.68, 0.11, 0.33], [0, 0.055, 0])
-    for (let i = 0; i < 3; i++) {
-      block(this.dock, `SamplePlaceholder_${i + 1}`, [0.18, 0.27, 0.075], [(i - 1) * 0.205, 0.245, 0], i)
-    }
-    this.group.add(this.parts, this.dock)
   }
 
   applyLayout() {
@@ -121,7 +93,7 @@ export default class Exhibition {
   }
 
   debugInit() {
-    this.folder = this.debug.ui.addFolder({ title: 'Exhibition / S1', expanded: false })
+    this.folder = this.debug.ui.addFolder({ title: 'Exhibition', expanded: false })
     this.folder.addBinding(this.params, 'enabled', { label: 'Enabled' }).on('change', () => this.applyLayout())
     for (const key of ['showParts', 'showDock', 'hideOnNarrow']) {
       this.folder.addBinding(this.params, key).on('change', () => this.resize())
@@ -145,9 +117,9 @@ export default class Exhibition {
     for (const [key, min, max] of [['roughness', 0.2, 0.8], ['edgeGlow', 0, 3]]) {
       plinth.addBinding(this.params, key, { min, max, step: 0.01 }).on('change', () => this.plinth.setAppearance(this.params))
     }
-    const sides = this.folder.addFolder({ title: 'Display grayboxes' })
+    const sides = this.folder.addFolder({ title: 'Display layout' })
     for (const prefix of ['parts', 'dock']) {
-      for (const [suffix, min, max, step] of [['X', -3, 3, 0.01], ['Z', -2, 2, 0.01], ['Yaw', -90, 90, 1], ['Scale', 0.5, 1.5, 0.01]]) {
+      for (const [suffix, min, max, step] of [['X', -3, 3, 0.01], ['Z', -2, 2, 0.01], ['Yaw', -90, 90, 1], ['Scale', 0.5, 2, 0.01]]) {
         sides.addBinding(this.params, `${prefix}${suffix}`, { min, max, step }).on('change', () => this.applyLayout())
       }
     }
@@ -156,8 +128,8 @@ export default class Exhibition {
   destroy() {
     this.folder.dispose()
     this.plinth.destroy()
-    this.grayGeometry.dispose()
-    this.grayMaterials.forEach(material => material.dispose())
+    this.partsDisplay.destroy()
+    this.colorDock.destroy()
     this.group.removeFromParent()
   }
 }
