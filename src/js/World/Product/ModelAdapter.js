@@ -41,7 +41,7 @@ export default class ModelAdapter {
       model: this.model,
       nodes: this.nodes,
     })
-    this.presentationRoot.add(this.productRig.productRoot)
+    this.presentationRoot.add(this.productRig.standRoot)
 
     this.fitModel()
     this.productRig.applyInitialPose()
@@ -178,8 +178,9 @@ export default class ModelAdapter {
     const quaternion = controller.quaternion.clone()
     const scale = controller.scale.clone()
     try {
-      // 仅在 World 初始化、首帧渲染前测量安装完成的 110° 占地，不运行装配或 Intro 时间线。
-      rig.setProductAngle(rig.params.playAngle)
+      // 仅在 World 初始化、首帧渲染前测量安装完成的 110° 平放占地，不运行装配或 Intro 时间线。
+      // Hero 立起绕前下边缘旋转，占地只会收进这个范围内，因此底座仍以平放态为准。
+      rig.setProductAngle(rig.params.assemblyAngle)
       rig.controllerInstalledMatrix.decompose(controller.position, controller.quaternion, controller.scale)
       this.presentationRoot.updateMatrixWorld(true)
       const bounds = new THREE.Box3().setFromObject(rig.productRoot, true)

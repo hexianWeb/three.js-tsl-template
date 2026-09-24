@@ -196,11 +196,11 @@ src/
 - GLB Bind Pose 是 `180°` 的竖屏完全展开态。
 - 首次可见渲染前先应用近闭合角，避免 Bind Pose 闪现。
 - 下半屏是固定参考，只旋转上半屏运行时 Pivot。
-- 当前展示目标约为 `110°`，对应上半屏相对 Bind Pose 旋转 `70°`。
+- Unfold / 装配目标为 `110°`（上半屏相对 Bind Pose 旋转 `70°`，下半屏平放）；Hero / Play 展示为 `120°` 并整机立起 `30°`，上屏竖直。
 - Pivot 与旋转长轴从 `Hinge` 局部包围盒推导，不硬编码世界轴。
 - Controller 在 GLB 中的当前相对变换就是最终安装终点。
 - 更换父节点时保持世界变换；优先使用 `Object3D.attach()` 并检查非均匀缩放。
-- 整机展示旋转只操作外层 `PresentationRoot`，不污染折叠计算。
+- 整机展示旋转只操作外层 `PresentationRoot`，不污染折叠计算；Hero 立起倾角由其下的 `StandRoot` 承担，同样不进入折叠计算。
 - 铰链外观取上下机身姿态中间值，不实现复杂机械结构。
 - 不回 Blender 增加 Pivot、Anchor 或 Camera，除非用户之后明确改变决定。
 

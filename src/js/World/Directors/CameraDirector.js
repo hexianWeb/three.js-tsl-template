@@ -50,16 +50,17 @@ export default class CameraDirector {
         targetX: 0,
         targetY: 0.35,
         targetZ: 0.4,
-        fov: 31,
+        fov: 42,
         duration: 1.35,
       },
+      // Hero 立起后上屏竖直、下屏仰 30°；注视点抬到两屏之间，视线约取两屏法线的中间方向。
       play: {
         positionX: 0,
-        positionY: 4.3,
-        positionZ: 4.9,
+        positionY: 3.9,
+        positionZ: 5.5,
         targetX: 0,
-        targetY: 0.3,
-        targetZ: 0.35,
+        targetY: 1.05,
+        targetZ: 0.6,
         fov: 36,
         duration: 1.1,
       },
@@ -105,7 +106,8 @@ export default class CameraDirector {
 
     // 已经在目标镜头上时不再重播过渡，但要按产品模式重新打开受限 Orbit。
     if (this.params.currentShot === shotName) {
-      if (!this.timeline) this.restoreOrbitState({ recapture: true })
+      if (!this.timeline)
+        this.restoreOrbitState({ recapture: true })
       return
     }
 
@@ -212,7 +214,8 @@ export default class CameraDirector {
   }
 
   setGestureOrbit(allowed) {
-    if (this.gestureOrbit === allowed) return
+    if (this.gestureOrbit === allowed)
+      return
     this.gestureOrbit = allowed
     this.restoreOrbitState()
   }
@@ -267,11 +270,13 @@ export default class CameraDirector {
     const freeOrbit = settled && this.params.orbitEnabled
 
     if (!settled || freeOrbit || !browsing) {
-      if (freeOrbit) this.orbitAnchor = null
+      if (freeOrbit)
+        this.orbitAnchor = null
       this.clearOrbitSpan()
     }
     else {
-      if (recapture || !this.orbitAnchor) this.captureOrbitAnchor()
+      if (recapture || !this.orbitAnchor)
+        this.captureOrbitAnchor()
       this.applyOrbitSpan(this.orbitAnchor)
     }
 
@@ -300,7 +305,8 @@ export default class CameraDirector {
     Object.entries(orbitRanges).forEach(([key, [label, min, max, step]]) => {
       folder.addBinding(this.params, key, { label, min, max, step })
         .on('change', () => {
-          if (this.orbitAnchor) this.applyOrbitSpan(this.orbitAnchor)
+          if (this.orbitAnchor)
+            this.applyOrbitSpan(this.orbitAnchor)
         })
     })
 

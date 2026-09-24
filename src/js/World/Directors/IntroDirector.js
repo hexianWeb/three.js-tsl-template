@@ -22,6 +22,7 @@ export default class IntroDirector {
     this.onGameChangerStop = onGameChangerStop
     this.onGameChangerComplete = onGameChangerComplete
     this.angleState = { value: productRig.params.foldedAngle }
+    this.standState = { angle: 0, tilt: 0 }
     this.screenWakeState = { value: 0 }
     this.params = {
       state: 'idle',
@@ -33,6 +34,7 @@ export default class IntroDirector {
       screenWakeHold: 0.2,
       pauseAtScreenWake: false,
       assemblyDelay: 0.35,
+      standDuration: 1.3,
       heroHold: 1,
     }
 
@@ -60,7 +62,7 @@ export default class IntroDirector {
         onUpdate: () => this.applyUnfoldAngle(),
       })
       .to(this.angleState, {
-        value: this.productRig.params.playAngle,
+        value: this.productRig.params.assemblyAngle,
         duration: this.params.unfoldDuration,
         ease: 'power3.out',
         onUpdate: () => this.applyUnfoldAngle(),
@@ -87,6 +89,7 @@ export default class IntroDirector {
   setInitialPose() {
     this.onProductModeChange?.('phone')
     this.angleState.value = this.productRig.params.foldedAngle
+    this.productRig.setDisplayTilt(0)
     this.productRig.setDebugAngle(this.angleState.value)
     this.controllerAssembly.setEntryPose({ prepare: false })
     this.controllerAssembly.setVisible(false)
@@ -96,7 +99,7 @@ export default class IntroDirector {
   }
 
   getUnfoldCrackAngle() {
-    return Math.min(this.params.unfoldCrackAngle, this.productRig.params.playAngle)
+    return Math.min(this.params.unfoldCrackAngle, this.productRig.params.assemblyAngle)
   }
 
   applyUnfoldAngle() {
@@ -113,7 +116,7 @@ export default class IntroDirector {
 
   inspectScreenWake() {
     this.killFlow()
-    this.productRig.setDebugAngle(this.productRig.params.playAngle)
+    this.productRig.setAssemblyPose()
     this.controllerAssembly.setEntryPose({ prepare: false })
     this.controllerAssembly.setVisible(false)
     this.screenWakeState.value = 1
@@ -148,13 +151,32 @@ export default class IntroDirector {
     this.onGameChangerStart?.(() => this.enterHero())
   }
 
+  // 装配在平放 110° 完成；进入 Hero 时再把夹角开到 120° 并整机立起，与镜头过渡同时进行。
   enterHero() {
+    const rig = this.productRig
     this.onProductModeChange?.('game-home')
     this.setState('hero')
-    this.heroDelay = gsap.delayedCall(this.params.heroHold, () => {
-      this.heroDelay = null
-      this.setState('ready')
+    this.standState.angle = rig.params.productAngle
+    this.standState.tilt = rig.params.displayTilt
+    this.heroTimeline = gsap.timeline({
+      onComplete: () => {
+        this.heroTimeline = null
+        this.setState('ready')
+      },
     })
+    this.heroTimeline
+      .to(this.standState, {
+        angle: rig.params.heroAngle,
+        tilt: rig.params.heroTilt,
+        duration: this.params.standDuration,
+        ease: 'power2.inOut',
+        onUpdate: () => {
+          rig.setProductAngle(this.standState.angle)
+          rig.setDisplayTilt(this.standState.tilt)
+        },
+        onComplete: () => rig.productAngleBinding?.refresh(),
+      })
+      .to({}, { duration: this.params.heroHold })
   }
 
   skip() {
@@ -164,7 +186,7 @@ export default class IntroDirector {
 
   complete() {
     this.killFlow()
-    this.productRig.setDebugAngle(this.productRig.params.playAngle)
+    this.productRig.setHeroPose()
     this.controllerAssembly.setInstalledPose()
     this.screenWakeState.value = 1
     this.applyScreenWake()
@@ -182,8 +204,8 @@ export default class IntroDirector {
   killFlow() {
     this.timeline?.kill()
     this.timeline = null
-    this.heroDelay?.kill()
-    this.heroDelay = null
+    this.heroTimeline?.kill()
+    this.heroTimeline = null
     this.controllerAssembly.killTimeline()
     this.onGameChangerStop?.()
   }
@@ -209,6 +231,7 @@ export default class IntroDirector {
       'screenWakeDuration',
       'screenWakeHold',
       'assemblyDelay',
+      'standDuration',
       'heroHold',
     ]
     timingKeys.forEach((key) => {

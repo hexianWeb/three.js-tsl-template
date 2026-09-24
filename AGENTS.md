@@ -34,7 +34,7 @@
 - 当前运行时模型是 `public/iphone.glb`。10 个必需节点名集中在 `ModelAdapter`：`PHONE_ROOT`、`BottomHalf_NO_CAM`、`TopHalf_CAM`、`Hinge`、`CONTROLLER_ASSEMBLY_ROOT`、`Controller_ROOT`、`Controller_Shell`、`Top_Screen_Plane`、`Bottom_Screen_Plane`、`Bottom_Display_Plane`。
 - `ControllerShellMaterial` 为 `Controller_Shell` 生成程序化磨砂塑料，纯 TSL 位于 `src/shaders/controllerPlastic.js`；`ControllerButtonMaterial` 为 ABXY / DPad 生成独立 Physical 清漆塑料并保留 GLB 底色。按键名称集中在 `ModelAdapter`，不把外壳 Lightmap 用于按键；不要为材质外观回退旧模型。
 - `Controller_Shell` 的运行时 GI 使用 `/lightmaps/Controller_Shell_lightmap.exr`。该 2048² Half Float EXR 使用 `TEXCOORD_1` (`uv1`)，因此保持 `flipY = true`、线性色彩空间和 `channel = 1`；PNG 仅作预览。
-- GLB Bind Pose 是 180 度完全展开态；下半屏固定，只旋转代码生成 Pivot 下的上半屏。首次可见前应用约 8 度近闭合态，当前 Hero/Play 目标为 110 度。
+- GLB Bind Pose 是 180 度完全展开态；下半屏固定，只旋转代码生成 Pivot 下的上半屏。首次可见前应用约 8 度近闭合态；Unfold 与装配停在 110 度平放，进入 Hero 后开到 120 度并由 `ProductRig.standRoot` 整机立起 30 度（上屏竖直），Game Home / Playing 保持该姿态。
 - Hinge 的 Pivot 和旋转长轴必须从模型局部包围盒推导，不能硬编码世界轴。重新挂接节点时保持世界变换并检查非均匀缩放。
 - Controller 在 GLB 中的相对变换是唯一安装终点并跟随下半屏；整机展示变换只放在外层 `PresentationRoot`。
 - Controller 装配使用 GSAP，Replay 前切到 110 度。当前模型滑轨轴推导为 Z，视觉确认方向为 `-Z`；方向可在 Tweakpane 覆盖。动画结束、Skip 和销毁都必须回到或保留精确安装矩阵。
