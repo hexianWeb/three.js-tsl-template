@@ -47,7 +47,7 @@ export default class ColorDock {
       return sample
     })
     this.label = new ExhibitLabel({ width: 0.57, height: 0.065, name: 'ControllerThemesLegend' })
-    this.label.mesh.position.set(0, 0.057, 0.1665)
+    this.label.mesh.position.set(0, 0.057, 0.167)
     this.group.add(this.label.mesh)
     this.applyColors()
     this.update(0)
@@ -74,12 +74,12 @@ export default class ColorDock {
   applyColors() {
     this.samples.forEach((sample, index) => sample.setColors(this.themes[index]))
     this.label.redraw('#e7e3dc', (ctx) => {
-      ctx.fillStyle = '#343b41'
-      ctx.font = '600 35px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-      ctx.fillText('Controller Themes', 30, 49)
-      ctx.fillStyle = '#60686c'
-      ctx.font = '400 21px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-      ctx.fillText('02 / SHELL + BUTTONS', 30, 83)
+      ctx.fillStyle = '#202c36'
+      ctx.font = '800 46px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+      ctx.fillText('Controller Themes', 30, 50)
+      ctx.fillStyle = '#35414b'
+      ctx.font = '700 27px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+      ctx.fillText('02 / SHELL + BUTTONS', 30, 93)
       this.themes.forEach((theme, index) => {
         const x = 622 + index * 145
         // 每个主题三枚色点：外壳、ABXY、D-Pad。
@@ -92,10 +92,10 @@ export default class ColorDock {
           ctx.lineWidth = 1
           ctx.stroke()
         }
-        ctx.fillStyle = '#4b5359'
+        ctx.fillStyle = '#25343f'
         ctx.textAlign = 'center'
-        ctx.font = '400 18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-        ctx.fillText(theme.label, x, 86)
+        ctx.font = '700 28px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+        ctx.fillText(theme.label, x, 92)
       })
     })
   }

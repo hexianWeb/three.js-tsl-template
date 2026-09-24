@@ -40,12 +40,12 @@ export default class PartsDisplay {
 
   drawLabels() {
     this.label.redraw(this.params.boardColor, (ctx, height) => {
-      const text = (value, x, y, size, weight = 400, color = '#545b60') => {
+      const text = (value, x, y, size, weight = 700, color = '#35414b') => {
         ctx.fillStyle = color
         ctx.font = `${weight} ${size}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
         ctx.fillText(value, x, y)
       }
-      text('01 / COMPONENT STUDY', 44, 68, 26, 600)
+      text('01 / COMPONENT STUDY', 44, 70, 40, 800)
       ctx.strokeStyle = '#c5c6c1'
       ctx.lineWidth = 1.5
       ctx.beginPath()
@@ -54,13 +54,15 @@ export default class PartsDisplay {
       ctx.moveTo(688, 150)
       ctx.lineTo(688, 880)
       ctx.stroke()
-      text('Controller Shell', 46, 698, 32, 600, '#2d343b')
-      text('3D Printed', 46, 738, 24)
-      text('D-Pad', 728, 424, 30, 600, '#2d343b')
-      text('3D Printed', 728, 460, 22)
-      text('Button Caps', 728, 856, 28, 600, '#2d343b')
-      text('3D Printed', 728, 891, 22)
-      text('DUO / MODULAR INPUT', 46, height - 40, 20, 500)
+      text('Controller Shell', 46, 698, 44, 800, '#202c36')
+      text('3D Printed', 46, 746, 32)
+      text('D-Pad', 728, 424, 44, 800, '#202c36')
+      text('3D Printed', 728, 472, 30)
+      // 右列宽度固定，拆成两行让字号真正增大，而不是把长标题横向压扁。
+      text('Button', 728, 833, 40, 800, '#202c36')
+      text('Caps', 728, 878, 40, 800, '#202c36')
+      text('3D Printed', 728, 924, 30)
+      text('DUO / MODULAR INPUT', 46, height - 35, 28)
     })
   }
 
