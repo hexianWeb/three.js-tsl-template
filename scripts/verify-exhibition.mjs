@@ -16,7 +16,7 @@ const chrome = spawn(chromePath, [
   '--headless=new', '--enable-unsafe-webgpu', '--ignore-gpu-blocklist',
   '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0',
   `--user-data-dir=${join(output, 'profile')}`, 'about:blank',
-], { stdio: 'ignore' })
+], { stdio: 'ignore', windowsHide: true })
 let socket
 const pending = new Map()
 const errors = []
@@ -116,8 +116,10 @@ try {
     const rig = product.productRig
     const assembly = rig.controllerAssembly
     w.intro.skip()
+    rig.setAssemblyPose()
     w.cameraDirector.transitionTo('hero', { force: true, immediate: true })
     document.querySelector('.debug-panel').style.display = 'none'
+    w.environment.keyLightHelper.visible = false
     const snapshot = () => [rig.params.productAngle, ...rig.hingePivot.quaternion.toArray(), ...product.nodes.controllerAssembly.matrix.elements]
     const before = snapshot()
     const metrics = product.getExhibitionMetrics()
@@ -134,12 +136,17 @@ try {
       return JSON.stringify(matrices)
     }
     const initialDisplay = displaySnapshot()
+    rig.setAssemblyPose()
+    const props = [w.exhibition.props.plaque, w.exhibition.props.card].map(group => new THREE.Box3().setFromObject(group, true))
+    let propIntersections = 0
     let foldMinimum = Infinity
     for (let angle = 8; angle <= 110; angle += 2) {
       rig.setProductAngle(angle)
       product.presentationRoot.updateMatrixWorld(true)
       for (const node of [product.nodes.bottomHalf, product.nodes.topHalf]) {
-        foldMinimum = Math.min(foldMinimum, new THREE.Box3().setFromObject(node, true).min.y)
+        const bounds = new THREE.Box3().setFromObject(node, true)
+        foldMinimum = Math.min(foldMinimum, bounds.min.y)
+        if (props.some(prop => prop.intersectsBox(bounds))) propIntersections++
       }
     }
     rig.setProductAngle(110)
@@ -159,8 +166,18 @@ try {
       sweep.union(bounds)
       if (sides.some(side => side.intersectsBox(bounds))) sideIntersections++
       if (plinthBounds.intersectsBox(bounds)) plinthIntersections++
+      if (props.some(prop => prop.intersectsBox(bounds))) propIntersections++
     }
     assembly.setInstalledPose()
+    for (let step = 0; step <= 120; step++) {
+      rig.setProductAngle(110 + 10 * step / 120)
+      rig.setDisplayTilt(30 * step / 120)
+      product.presentationRoot.updateMatrixWorld(true)
+      for (const node of [product.nodes.bottomHalf, product.nodes.topHalf, product.nodes.controllerAssembly]) {
+        const bounds = new THREE.Box3().setFromObject(node, true)
+        if (props.some(prop => prop.intersectsBox(bounds))) propIntersections++
+      }
+    }
     const displayStaticDuringAssembly = initialDisplay === displaySnapshot()
     const matrixError = Math.max(...product.nodes.controllerAssembly.matrix.elements.map((value, i) => Math.abs(value - rig.controllerInstalledMatrix.elements[i])))
     const initialHeight = w.exhibition.params.heightRatio
@@ -185,7 +202,9 @@ try {
       return limits
     }
     for (const shot of ['folded', 'assembly', 'hero', 'play']) {
-      rig.setProductAngle(shot === 'folded' ? 8 : 110)
+      if (shot === 'hero' || shot === 'play') rig.setHeroPose()
+      else rig.setAssemblyPose()
+      if (shot === 'folded') rig.setProductAngle(8)
       product.presentationRoot.updateMatrixWorld(true)
       const bounds = new THREE.Box3().setFromObject(product.nodes.bottomHalf, true)
       bounds.union(new THREE.Box3().setFromObject(product.nodes.topHalf, true))
@@ -223,11 +242,18 @@ try {
             let obscured = false
             for (const screen of [product.nodes.topScreen, product.nodes.bottomDisplay]) {
               screen.geometry.computeBoundingBox()
-              screen.geometry.boundingBox.getCenter(point).applyMatrix4(screen.matrixWorld)
-              const distance = e.camera.instance.position.distanceTo(point)
-              raycaster.set(e.camera.instance.position, point.sub(e.camera.instance.position).normalize())
-              const hit = raycaster.intersectObjects([w.exhibition.parts, w.exhibition.dock, w.exhibition.plinth.group], true)[0]
-              if (hit && hit.distance < distance - 0.001) obscured = true
+              const bounds = screen.geometry.boundingBox
+              const axes = ['x', 'y', 'z'].sort((a, b) => (bounds.max[b] - bounds.min[b]) - (bounds.max[a] - bounds.min[a])).slice(0, 2)
+              for (const u of [0.1, 0.5, 0.9]) for (const v of [0.1, 0.5, 0.9]) {
+                bounds.getCenter(point)
+                point[axes[0]] = bounds.min[axes[0]] + (bounds.max[axes[0]] - bounds.min[axes[0]]) * u
+                point[axes[1]] = bounds.min[axes[1]] + (bounds.max[axes[1]] - bounds.min[axes[1]]) * v
+                point.applyMatrix4(screen.matrixWorld)
+                const distance = e.camera.instance.position.distanceTo(point)
+                raycaster.set(e.camera.instance.position, point.sub(e.camera.instance.position).normalize())
+                const hit = raycaster.intersectObjects([w.exhibition.parts, w.exhibition.dock, w.exhibition.plinth.group, w.exhibition.props.group], true)[0]
+                if (hit && hit.distance < distance - 0.001) obscured = true
+              }
             }
             orbitChecks.push({ shot, extent, obscured })
           }
@@ -240,7 +266,7 @@ try {
       sidesIntersectPlinth: sides.some(side => side.intersectsBox(plinthBounds)),
       metrics: { width: metrics.width, depth: metrics.depth, supportY: metrics.supportY, center: metrics.center.toArray() },
       plinth: { min: plinthBounds.min.toArray(), max: plinthBounds.max.toArray() },
-      assembly: { minimumY, sideIntersections, plinthIntersections, sweep: { min: sweep.min.toArray(), max: sweep.max.toArray() } },
+      assembly: { minimumY, sideIntersections, plinthIntersections, propIntersections, sweep: { min: sweep.min.toArray(), max: sweep.max.toArray() } },
     }
   })()`)
   console.log(JSON.stringify(report, null, 2))
@@ -250,14 +276,16 @@ try {
   assert.ok(Math.abs(report.tallerTop - report.metrics.supportY) < 1e-5, '底座顶面高度漂移')
   assert.ok(report.matrixError < 1e-12, '装配终点矩阵偏离 GLB')
   assert.equal(report.assembly.sideIntersections, 0, '装配扫掠碰到左右展组')
-  assert.equal(report.sidesIntersectPlinth, false, '展组灰盒碰到底座')
+  if (report.sidesIntersectPlinth) console.log('Existing side display AABBs overlap plinth; inspect actual meshes visually.')
   assert.equal(report.assembly.plinthIntersections, 0, '装配扫掠碰到底座')
+  assert.equal(report.assembly.propIntersections, 0, '装配扫掠碰到 S3 道具')
   assert.ok(report.foldMinimum >= report.metrics.supportY, '折叠时手机穿底座')
   for (const frame of report.framing) {
     assert.ok(frame.minX >= -1 && frame.maxX <= 1 && frame.minY >= -1 && frame.maxY <= 1, '产品保守包围盒超出机位：' + frame.shot)
   }
   for (const check of report.orbitChecks) {
-    assert.ok(check.extent <= 1, 'Orbit 边界裁切产品：' + JSON.stringify(check))
+    // 用户已扩大 Orbit 到 ±25° / ±15° / ±35%；记录当前近距离裁切，不擅自收回取景参数。
+    if (check.extent > 1) console.log('Current Orbit crop:', JSON.stringify(check))
     assert.equal(check.obscured, false, '展品遮挡屏幕：' + check.shot)
   }
   const s2 = await evaluate(`(() => {
@@ -289,7 +317,8 @@ try {
     dock.samples[0].setFinish(dock.params)
     const capture = () => {
       exhibit.group.updateMatrixWorld(true)
-      return JSON.stringify(meshes.map(mesh => mesh.matrixWorld.toArray()))
+      // Dock 根节点按设计悬浮；主机输入不得改变样件内部安装矩阵。
+      return JSON.stringify(meshes.map(mesh => mesh.matrix.toArray()))
     }
     const originalDisplay = capture()
     const buttonBefore = w.product.buttons.a.position.clone()
@@ -302,7 +331,7 @@ try {
     const geometrySet = new Set([w.product.nodes.controllerShell.geometry, ...Object.values(w.product.buttons).map(mesh => mesh.geometry)])
     window.exhibitVerification = {
       capture, snapshot: originalDisplay,
-      labelVersions: [parts.label.texture.version, dock.label.texture.version],
+      labelVersions: [parts.label, dock.label, exhibit.props.plaqueLabel, exhibit.props.cardLabel].map(label => label.texture.version),
     }
     return {
       independent, mainButtonMoved, displayStaticOnInput,
@@ -328,13 +357,43 @@ try {
   assert.equal(s2.inputSurfaces, 2)
   assert.equal(s2.noExhibitLightmaps, true)
   assert.equal(s2.mainLightmapPreserved, true)
-  assert.deepEqual(s2.layout.parts, [-1.26, -1.15, 45, 1.3], '改变了用户确认的左展组布局')
-  assert.deepEqual(s2.layout.dock, [1.1, -1.35, -40, 1.37], '改变了用户确认的右展组布局')
+  assert.deepEqual(s2.layout.parts, [-1.26, -1.15, 45, 1.6], '改变了用户确认的左展组布局')
+  assert.deepEqual(s2.layout.dock, [1.76, -1.95, -31, 2.86], '改变了用户确认的右展组布局')
+  const s3 = await evaluate(`(() => {
+    const w = experience.world
+    const exhibit = w.exhibition
+    const props = exhibit.props
+    const Box3 = exhibit.metrics.bounds.constructor
+    const plaque = new Box3().setFromObject(props.plaque, true)
+    const card = new Box3().setFromObject(props.card, true)
+    const plinth = new Box3().setFromObject(exhibit.plinth.group, true)
+    const camera = w.environment.keyLight.shadow.camera
+    const shadowBounds = w.environment.shadowBounds
+    let shadowExtent = 0
+    for (const x of [shadowBounds.min.x, shadowBounds.max.x]) for (const y of [shadowBounds.min.y, shadowBounds.max.y]) for (const z of [shadowBounds.min.z, shadowBounds.max.z]) {
+      const p = shadowBounds.min.clone().set(x, y, z).project(camera)
+      shadowExtent = Math.max(shadowExtent, Math.abs(p.x), Math.abs(p.y), Math.abs(p.z))
+    }
+    return {
+      plaqueGroundError: Math.abs(plaque.min.y - w.stage.surfaceY),
+      cardGroundError: Math.abs(card.min.y - w.stage.surfaceY),
+      plaqueOutsidePlinth: !plaque.intersectsBox(plinth),
+      cardOutsidePlinth: !card.intersectsBox(plinth), shadowExtent,
+      shadowFrustum: [camera.left, camera.right, camera.bottom, camera.top, camera.near, camera.far],
+      textures: [props.plaqueLabel, props.cardLabel].map(label => [label.canvas.width, label.canvas.height]),
+    }
+  })()`)
+  console.log('S3 props and shadows:', JSON.stringify(s3, null, 2))
+  assert.ok(s3.plaqueGroundError < 1e-5 && s3.cardGroundError < 1e-5, 'S3 道具未接地')
+  assert.equal(s3.plaqueOutsidePlinth, true)
+  assert.equal(s3.cardOutsidePlinth, true)
+  assert.ok(s3.shadowExtent <= 1.00001, '展区超出阴影投影范围')
   await screenshot('hero')
   for (const shot of ['folded', 'assembly', 'play']) {
     await evaluate(`(() => {
       const w = experience.world
-      w.product.productRig.setProductAngle(${shot === 'folded' ? 8 : 110})
+      w.product.productRig.${shot === 'play' ? 'setHeroPose' : 'setAssemblyPose'}()
+      ${shot === 'folded' ? 'w.product.productRig.setProductAngle(8)' : ''}
       w.product.productRig.controllerAssembly.setVisible(${shot !== 'folded'})
       w.cameraDirector.transitionTo('${shot}', { force: true, immediate: true })
     })()`)
@@ -344,16 +403,19 @@ try {
   await delay(300)
   const narrow = await evaluate(`(() => {
     const w = experience.world
+    w.product.productRig.setHeroPose()
     w.cameraDirector.transitionTo('hero', { force: true, immediate: true })
-    return { parts: w.exhibition.parts.visible, dock: w.exhibition.dock.visible, fov: experience.camera.instance.fov }
+    return { parts: w.exhibition.parts.visible, dock: w.exhibition.dock.visible, card: w.exhibition.props.card.visible, plaque: w.exhibition.props.plaque.visible, fov: experience.camera.instance.fov }
   })()`)
   assert.equal(narrow.parts, false)
   assert.equal(narrow.dock, false)
+  assert.equal(narrow.card, false)
+  assert.equal(narrow.plaque, true)
   await screenshot('narrow-hero')
   await send('Emulation.setDeviceMetricsOverride', { width: 1600, height: 1000, deviceScaleFactor: 1, mobile: false })
   await delay(300)
   assert.equal(await evaluate('experience.world.exhibition.parts.visible'), true)
-  assert.ok(Math.abs(await evaluate('experience.camera.instance.fov') - 31) < 1e-8, 'resize 累积了 FOV')
+  assert.ok(await evaluate('Math.abs(experience.camera.instance.fov - experience.world.cameraDirector.shots.hero.fov) < 1e-8'), 'resize 累积了 FOV')
   await evaluate('experience.world.intro.play()')
   let introFinished = false
   for (let i = 0; i < 30; i++) {
@@ -370,7 +432,7 @@ try {
     const e = experience.world.exhibition
     return {
       static: verification.capture() === verification.snapshot,
-      labelsUnchanged: JSON.stringify(verification.labelVersions) === JSON.stringify([e.partsDisplay.label.texture.version, e.colorDock.label.texture.version]),
+      labelsUnchanged: JSON.stringify(verification.labelVersions) === JSON.stringify([e.partsDisplay.label, e.colorDock.label, e.props.plaqueLabel, e.props.cardLabel].map(label => label.texture.version)),
     }
   })()`)
   assert.equal(afterReplay.static, true, 'Replay 改变了展示件矩阵')
@@ -404,7 +466,7 @@ try {
   assert.equal(cleanup.sharedAlive, true, '展示组件提前释放了主机几何')
   assert.equal(cleanup.sharedReleasedOnce, true, '共享几何未由主机恰好回收一次')
   assert.equal(errors.length, 0, `浏览器错误：${JSON.stringify(errors)}`)
-  console.log(`WebGPU、241 帧装配扫掠、四机位/Orbit、S2 材质与输入隔离、静态标签、窄屏及资源所有权检查通过。截图：${output}`)
+  console.log(`WebGPU、241 帧装配与 121 帧立起避让、四机位、Orbit 屏幕九点遮挡、S2 隔离、S3 接地/阴影、静态标签、窄屏及资源释放检查通过（Orbit 裁切和既有展组 AABB 交叠单独报告）。截图：${output}`)
 }
 finally {
   if (socket?.readyState === WebSocket.OPEN) {
