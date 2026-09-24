@@ -1096,7 +1096,7 @@ value += velocity * dt
 
 详细实施计划、取舍过程与验收清单在 `docs/Scene_Lighting_Stage_Plan.md`。本节只固化对其它模块有约束力的产品决定。
 
-2026-09-24 场景细节 S1 已按用户确认布局提交，S2 真实零件、标签与三配色 Dock 已实现。详见 [Scene_Detail_Implementation_Plan.md](Scene_Detail_Implementation_Plan.md) 第 12–13 节；产品铭牌、卡带与环境精修属于后续阶段。
+2026-09-24 场景细节 S1–S3 已实现，产品铭牌、原创卡带和环境覆盖修正待用户视觉验收。详见 [Scene_Detail_Implementation_Plan.md](Scene_Detail_Implementation_Plan.md) 第 12–14 节。
 
 ### 29.1 照明方案
 
@@ -1104,11 +1104,11 @@ value += velocity * dt
 
 | 光源 | 参数 | 职责 |
 |---|---|---|
-| `HemisphereLight` | `#f7fbff` / `#101827`，强度 2.4 | 唯一的场景级间接漫反射 |
-| 主 `DirectionalLight` | `#ffffff`，强度 5，位置 `(4, 6, 5)` | 主要投影与高光 |
-| 补 `DirectionalLight` | `#7dd3fc`，强度 2，位置 `(-4, 1.5, 3)` | 冷色补光 |
+| `HemisphereLight` | `#f7fbff` / `#101827`，强度 3.05 | 唯一的场景级间接漫反射 |
+| 主 `DirectionalLight` | `#ffffff`，强度 2.4，位置 `(2.9, 6, 6.8)` | 主要投影与高光 |
+| 补 `DirectionalLight` | `#7dd3fc`，强度 1.05，位置 `(-4, 1.5, 3)` | 冷色补光 |
 
-Renderer 保持 ACES 与曝光 1.1。主光投 2048² 阴影，阴影相机范围以光源到原点的距离为中心推导，不使用 three 的默认 ±5 / near 0.5 / far 500。
+Renderer 保持 ACES 与用户校准曝光 0.84。主光投 2048² 阴影，固定范围以光源到原点的距离为中心推导；S3 默认再按展区与落地投影扩展边界，保持灯位与方向。面板可关闭 `Fit exhibition` 对比固定范围。
 
 ### 29.2 HDR 环境贴图已否决
 
@@ -1124,7 +1124,7 @@ Renderer 保持 ACES 与曝光 1.1。主光投 2048² 阴影，阴影相机范�
 
 展台为程序化 S1 实现，用户已完成布局调整并确认可提交：
 
-- `Stage` 是宽 24、深 20、转角半径 3、墙高 10 的连续地面/弧墙。使用 Plastic010 1K JPG、非金属 Node Material 与 TSL 弱网格/Halo，不设置额外透明地面叠层。
+- `Stage` 是宽 40、深 20、转角半径 3、墙高 16 的连续地面/弧墙。使用 Plastic010 1K JPG、非金属 Node Material 与 TSL 网格/Halo，不设置额外透明地面叠层。
 - `Exhibition` 独立挂 Scene，持有 `ProductPlinth`、`PartsDisplay` 和 `ColorDock`。产品在 110° 安装态测量宽 W、深 D；底座默认 1.5W × 1.61D × 0.06W，Z 偏移 +0.02D，平面圆角 0.05W 与竖向倒角 0.002W 独立。
 - 小底座顶面对应 Blender `Z = -0.035` 的原支撑基准。世界高度必须经 `ModelAdapter.getStageSurfaceWorldY()` 换算，**不能写死**；地面高度等于该值减去底座总厚度。
 - 增加底座不移动产品或改变 Controller 安装终点。S1 的装配路径采样中，Controller 最低点高于底座顶面约 `+0.00658`。Bind Pose 180° 是调试姿态，原有穿支撑面问题不属于 Intro / Hero 范围。
@@ -1133,8 +1133,15 @@ Renderer 保持 ACES 与曝光 1.1。主光投 2048² 阴影，阴影相机范�
 
 ### 29.4 零件展示与配色 Dock
 
-- 左展板使用当前模型已识别的完整外壳、D-Pad 与 ABXY；右 Dock 使用三件竖放外壳配色样品。左右展组沿用用户确认的 S1 布局。
+- 左展板使用当前模型已识别的完整外壳、D-Pad 与 ABXY；右 Dock 使用三套悬浮横握 Controller 主题样品（独立外壳、ABXY、D-Pad 配色），沿用用户最新布局。
 - 展品面内右/上由静止 ABXY 布局推导；GLB 节点名称仍集中在 ModelAdapter，展示模块仅接收语义化几何/矩阵/颜色快照。
 - 共享 Geometry 只读，展示材质和 uniform 独立；主机装配、可见性和按键动作不驱动展示副本，展示件不进入屏幕命中列表。
 - 标签统一使用 `3D Printed`，不宣称未核实的材料、独立上下壳或滑轨；文字和色点由两张静态 CanvasTexture 显示。
 - 展示组件先销毁自有材质、标签与背板/Dock 几何，共享 GLB 几何最后由 ModelAdapter 回收。
+
+### 29.5 产品铭牌与原创卡带
+
+- `ExhibitProps` 由 Exhibition 持有，在底座前左/前右侧地面分别放置实体铭牌和原创卡带，布局相对产品 W / D，支撑高度跟随 Stage。
+- 铭牌标注 `iPhone Duo / 3D Printed Controller / GAME CHANGER`；卡带使用 `DUO / 01 / GAME CARD` 与原创双屏图形。几何和标签均程序生成，不依赖 ROM 内容或额外模型。
+- 两张 CanvasTexture 仅内容变化时上传，不加入屏幕输入、产品折叠、装配和模拟器更新。窄屏默认隐藏卡带，保留铭牌。
+- 场景总开关、调参和销毁由直接父级协调；初始布局必须通过装配扫掠、Hero 立起和屏幕遮挡检查。
