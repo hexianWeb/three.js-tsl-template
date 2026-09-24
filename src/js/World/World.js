@@ -3,6 +3,7 @@ import NDSPlayer from '../NDS/NDSPlayer.js'
 import CameraDirector from './Directors/CameraDirector.js'
 import IntroDirector from './Directors/IntroDirector.js'
 import Environment from './Environment/Environment.js'
+import Exhibition from './Environment/Exhibition.js'
 import Stage from './Environment/Stage.js'
 import InputRouter from './Input/InputRouter.js'
 import ControllerFeedback from './Product/ControllerFeedback.js'
@@ -22,6 +23,7 @@ export default class World {
     this.setProduct()
     this.setControllerFeedback()
     this.setStage()
+    this.exhibition = new Exhibition({ metrics: this.product.getExhibitionMetrics(), stage: this.stage })
     this.setScreenManager()
     this.setCameraDirector()
     this.setIntro()
@@ -157,6 +159,11 @@ export default class World {
     this.intro.play()
   }
 
+  resize() {
+    this.exhibition?.resize()
+    this.cameraDirector?.resize()
+  }
+
   update() {
     this.product.update()
     this.inputRouter.update()
@@ -175,6 +182,7 @@ export default class World {
     this.intro?.destroy()
     this.cameraDirector?.destroy()
     this.screenManager?.destroy()
+    this.exhibition?.destroy()
     this.stage?.destroy()
     this.controllerFeedback?.destroy()
     this.product?.destroy()

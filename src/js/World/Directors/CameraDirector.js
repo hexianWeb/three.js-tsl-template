@@ -20,6 +20,7 @@ export default class CameraDirector {
     this.orbitAnchor = null
     this.orbitOffset = new THREE.Vector3()
     this.orbitSpherical = new THREE.Spherical()
+    this.lens = { fov: this.camera.instance.fov }
     // 镜头和 Target 都使用 PresentationRoot 归一化后的世界坐标，避免依赖 GLB 内的相机或原始毫米单位。
     this.shots = {
       folded: {
@@ -44,22 +45,22 @@ export default class CameraDirector {
       },
       hero: {
         positionX: 0,
-        positionY: 3.5,
-        positionZ: 5,
+        positionY: 2.8,
+        positionZ: 6.8,
         targetX: 0,
-        targetY: 0.25,
-        targetZ: 0,
+        targetY: 0.35,
+        targetZ: 0.4,
         fov: 31,
         duration: 1.35,
       },
       play: {
         positionX: 0,
-        positionY: 3.75,
-        positionZ: 4.0,
+        positionY: 4.3,
+        positionZ: 4.9,
         targetX: 0,
-        targetY: 0.2,
-        targetZ: 0.05,
-        fov: 30,
+        targetY: 0.3,
+        targetZ: 0.35,
+        fov: 36,
         duration: 1.1,
       },
     }
@@ -150,9 +151,9 @@ export default class CameraDirector {
         y: shot.targetY,
         z: shot.targetZ,
       }, 0)
-      .to(this.camera.instance, {
+      .to(this.lens, {
         fov: shot.fov,
-        onUpdate: () => this.camera.instance.updateProjectionMatrix(),
+        onUpdate: () => this.updateProjection(),
       }, 0)
   }
 
@@ -167,8 +168,8 @@ export default class CameraDirector {
       shot.targetY,
       shot.targetZ,
     )
-    this.camera.instance.fov = shot.fov
-    this.camera.instance.updateProjectionMatrix()
+    this.lens.fov = shot.fov
+    this.updateProjection()
     this.camera.controls.update()
   }
 
@@ -183,13 +184,31 @@ export default class CameraDirector {
     shot.targetX = target.x
     shot.targetY = target.y
     shot.targetZ = target.z
-    shot.fov = this.camera.instance.fov
+    // 将窄屏补偿逆变换回镜头基准，避免 Capture / resize 多次叠加 FOV。
+    const aspectScale = this.getAspectScale()
+    shot.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(this.camera.instance.fov / 2)) * aspectScale))
+    this.lens.fov = shot.fov
     this.shotBindings[name].forEach(binding => binding.refresh())
   }
 
   killTransition() {
     this.timeline?.kill()
     this.timeline = null
+  }
+
+  updateProjection() {
+    // 窄屏保留 1.4:1 画幅的水平视角，让底座和斜看的 Folded 也能入画；不移动 Orbit 锚点。
+    const aspectScale = this.getAspectScale()
+    this.camera.instance.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(this.lens.fov / 2)) / aspectScale))
+    this.camera.instance.updateProjectionMatrix()
+  }
+
+  getAspectScale() {
+    return Math.max(0.1, Math.min(1, this.camera.instance.aspect / 1.4))
+  }
+
+  resize() {
+    this.updateProjection()
   }
 
   setGestureOrbit(allowed) {
@@ -265,6 +284,7 @@ export default class CameraDirector {
       title: 'Camera Director',
       expanded: true,
     })
+    this.folder = folder
     this.currentShotBinding = folder.addBinding(this.params, 'currentShot', {
       label: 'Current Shot',
       readonly: true,
@@ -328,6 +348,7 @@ export default class CameraDirector {
   }
 
   destroy() {
+    this.folder.dispose()
     this.killTransition()
     this.unsubscribeState?.()
     this.unsubscribeProductMode?.()

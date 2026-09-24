@@ -1,14 +1,16 @@
 # iPhone Duo WebGPU 项目进度
 
-> 最后更新：2026-09-23
-> 当前阶段：Phase 6 已完成验收；Phase 7 的 Game Home UI 精修进行中
-> 当前状态：Controller 接入后的 Game Home 上下屏已改为可交互 Canvas UI；最终视觉验收仍由用户完成
+> 最后更新：2026-09-24
+> 当前阶段：Phase 6 已完成验收；Phase 7 的场景细节 S1 已确认
+> 当前状态：用户已调整并确认 S1 布局，可提交；以此为基准进入 S2 零件展示与配色 Dock
 
 ## 1. 进度摘要
 
 Phase 2 Runtime Rig、折叠方向、阴影和 Controller Lightmap 已完成视觉校准。当前已实现角度驱动的 Fold Phone UI、可重播的 Controller 装配、装配期间的透明镂空，以及 Lock 后 Phone UI -> Game Home 转场和最小 Continue / 返回交互。
 
 本轮补充了场景环境：灯光从 `World` 拆出为 `Environment` 组件并收紧了主光阴影相机，新增程序化展台桌板 `Stage`。HDR 环境贴图经实测否决，场景不设置 `scene.environment`。
+
+2026-09-24 补充：场景细节 S1 已将 `Stage` 升级为连续地面/弧墙，新增固定顶面的小底座、TSL 网格与 Halo、左右展组灰盒，并校准 Hero / Play 取景及窄屏策略。当前实现与验证详见 [场景细节实施方案第 12 节](Scene_Detail_Implementation_Plan.md#12-s1-实现记录2026-09-24)。下文早期环境记录保留为历史基线。
 
 实施里程碑统计：
 
@@ -38,7 +40,7 @@ Git 提交：本轮已执行
 | Phase 4 | Intro、Camera Shot、Ready / Play | 已完成 | 用户已确认浏览器视觉校验完成；进入 Phase 5 前增加 Controller Shell 材质 LookDev |
 | Phase 5 | NDS 模拟器技术验证与双屏桥接 | 已完成 | 独立页及主产品 3D 双屏桥接、连续游玩、音画同步、触控与真实 Gamepad 均已通过验收 |
 | Phase 6 | Keyboard / Gamepad 与 3D 按键反馈 | 已完成 | 键盘、标准 Gamepad、3D 下屏触控、输入释放、ABXY 下沉 / D-Pad 倾斜弹簧、点击音与手柄轻震均已通过验收 |
-| Phase 7 | 性能、兼容性、Loading 与视觉精修 | 进行中 | Game Home UI 已改造；最终视觉验收由用户完成 |
+| Phase 7 | 性能、兼容性、Loading 与视觉精修 | 进行中 | 场景细节 S1 已由用户调整并确认；准备进入 S2 |
 
 ## 3. 已完成内容
 
@@ -243,6 +245,16 @@ Bottom_Display_Plane
 - 手柄轻震：按下边沿由 `ControllerFeedback` 决定强度（面键 1、D-Pad 0.7、Start / Select / L / R 0.6，乘以默认强度 `0.35`），`InputRouter.rumble()` 以 `dual-rumble` 下发，weak 马达为主、strong 马达仅 25%，默认 `24 ms`；松开不震。只震当前正在提供输入的手柄，纯键盘操作不震；不支持 `vibrationActuator` 的浏览器静默跳过。
 - `Controller Feedback` 面板可调行程、D-Pad 倾角、按下 / 松开刚度、阻尼比、点击音开关与音量、手柄震动开关 / 强度 / 时长，并可在任意模式下 Tap 测试单个按键（Tap 测试不触发震动）。
 
+### 3.17 场景细节 S1
+
+- 新增 `Exhibition`、`ProductPlinth`、连续几何生成与 `exhibitionFloor.js`，以 110° 安装态尺寸组织中央底座和左右灰盒；没有加载新模型或贴图。
+- 底座顶面保持原支撑高度，地面随底座厚度下移；运行时测量后恢复近闭合姿态和 Controller 矩阵。
+- `Stage` 现为连续地面—弧墙，使用原 Plastic010 纹理；地面网格/Halo 进入 TSL，调试 Grid 默认关闭，背景改为暖灰白。
+- Hero 调整为 `(0, 2.8, 6.8)` / Target `(0, 0.35, 0.4)` / FOV 31；Play 调整为 `(0, 4.3, 4.9)` / Target `(0, 0.3, 0.35)` / FOV 36，为展组与 Orbit 边界留出空间。
+- 宽高比低于 1.35 时隐藏左右灰盒；CameraDirector 以 1.4:1 水平取景作窄屏 FOV 补偿，已接通 World resize。
+- `npm run build` 通过；新增 Chrome CDP 验证脚本，覆盖 GPU 编译、241 个装配采样、折叠、高度与矩阵恢复、四机位、16 个 Orbit 边界、窄屏、Replay / Skip 与销毁。
+- 用户已调整并确认 S1：底座深 1.61D、高 0.06W，左右灰盒采用新的位置、朝向和比例；复验通过。当前左右展组仍是灰盒，真实配件和标签属于 S2；合并负载性能测量待完成。
+
 ## 4. 验证记录
 
 | 检查 | 结果 |
@@ -305,7 +317,7 @@ Bottom_Display_Plane
 - 当前 Camera Shot 参数已由用户完成视觉校准，并已用于 Screen Wake 与 Phone UI 构图基线。
 
 - Bind Pose `180°` 时整机最低点落到桌面下方 `-0.04463`，即上半屏摊平后穿过桌板。`180°` 只是 Tweakpane 调试姿态，Intro 与 Hero 都不会到达，暂不处理。
-- `Stage` 的 `width` / `depth` 滑杆上限就是当前调定的 20；若需更大桌面要先放宽 `Stage.debugInit()` 的 `ranges`。
+- S1 的 Stage 已改为连续地面/弧墙，`width` / `depth` 滑杆上限分别为 40 / 32；新的尺寸、曲率和镜头取景仍需用户视觉确认。
 
 ### 尚未决定
 
@@ -364,6 +376,6 @@ Phase 6 验收结论：
 
 1. 进入 Phase 7：性能、兼容性、Loading 与视觉精修。
 2. IndexedDB 持久存档仍为演示增强项，按演示需要再实现。
-3. 2026-09-24 场景细节规划：已根据设计稿与 Hero 参考图整理 [场景细节实施方案](Scene_Detail_Implementation_Plan.md)，建议按基础展台空间、左右配件展示、叙事道具与环境精修推进。目前仅完成方案，场景实现与视觉验收尚未开始。方案中的参数以当前源码核对结果为基线，历史记录不代表全部现行默认值。
+3. 2026-09-24 用户确认 S1 布局可提交，进入 S2 真实配件展示。默认参数、调试入口和验证命令见 [场景细节实施方案第 12 节](Scene_Detail_Implementation_Plan.md#12-s1-实现记录2026-09-24)。
 
 本轮实现、测试结果和使用方法见 `docs/NDS_Integration_Spike.md`。固定上游版本为 `7adc554ce1dc5318fef3797e8f00a6e9286dac3b`；ROM 仅本地验证，不进入生产构建。

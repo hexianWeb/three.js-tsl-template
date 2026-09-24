@@ -24,7 +24,7 @@ export default class ModelInspector {
       selectedNode: 'presentationRoot',
       axisLegend: AXIS_LEGEND,
       showWorldAxes: false,
-      showGrid: true,
+      showGrid: false,
       showSelectedAxes: false,
       showSelectedBounds: false,
       showAllPartAxes: false,

@@ -761,7 +761,8 @@ Input Target
 App
 ├─ Renderer
 ├─ Environment                  # 背景、三盏灯、主光阴影、曝光；不设置 scene.environment
-├─ Stage                        # 展台桌板，独立挂在 Scene 下，不进入 fitModel() 包围盒
+├─ Stage                        # 连续地面/弧墙、TSL 网格与 Halo，不进入 fitModel() 包围盒
+├─ Exhibition                   # 产品小底座、左右展组布局与画幅策略
 ├─ ProductRig
 │  ├─ ModelAdapter              # 校验节点、建立运行时层级
 │  ├─ HingeController           # 产品夹角、Pivot、铰链视觉
@@ -809,7 +810,7 @@ App
 - 已确认三块屏幕节点及职责：`Top_Screen_Plane` 为手机上屏，`Bottom_Screen_Plane` 为手机原生下屏，`Bottom_Display_Plane` 为 Controller 镂空上方、仅在 Lock 后激活的显示层。
 - 已确认三块屏幕 UV 均覆盖完整 `0–1`；比例差异由运行时 fit、letterbox 或 crop 处理。
 - **不使用 HDR 环境贴图**，`scene.environment` 恒为 null。已实测否决，详见第 29 节与 `docs/Scene_Lighting_Stage_Plan.md`。
-- 展台当前是程序化倒角桌板占位；外部展台模型到位后替换 `Stage.js` 的几何来源。
+- 场景细节 S1 使用程序化连续地面/弧墙和独立产品小底座，左右展组为灰盒；外部资产仍可在后续阶段替换对应组件的几何来源。
 
 ### 待技术验证
 
@@ -1092,7 +1093,7 @@ value += velocity * dt
 
 详细实施计划、取舍过程与验收清单在 `docs/Scene_Lighting_Stage_Plan.md`。本节只固化对其它模块有约束力的产品决定。
 
-2026-09-24 新增场景细节提案见 [Scene_Detail_Implementation_Plan.md](Scene_Detail_Implementation_Plan.md)：拟将大地面与产品小底座分层，增加左右配件展示及环境细节。该文档目前为待实施方案；本节现有展台描述仍记录已实现基线。
+2026-09-24 场景细节 S1 已实现，见 [Scene_Detail_Implementation_Plan.md](Scene_Detail_Implementation_Plan.md) 第 12 节：地面与产品小底座分层，左右展组灰盒和背景弧墙已接入；真实配件展示、标签与环境精修仍属于后续阶段。
 
 ### 29.1 照明方案
 
@@ -1118,9 +1119,11 @@ Renderer 保持 ACES 与曝光 1.1。主光投 2048² 阴影，阴影相机范�
 
 ### 29.3 展台
 
-展台当前是程序化占位件，不是最终资产：
+展台为程序化 S1 实现，用户已完成布局调整并确认可提交：
 
-- `RoundedBoxGeometry` + 非金属 `MeshStandardNodeMaterial`，尺寸 20 × 20 × 0.12，倒角 0.02。表面为 `public/texture/` 的 Plastic010 1K JPG（颜色、OpenGL 法线、粗糙度），Tint 默认白，粗糙度乘数默认 1。
-- 桌面上表面对应 Blender `Z = -0.035`，导出后是 GLB 模型局部 Y。世界高度必须经 `ModelAdapter.getStageSurfaceWorldY()` 运行时换算，**不能写死**。
-- 8°–110° 折叠区间内，整机最低点（Controller Shell）恒在桌面上方 `+0.00658`。Bind Pose 180° 会穿桌 `-0.04463`，但 180° 只是调试姿态，Intro 与 Hero 都不会到达。
-- 外部展台模型到位后只替换几何来源，坐标换算与调参接口不变。
+- `Stage` 是宽 24、深 20、转角半径 3、墙高 10 的连续地面/弧墙。使用 Plastic010 1K JPG、非金属 Node Material 与 TSL 弱网格/Halo，不设置额外透明地面叠层。
+- `Exhibition` 独立挂 Scene，持有 `ProductPlinth` 和左右展组灰盒。产品在 110° 安装态测量宽 W、深 D；底座默认 1.5W × 1.61D × 0.06W，Z 偏移 +0.02D，平面圆角 0.05W 与竖向倒角 0.002W 独立。
+- 小底座顶面对应 Blender `Z = -0.035` 的原支撑基准。世界高度必须经 `ModelAdapter.getStageSurfaceWorldY()` 换算，**不能写死**；地面高度等于该值减去底座总厚度。
+- 增加底座不移动产品或改变 Controller 安装终点。S1 的装配路径采样中，Controller 最低点高于底座顶面约 `+0.00658`。Bind Pose 180° 是调试姿态，原有穿支撑面问题不属于 Intro / Hero 范围。
+- 左右展组在宽高比小于 1.35 时默认隐藏；所有布景均不进入 `fitModel()` 包围盒，不挂接到折叠或装配节点。
+- 后续外部展台/配件资产可替换对应组件的几何来源，支撑高度换算与布局约束保持一致。

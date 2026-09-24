@@ -168,6 +168,42 @@ export default class ModelAdapter {
     return this.model.localToWorld(new THREE.Vector3(0, STAGE_SURFACE_MODEL_Y, 0)).y
   }
 
+  getExhibitionMetrics() {
+    const rig = this.productRig
+    const controller = this.nodes.controllerAssembly
+    const angle = rig.params.productAngle
+    const hinge = rig.hingePivot.quaternion.clone()
+    const visual = rig.hingeVisualRig.quaternion.clone()
+    const position = controller.position.clone()
+    const quaternion = controller.quaternion.clone()
+    const scale = controller.scale.clone()
+    try {
+      // 仅在 World 初始化、首帧渲染前测量安装完成的 110° 占地，不运行装配或 Intro 时间线。
+      rig.setProductAngle(rig.params.playAngle)
+      rig.controllerInstalledMatrix.decompose(controller.position, controller.quaternion, controller.scale)
+      this.presentationRoot.updateMatrixWorld(true)
+      const bounds = new THREE.Box3().setFromObject(rig.productRoot, true)
+      const size = bounds.getSize(new THREE.Vector3())
+      return {
+        width: size.x,
+        depth: size.z,
+        bounds,
+        center: bounds.getCenter(new THREE.Vector3()),
+        supportY: this.getStageSurfaceWorldY(),
+      }
+    }
+    finally {
+      // 精确恢复首帧近闭合态与 Controller 位姿，避免测量把 Rig 推到另一产品状态。
+      rig.params.productAngle = angle
+      rig.hingePivot.quaternion.copy(hinge)
+      rig.hingeVisualRig.quaternion.copy(visual)
+      controller.position.copy(position)
+      controller.quaternion.copy(quaternion)
+      controller.scale.copy(scale)
+      this.presentationRoot.updateMatrixWorld(true)
+    }
+  }
+
   applyTransform() {
     this.presentationRoot.position.set(
       this.params.positionX,

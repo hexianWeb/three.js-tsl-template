@@ -12,7 +12,7 @@ export default class Environment {
     this.renderer = this.experience.renderer
 
     this.params = {
-      background: '#090d14',
+      background: '#e2dfd8',
       exposure: this.renderer.instance.toneMappingExposure,
       hemisphereIntensity: 2.4,
       keyIntensity: 5,
