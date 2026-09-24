@@ -13,22 +13,23 @@ export default class Environment {
 
     this.params = {
       background: '#e2dfd8',
-      exposure: this.renderer.instance.toneMappingExposure,
-      hemisphereIntensity: 2.4,
-      keyIntensity: 5,
-      keyX: 4,
+      exposure: 0.84,
+      hemisphereIntensity: 3.05,
+      keyIntensity: 2.4,
+      keyX: 2.9,
       keyY: 6,
-      keyZ: 5,
-      fillIntensity: 2,
+      keyZ: 6.8,
+      fillIntensity: 1.05,
       shadowExtent: 4.0,
       shadowDepth: 6,
       shadowRadius: 10.0,
       shadowBias: 0,
       shadowNormalBias: 0.006,
-      showKeyLightHelper: false,
+      showKeyLightHelper: true,
     }
 
     this.setLights()
+    this.renderer.setExposure(this.params.exposure)
     this.debugInit()
   }
 

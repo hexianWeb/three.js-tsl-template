@@ -14,7 +14,7 @@ export default class Stage {
     this.textures = this.configureTextures(textures)
     this.params = {
       visible: true,
-      width: 24,
+      width: 40,
       depth: 20,
       wallRadius: 3,
       wallHeight: 10,

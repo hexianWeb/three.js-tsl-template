@@ -26,7 +26,7 @@ export default class PhoneScreenSurface {
     this.params = {
       phoneBrightness: 0.30,
       phoneDiffuseDetail: 0.14,
-      phoneRoughness: 0.72,
+      phoneRoughness: 0.95,
       phoneMirrorX: false,
       phoneMirrorY: false,
       phoneRotation: 180,

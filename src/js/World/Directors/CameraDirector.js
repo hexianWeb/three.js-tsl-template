@@ -12,9 +12,9 @@ export default class CameraDirector {
       currentShot: 'none',
       orbitEnabled: false,
       // 相对当前镜头的摆动幅度。角度用度，距离是相对镜头距离的比例。
-      orbitAzimuth: 16,
-      orbitPolar: 10,
-      orbitDistance: 0.1,
+      orbitAzimuth: 25,
+      orbitPolar: 15,
+      orbitDistance: 0.35,
     }
     this.gestureOrbit = true
     this.orbitAnchor = null
