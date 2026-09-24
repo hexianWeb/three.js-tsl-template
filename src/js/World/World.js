@@ -27,6 +27,7 @@ export default class World {
       metrics: this.product.getExhibitionMetrics(),
       sources: this.product.getExhibitSources(),
       stage: this.stage,
+      onLayout: bounds => this.environment.setShadowBounds(bounds),
     })
     this.setScreenManager()
     this.setCameraDirector()

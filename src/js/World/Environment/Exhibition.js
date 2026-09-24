@@ -1,17 +1,19 @@
 import * as THREE from 'three/webgpu'
 import Experience from '../../Experience.js'
 import ColorDock from './ColorDock.js'
+import ExhibitProps from './ExhibitProps.js'
 import PartsDisplay from './PartsDisplay.js'
 import ProductPlinth from './ProductPlinth.js'
 
 export default class Exhibition {
-  constructor({ metrics, stage, sources }) {
+  constructor({ metrics, stage, sources, onLayout }) {
     const experience = new Experience()
     this.scene = experience.scene
     this.debug = experience.debug
     this.sizes = experience.sizes
     this.metrics = metrics
     this.stage = stage
+    this.onLayout = onLayout
     this.params = {
       enabled: true,
       showParts: true,
@@ -47,6 +49,8 @@ export default class Exhibition {
     this.parts = this.partsDisplay.group
     this.dock = this.colorDock.group
     this.group.add(this.parts, this.dock)
+    this.props = new ExhibitProps({ debug: this.debug, onLayout: () => this.notifyLayout() })
+    this.group.add(this.props.group)
     this.scene.add(this.group)
     this.applyLayout()
     this.debugInit()
@@ -79,7 +83,15 @@ export default class Exhibition {
     this.dock.position.set(center.x + p.dockX * w, floorY, center.z + p.dockZ * d)
     this.dock.rotation.y = THREE.MathUtils.degToRad(p.dockYaw)
     this.dock.scale.setScalar(w * p.dockScale)
+    this.props.setLayout({ width: w, depth: d, centerX, centerZ, floorY })
     this.resize()
+  }
+
+  notifyLayout() {
+    // 包含隐藏展组，避免 resize 让阴影投影跳变；为 Dock 小幅悬浮预留世界空间余量。
+    const bounds = new THREE.Box3().setFromObject(this.group, true)
+    bounds.union(this.metrics.bounds).expandByScalar(this.metrics.width * 0.15)
+    this.onLayout?.(bounds)
   }
 
   update(elapsed) {
@@ -94,6 +106,7 @@ export default class Exhibition {
     this.group.visible = p.enabled
     this.parts.visible = p.showParts && showSides
     this.dock.visible = p.showDock && showSides
+    this.props.setCompact(!showSides)
     this.compactBinding?.refresh()
   }
 
@@ -135,6 +148,8 @@ export default class Exhibition {
     this.plinth.destroy()
     this.partsDisplay.destroy()
     this.colorDock.destroy()
+    this.props.destroy()
+    this.onLayout = null
     this.group.removeFromParent()
   }
 }
