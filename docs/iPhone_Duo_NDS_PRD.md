@@ -760,6 +760,10 @@ Input Target
 
 ## 23. 推荐代码模块
 
+2026-10-04 实现补充：`World` 另行装配 `ProductToolbar`（DOM 展示操作与模态说明）和 `ControllerThemes`（主机配色过渡）。UI 通过 EventBus 表达试玩、重播、跳过、声音及主题意图；主机颜色写入经 ModelAdapter 的公开接口，保留既有 TSL、EXR Lightmap 和按键反馈。右侧配色样品在 Game Home 可点击，底栏保留窄屏替代入口；Playing 收起展示控件。详细实现见 `PROJECT_PROGRESS.md` 第 9 节。
+
+同日视觉精修：入口由 `LoadingScreen` 展示品牌、真实进度与首帧准备状态；`ScreenManager` 持有 `GameEntryTransition` / `GameEntrySound`，NDS 首次启动与恢复在 Game Home 中先收拢上屏，首帧就绪后展开，再进入 Playing。`ModelAdapter` 持有 `ButtonPrint` 共享点阵字形，主机和展品各自在键帽材质上投影 ABXY 印花。取消/Replay/失焦/销毁均收束转场；见 `PROJECT_PROGRESS.md` 第 10 节。
+
 ```text
 App
 ├─ Renderer
