@@ -40,7 +40,7 @@ export default class PartsDisplay {
     this.group.add(this.label.mesh)
     this.shell = new ExhibitSample({ sources: [sources.shell], width: 0.37, height: 0.28, plasticParams: sources.plasticParams, name: 'ExhibitShell' })
     this.dpad = new ExhibitSample({ sources: [sources.buttons.dpad], width: 0.11, height: 0.11, name: 'ExhibitDpad' })
-    this.buttons = new ExhibitSample({ sources: ['a', 'b', 'x', 'y'].map(key => sources.buttons[key]), width: 0.13, height: 0.13, name: 'ExhibitButtons' })
+    this.buttons = new ExhibitSample({ sources: ['a', 'b', 'x', 'y'].map(key => sources.buttons[key]), width: 0.13, height: 0.13, buttonPrint: sources.buttonPrint, name: 'ExhibitButtons' })
     this.shell.group.position.set(-0.1, 0.46, 0.002)
     this.dpad.group.position.set(0.2, 0.54, 0.002)
     this.buttons.group.position.set(0.2, 0.29, 0.002)

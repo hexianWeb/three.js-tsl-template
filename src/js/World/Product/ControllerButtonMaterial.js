@@ -1,9 +1,12 @@
 import * as THREE from 'three/webgpu'
 import { modelWorldMatrix, normalView, positionLocal, uniform } from 'three/tsl'
 import { filteredPlasticNoise, plasticSurfaceNormal } from '../../../shaders/controllerPlastic.js'
+import { getButtonFrame } from './ButtonPrint.js'
 
 export default class ControllerButtonMaterial {
-  constructor({ buttons, debug }) {
+  constructor({ buttons, debug, buttonPrint }) {
+    this.buttonPrint = buttonPrint
+    this.printFrame = getButtonFrame(buttons)
     this.originalMaterials = new Map()
     this.materials = new Set()
     this.params = {
@@ -18,17 +21,17 @@ export default class ControllerButtonMaterial {
     this.uniforms = Object.fromEntries(
       Object.entries(this.params).map(([key, value]) => [key, uniform(value)]),
     )
-    buttons.forEach((button) => {
+    Object.entries(buttons).forEach(([part, button]) => {
       this.originalMaterials.set(button, button.material)
       const original = button.material
       button.material = Array.isArray(original)
-        ? original.map(material => this.createMaterial(button, material))
-        : this.createMaterial(button, original)
+        ? original.map(material => this.createMaterial(button, material, part))
+        : this.createMaterial(button, original, part)
     })
     this.debugInit(debug)
   }
 
-  createMaterial(button, original) {
+  createMaterial(button, original, part) {
     button.geometry.computeBoundingBox()
     const bounds = button.geometry.boundingBox
     const size = bounds.getSize(new THREE.Vector3())
@@ -71,6 +74,7 @@ export default class ControllerButtonMaterial {
     material.iorNode = u.ior
     // 底层塑料有微颗粒，清漆层保持平滑几何法线，使高光干净且与外壳形成对比。
     material.clearcoatNormalNode = normalView
+    this.buttonPrint.applyTo(material, { geometry: button.geometry, matrix: button.matrixWorld, part, frame: this.printFrame })
     this.materials.add(material)
     return material
   }

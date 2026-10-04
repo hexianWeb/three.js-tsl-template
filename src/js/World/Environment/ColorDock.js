@@ -37,6 +37,7 @@ export default class ColorDock {
       // 展示坐标 rotation = 0 时 D-Pad 在左、ABXY 在右，即横握朝向；宽度受相邻样品间距约束。
       const sample = new ExhibitSample({
         sources: parts, width: 0.19, height: 0.2,
+        buttonPrint: sources.buttonPrint,
         plasticParams: { ...sources.plasticParams, color: theme.shell }, name: `Dock_${theme.key}`,
       })
       const seat = new THREE.Mesh(this.seatGeometry, this.material)

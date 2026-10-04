@@ -4,6 +4,7 @@ import ControllerButtonMaterial from './ControllerButtonMaterial.js'
 import ControllerShellMaterial from './ControllerShellMaterial.js'
 import ModelInspector from './ModelInspector.js'
 import ProductRig from './ProductRig.js'
+import ButtonPrint, { getButtonFrame } from './ButtonPrint.js'
 
 const REQUIRED_NODES = {
   phoneRoot: 'PHONE_ROOT',
@@ -94,7 +95,8 @@ export default class ModelAdapter {
       if (!node?.isMesh) throw new Error(`Controller 缺少按键 Mesh：${name}`)
       return [key, node]
     }))
-    this.controllerButtonMaterial = new ControllerButtonMaterial({ buttons: Object.values(this.buttons), debug: this.debug })
+    this.buttonPrint = new ButtonPrint(this.debug)
+    this.controllerButtonMaterial = new ControllerButtonMaterial({ buttons: this.buttons, debug: this.debug, buttonPrint: this.buttonPrint })
   }
 
   configureControllerLightmap() {
@@ -212,13 +214,7 @@ export default class ModelAdapter {
       return mesh.geometry.boundingBox.getCenter(new THREE.Vector3()).applyMatrix4(mesh.matrixWorld)
     }
     // 用 ABXY 静止菱形定义展品面内的右/上，面外法线为 right × up；不假设 GLB 的轴向。
-    const right = centerOf(this.buttons.a).sub(centerOf(this.buttons.y)).normalize()
-    const up = centerOf(this.buttons.x).sub(centerOf(this.buttons.b))
-    up.addScaledVector(right, -up.dot(right)).normalize()
-    const normal = new THREE.Vector3().crossVectors(right, up).normalize()
-    if (right.lengthSq() < 0.99 || up.lengthSq() < 0.99 || normal.lengthSq() < 0.99) {
-      throw new Error('无法从 ABXY 静止布局建立展示件坐标系。')
-    }
+    const { right, up, normal } = getButtonFrame(this.buttons)
     const frame = new THREE.Matrix4().makeBasis(right, up, normal)
     frame.setPosition(centerOf(this.nodes.controllerShell))
     const inverseFrame = frame.clone().invert()
@@ -237,6 +233,7 @@ export default class ModelAdapter {
       shell: describe(this.nodes.controllerShell, 'shell'),
       buttons: Object.fromEntries(Object.entries(this.buttons).map(([key, mesh]) => [key, describe(mesh, key)])),
       plasticParams: { ...this.controllerShellMaterial.params },
+      buttonPrint: this.buttonPrint,
     }
   }
 
@@ -334,6 +331,7 @@ export default class ModelAdapter {
     // 先恢复 GLB 原材质，使下方去重回收同时覆盖被替换的原材质及其共享纹理。
     this.controllerShellMaterial?.destroy()
     this.controllerButtonMaterial?.destroy()
+    this.buttonPrint?.destroy()
     const geometries = new Set()
     const materials = new Set()
     const textures = new Set()

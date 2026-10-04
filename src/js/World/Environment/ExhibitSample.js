@@ -1,9 +1,9 @@
 import * as THREE from 'three/webgpu'
 import { createControllerPlasticMaterial } from '../Product/createControllerPlasticMaterial.js'
 
-// 只共享只读 Geometry，矩阵、材质和 uniform 全部归展示实例所有。
+// 共享只读 Geometry 和字母图集，矩阵与塑料材质归展示实例所有。
 export default class ExhibitSample {
-  constructor({ sources, width, height, rotation = 0, plasticParams = null, name }) {
+  constructor({ sources, width, height, rotation = 0, plasticParams = null, buttonPrint, name }) {
     this.group = new THREE.Group()
     this.group.name = name
     this.materials = new Set()
@@ -52,6 +52,7 @@ export default class ExhibitSample {
             name: `${name}_Button_Plastic`,
             metalness: 0, roughness: 0.28, clearcoat: 0.85, clearcoatRoughness: 0.12, ior: 1.47,
           })
+          buttonPrint?.applyTo(material, source)
           this.materials.add(material)
           this.buttonMaterials.push({ part: source.part, material })
           return material
