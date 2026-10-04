@@ -41,12 +41,21 @@ export default class Experience {
 
     this.camera = new Camera()
     this.renderer = new Renderer()
+    this.events.emit('experience:phase', { phase: 'renderer' })
     await this.renderer.init()
+    if (this.destroyed) return this
 
     this.resources = new Resources(sources)
+    this.events.emit('experience:phase', { phase: 'resources' })
     await this.resources.load()
+    if (this.destroyed) return this
 
+    this.events.emit('experience:phase', { phase: 'scene' })
     this.world = new World()
+    // Loading 覆盖 GPU 管线准备和首帧渲染，避免资源完成后先露出空白画布或跳过 Intro 开场。
+    await this.renderer.instance.compileAsync(this.scene, this.camera.instance)
+    if (this.destroyed) return this
+    this.renderer.update()
     this.renderer.instance.setAnimationLoop(this.update)
     this.world.start()
     this.initialized = true

@@ -8,12 +8,18 @@
 <body>
     <canvas class="webgl" tabindex="0" aria-label="WebGPU 产品与 NDS 游戏；Game Home 可用方向键选择四宫格、Enter 确认，也可点击上下屏"></canvas>
     <div class="debug-panel"></div>
-    <section class="status-panel" role="status" aria-live="polite">
-        <span class="status-indicator" aria-hidden="true"></span>
-        <div>
-            <p class="status-title">正在准备场景</p>
+    <section class="status-panel" aria-label="准备产品展示" aria-busy="true" data-state="loading">
+        <div class="loading-content">
+            <svg class="loading-mark" viewBox="0 0 120 88" aria-hidden="true"><rect class="loading-mark__top" x="25" y="8" width="70" height="36" rx="9"/><path d="M35 48h50"/><rect class="loading-mark__bottom" x="25" y="52" width="70" height="28" rx="9"/></svg>
+            <h1 class="loading-wordmark">iPhone Duo</h1>
+            <p class="loading-tagline">双屏之间，更多可能。</p>
+            <div class="loading-progress" role="progressbar" aria-label="展示准备进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+            <div class="loading-status" role="status" aria-live="polite"><span class="status-indicator" aria-hidden="true"></span><p class="status-title">正在准备展示</p></div>
             <p class="status-detail"></p>
+            <ol class="loading-steps" aria-label="准备步骤"><li>图形引擎</li><li>模型与材质</li><li>进入展区</li></ol>
+            <button class="loading-retry" type="button" hidden>重新尝试</button>
         </div>
+        <p class="loading-footer">Designed to unfold. Built to play.</p>
     </section>
     <script type="module" src="./main.js"></script>
 </body>
