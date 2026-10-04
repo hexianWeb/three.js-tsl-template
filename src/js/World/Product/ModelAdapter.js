@@ -170,6 +170,23 @@ export default class ModelAdapter {
     return this.model.localToWorld(new THREE.Vector3(0, STAGE_SURFACE_MODEL_Y, 0)).y
   }
 
+  getControllerColors() {
+    return {
+      shell: this.controllerShellMaterial.uniforms.color.value.clone(),
+      buttons: Object.fromEntries(Object.entries(this.buttons).map(([key, button]) => [
+        key, this.controllerButtonMaterial.getColors(button),
+      ])),
+    }
+  }
+
+  setControllerColors({ shell, buttons }) {
+    // 只更新已有材质的颜色，保留 uv1 Lightmap、清漆节点及按键动画的所有权。
+    this.controllerShellMaterial.setColor(shell)
+    Object.entries(this.buttons).forEach(([key, button]) => {
+      this.controllerButtonMaterial.setColors(button, buttons[key])
+    })
+  }
+
   getExhibitionMetrics() {
     const rig = this.productRig
     const controller = this.nodes.controllerAssembly

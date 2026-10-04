@@ -4,6 +4,7 @@ export default class State {
     this.productMode = null
     this.ndsStatus = 'idle'
     this.ndsRomName = ''
+    this.controllerTheme = 'classic'
   }
 
   setIntroState(state) {

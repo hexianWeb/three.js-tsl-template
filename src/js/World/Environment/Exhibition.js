@@ -46,7 +46,7 @@ export default class Exhibition {
     this.plinth = new ProductPlinth()
     this.group.add(this.plinth.group)
     this.partsDisplay = new PartsDisplay({ sources, debug: this.debug, transmissionBackdrop: experience.renderer.transmissionBackdrop })
-    this.colorDock = new ColorDock({ sources, debug: this.debug })
+    this.colorDock = new ColorDock({ sources, debug: this.debug, events: experience.events })
     this.parts = this.partsDisplay.group
     this.dock = this.colorDock.group
     this.group.add(this.parts, this.dock)

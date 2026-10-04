@@ -96,6 +96,16 @@ export default class ControllerButtonMaterial {
     })
   }
 
+  getColors(button) {
+    const materials = Array.isArray(button.material) ? button.material : [button.material]
+    return materials.map(material => material.color.clone())
+  }
+
+  setColors(button, colors) {
+    const materials = Array.isArray(button.material) ? button.material : [button.material]
+    materials.forEach((material, index) => material.color.copy(colors[index]))
+  }
+
   destroy() {
     this.folder.dispose()
     this.originalMaterials.forEach((material, button) => { button.material = material })

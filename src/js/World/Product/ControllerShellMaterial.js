@@ -14,7 +14,7 @@ export default class ControllerShellMaterial {
 
   debugInit(debug) {
     this.folder = debug.ui.addFolder({ title: 'Controller Shell Plastic', expanded: false })
-    this.folder.addBinding(this.params, 'color', { label: 'Base color' })
+    this.colorBinding = this.folder.addBinding(this.params, 'color', { label: 'Base color' })
       .on('change', ({ value }) => this.uniforms.color.value.set(value))
     const ranges = {
       colorVariation: [0, 0.1, 0.001],
@@ -42,6 +42,15 @@ export default class ControllerShellMaterial {
 
   updatePrintStrength() {
     this.uniforms.printStrength.value = this.params.printLayers ? this.params.printStrength : 0
+  }
+
+  setColor(color) {
+    this.uniforms.color.value.copy(color)
+    this.params.color = `#${color.getHexString()}`
+  }
+
+  refreshColor() {
+    this.colorBinding.refresh()
   }
 
   destroy() {

@@ -7,8 +7,10 @@ import Exhibition from './Environment/Exhibition.js'
 import Stage from './Environment/Stage.js'
 import InputRouter from './Input/InputRouter.js'
 import ControllerFeedback from './Product/ControllerFeedback.js'
+import ControllerThemes from './Product/ControllerThemes.js'
 import ModelAdapter from './Product/ModelAdapter.js'
 import ScreenManager from './Screens/ScreenManager.js'
+import ProductToolbar from './Screens/ProductToolbar.js'
 
 export default class World {
   constructor() {
@@ -34,7 +36,18 @@ export default class World {
     this.setCameraDirector()
     this.setIntro()
     this.setNDSPlayer()
+    this.controllerThemes = new ControllerThemes({
+      product: this.product, colorDock: this.exhibition.colorDock, state: this.state, events: this.events,
+    })
     this.setInputRouter()
+    this.toolbar = new ProductToolbar({
+      state: this.state, events: this.events, themes: this.exhibition.colorDock.themes, canvas: this.experience.canvas,
+    })
+    this.removeToolbarListeners = [
+      this.events.on('product:action', ({ action, options }) => this.handleAction(action, options)),
+      this.events.on('product:help', ({ open }) => this.inputRouter.setUIBlocked(open)),
+    ]
+    this.ndsPlayer.render()
   }
 
   setEnvironment() {
@@ -104,6 +117,13 @@ export default class World {
       camera: this.experience.camera.instance,
       canvas: this.experience.canvas,
       interactionSurfaces: [this.product.nodes.topScreen, this.product.nodes.bottomDisplay],
+      exhibitSurfaces: this.exhibition.colorDock.getInteractionSurfaces(),
+      resolveExhibitAction: (intersection) => {
+        if (this.state.introState !== 'ready' || this.ndsPlayer.loading) return null
+        const key = this.exhibition.colorDock.getThemeAtHit(intersection)
+        return key ? `theme:${key}` : null
+      },
+      onExhibitHover: key => this.exhibition.colorDock.setHoveredTheme(key),
       resolvePointerAction: (uv, screen) => this.screenManager.getActionAtUv(uv, screen),
       resolvePointerTouch: uv => this.screenManager.getNDSTouchAtUv(uv),
       onGameButtons: (actions) => {
@@ -144,6 +164,19 @@ export default class World {
   }
 
   handleAction(action, options) {
+    if (action?.startsWith('theme:')) {
+      this.events.emit('controller:theme-request', { key: action.slice(6) })
+      return
+    }
+    if (action === 'skip-intro' && this.state.productMode !== 'playing') {
+      this.intro.skip()
+      this.experience.canvas.focus({ preventScroll: true })
+      return
+    }
+    if (action === 'toggle-audio') {
+      this.ndsPlayer.toggleAudio()
+      return
+    }
     const uiAction = this.screenManager.handleUiAction(action)
     if (uiAction === null) return
     if (uiAction !== undefined) action = uiAction
@@ -183,6 +216,9 @@ export default class World {
   }
 
   destroy() {
+    this.toolbar?.destroy()
+    this.removeToolbarListeners?.forEach(remove => remove())
+    this.controllerThemes?.destroy()
     this.unsubscribeNDSStatus?.()
     this.inputRouter?.destroy()
     this.ndsPlayer?.destroy()

@@ -45,7 +45,7 @@ export default class NDSPlayer {
 
   render() {
     if (this.destroyed) return
-    this.controls?.render({
+    const info = {
       mode: this.mode,
       status: this.state.ndsStatus,
       message: this.message,
@@ -54,7 +54,9 @@ export default class NDSPlayer {
       audioEnabled: this.runtime.audio.enabled,
       audioBusy: this.audioBusy,
       audioMessage: this.audioMessage,
-    })
+    }
+    this.controls?.render(info)
+    this.events.emit('nds:state', info)
   }
 
   setMode(mode) {

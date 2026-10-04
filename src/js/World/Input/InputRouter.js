@@ -14,10 +14,13 @@ const NAVIGATION_KEYS = {
 }
 
 export default class InputRouter {
-  constructor({ camera, canvas, interactionSurfaces, resolvePointerAction, resolvePointerTouch, onAction, onGameButtons, onGameTouch, setOrbitGesture }) {
+  constructor({ camera, canvas, interactionSurfaces, exhibitSurfaces = [], resolveExhibitAction, onExhibitHover, resolvePointerAction, resolvePointerTouch, onAction, onGameButtons, onGameTouch, setOrbitGesture }) {
     this.camera = camera
     this.canvas = canvas
     this.interactionSurfaces = interactionSurfaces
+    this.exhibitSurfaces = exhibitSurfaces
+    this.resolveExhibitAction = resolveExhibitAction
+    this.onExhibitHover = onExhibitHover
     this.resolvePointerAction = resolvePointerAction
     this.resolvePointerTouch = resolvePointerTouch
     this.onAction = onAction
@@ -33,7 +36,7 @@ export default class InputRouter {
     this.focused = document.hasFocus()
     this.listeners = new AbortController()
     const listen = (target, type, handler) => target.addEventListener(type, handler, { signal: this.listeners.signal })
-    // 捕获阶段先于 OrbitControls：点在屏幕上时关掉旋转，避免和点击、下屏触控抢同一只指针。
+    // 捕获阶段先于 OrbitControls：屏幕和配色样品都先锁住旋转，避免点击被拖拽抢走。
     const capture = { capture: true, signal: this.listeners.signal }
     canvas.addEventListener('pointerdown', event => this.holdOrbitForScreen(event), capture)
     // 松手可能发生在画布外；挂在 window 上才能把旋转交还。
@@ -43,6 +46,7 @@ export default class InputRouter {
     listen(canvas, 'pointermove', event => this.handlePointerMove(event))
     listen(canvas, 'pointerup', event => this.handlePointerUp(event))
     listen(canvas, 'pointercancel', () => this.clearPointer())
+    listen(canvas, 'pointerleave', () => this.setHover(null))
     listen(canvas, 'lostpointercapture', event => {
       if (event.pointerId === this.pointerId || event.pointerId === this.homePointerId) this.clearPointer()
     })
@@ -64,7 +68,7 @@ export default class InputRouter {
   }
 
   holdOrbitForScreen(event) {
-    if (event.button !== 0 || !this.hit(event)) return
+    if (this.uiBlocked || event.button !== 0 || !this.hit(event)) return
     this.setOrbitGesture(false)
   }
 
@@ -73,7 +77,7 @@ export default class InputRouter {
     this.setOrbitGesture(true)
   }
 
-  hit(event, surfaces = this.interactionSurfaces) {
+  hit(event, surfaces = [...this.interactionSurfaces, ...(this.mode === 'game-home' ? this.exhibitSurfaces : [])]) {
     const visibleSurfaces = surfaces.filter((surface) => {
       for (let node = surface; node; node = node.parent) {
         if (!node.visible) return false
@@ -99,11 +103,15 @@ export default class InputRouter {
 
   hitAction(event) {
     const intersection = this.hit(event)
-    return intersection ? this.resolvePointerAction(intersection.uv, intersection.object) : null
+    if (!intersection) return null
+    if (this.interactionSurfaces.includes(intersection.object)) {
+      return this.resolvePointerAction(intersection.uv, intersection.object)
+    }
+    return this.resolveExhibitAction?.(intersection) ?? null
   }
 
   handlePointerDown(event) {
-    if (event.button !== 0 || this.pointerId != null || this.homePointerId != null) return
+    if (this.uiBlocked || event.button !== 0 || this.pointerId != null || this.homePointerId != null) return
     if (this.mode === 'game-home') {
       const action = this.hitAction(event)
       if (!action) return
@@ -111,6 +119,8 @@ export default class InputRouter {
       this.canvas.focus({ preventScroll: true })
       this.homePointerId = event.pointerId
       this.homePressAction = action
+      this.homePressPoint = { x: event.clientX, y: event.clientY }
+      this.homeDragged = false
       this.canvas.setPointerCapture(event.pointerId)
       return
     }
@@ -125,6 +135,15 @@ export default class InputRouter {
   }
 
   handlePointerMove(event) {
+    if (this.uiBlocked) return
+    if (this.mode === 'game-home') {
+      if (event.pointerId === this.homePointerId) {
+        this.homeDragged ||= Math.hypot(event.clientX - this.homePressPoint.x, event.clientY - this.homePressPoint.y) > 8
+      }
+      const action = this.hitAction(event)
+      this.setHover(action)
+      return
+    }
     if (event.pointerId !== this.pointerId || this.mode !== 'playing') return
     this.onGameTouch(this.resolvePointerTouch(this.hitUv(event)))
   }
@@ -137,9 +156,11 @@ export default class InputRouter {
     if (event.button !== 0 || event.pointerId !== this.homePointerId) return
     this.homePointerId = null
     const pressedAction = this.homePressAction
+    const dragged = this.homeDragged || Math.hypot(event.clientX - this.homePressPoint.x, event.clientY - this.homePressPoint.y) > 8
     this.homePressAction = null
+    this.homePressPoint = null
     if (this.canvas.hasPointerCapture(event.pointerId)) this.canvas.releasePointerCapture(event.pointerId)
-    if (this.mode !== 'game-home') return
+    if (this.uiBlocked || this.mode !== 'game-home' || dragged) return
     const action = this.hitAction(event)
     if (action && action === pressedAction) {
       event.preventDefault()
@@ -148,6 +169,7 @@ export default class InputRouter {
   }
 
   handleKeyDown(event) {
+    if (this.uiBlocked || event.defaultPrevented) return
     if (event.code === 'Escape' && !event.repeat) {
       if (this.mode === 'game-home') this.dispatch('ui:back')
       else this.dispatch('back')
@@ -198,12 +220,25 @@ export default class InputRouter {
     this.mode = mode
   }
 
+  setHover(action) {
+    this.canvas.style.cursor = action ? 'pointer' : ''
+    this.onExhibitHover?.(action?.startsWith('theme:') ? action.slice(6) : null)
+  }
+
+  setUIBlocked(blocked) {
+    this.uiBlocked = blocked
+    if (blocked) this.clearInputs()
+  }
+
   clearPointer() {
     const pointerId = this.pointerId
     const homePointerId = this.homePointerId
     this.pointerId = null
     this.homePointerId = null
     this.homePressAction = null
+    this.homePressPoint = null
+    this.homeDragged = false
+    this.setHover(null)
     if (pointerId != null && this.canvas.hasPointerCapture(pointerId)) this.canvas.releasePointerCapture(pointerId)
     if (homePointerId != null && this.canvas.hasPointerCapture(homePointerId)) this.canvas.releasePointerCapture(homePointerId)
     this.onGameTouch(null)
@@ -239,7 +274,7 @@ export default class InputRouter {
   }
 
   update() {
-    if (!this.focused || document.hidden) return
+    if (this.uiBlocked || !this.focused || document.hidden) return
     const gamepads = navigator.getGamepads?.() ?? []
     const connectedIndices = new Set()
     const actions = new Set()

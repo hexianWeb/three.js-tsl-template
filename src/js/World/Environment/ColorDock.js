@@ -4,7 +4,11 @@ import ExhibitSample from './ExhibitSample.js'
 import ExhibitLabel from './ExhibitLabel.js'
 
 export default class ColorDock {
-  constructor({ sources, debug }) {
+  constructor({ sources, debug, events }) {
+    this.events = events
+    this.selectedTheme = 'classic'
+    this.seats = []
+    this.themeMeshes = new Map()
     this.group = new THREE.Group()
     this.group.name = 'ColorDock'
     const glbButton = `#${sources.buttons.a.materials[0].color.getHexString()}`
@@ -40,17 +44,20 @@ export default class ColorDock {
         buttonPrint: sources.buttonPrint,
         plasticParams: { ...sources.plasticParams, color: theme.shell }, name: `Dock_${theme.key}`,
       })
-      const seat = new THREE.Mesh(this.seatGeometry, this.material)
+      const seat = new THREE.Mesh(this.seatGeometry, this.material.clone())
       seat.position.set((index - 1) * 0.205, 0.116, 0)
       seat.castShadow = true
       seat.receiveShadow = true
       this.group.add(sample.group, seat)
+      this.seats.push(seat)
+      for (const mesh of [...sample.meshes, seat]) this.themeMeshes.set(mesh, theme.key)
       return sample
     })
     this.label = new ExhibitLabel({ width: 0.57, height: 0.065, name: 'ControllerThemesLegend' })
     this.label.mesh.position.set(0, 0.057, 0.167)
     this.group.add(this.label.mesh)
     this.applyColors()
+    this.updateSelection()
     this.update(0)
     this.debugInit(debug)
   }
@@ -74,6 +81,42 @@ export default class ColorDock {
 
   applyColors() {
     this.samples.forEach((sample, index) => sample.setColors(this.themes[index]))
+    this.drawLabel()
+    this.events?.emit('controller:themes-updated')
+  }
+
+  getInteractionSurfaces() {
+    return [...this.themeMeshes.keys(), this.label.mesh]
+  }
+
+  getThemeAtHit({ object, uv }) {
+    if (object !== this.label.mesh) return this.themeMeshes.get(object) ?? null
+    // 标签画布使用 1000 宽的逻辑坐标；与绘制的三列主题中心共用同一分区。
+    const x = uv.x * 1000
+    if (x < 550 || x > 985) return null
+    return this.themes[Math.min(2, Math.floor((x - 550) / 145))].key
+  }
+
+  setSelectedTheme(key) {
+    this.selectedTheme = key
+    this.updateSelection()
+    this.drawLabel()
+  }
+
+  setHoveredTheme(key) {
+    if (this.hoveredTheme === key) return
+    this.hoveredTheme = key
+    this.updateSelection()
+  }
+
+  updateSelection() {
+    this.seats.forEach((seat, index) => {
+      const key = this.themes[index].key
+      seat.material.color.set(key === this.hoveredTheme ? '#b7ccdb' : key === this.selectedTheme ? '#a7c2d5' : '#dedbd4')
+    })
+  }
+
+  drawLabel() {
     this.label.redraw('#e7e3dc', (ctx) => {
       ctx.fillStyle = '#202c36'
       ctx.font = '800 46px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
@@ -97,6 +140,10 @@ export default class ColorDock {
         ctx.textAlign = 'center'
         ctx.font = '700 28px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
         ctx.fillText(theme.label, x, 92)
+        if (theme.key === this.selectedTheme) {
+          ctx.fillStyle = '#32668b'
+          ctx.fillRect(x - 35, 103, 70, 4)
+        }
       })
     })
   }
@@ -127,6 +174,8 @@ export default class ColorDock {
   destroy() {
     this.folder.dispose()
     this.samples.forEach(sample => sample.destroy())
+    this.seats.forEach(seat => seat.material.dispose())
+    this.themeMeshes.clear()
     this.label.destroy()
     this.base.geometry.dispose()
     this.seatGeometry.dispose()
