@@ -23,6 +23,11 @@ export default [
     path: '/glb/rhyzome_plant.glb',
   },
   {
+    name: 'airpodsModel',
+    type: 'gltfModel',
+    path: '/glb/airpods_pro.glb',
+  },
+  {
     name: 'controllerShellLightmap',
     type: 'exrTexture',
     path: '/lightmaps/Controller_Shell_lightmap.exr',

@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu'
 import Experience from '../../Experience.js'
 import ColorDock from './ColorDock.js'
+import ExhibitAirPods from './ExhibitAirPods.js'
 import ExhibitPlant from './ExhibitPlant.js'
 import ExhibitProps from './ExhibitProps.js'
 import PartsDisplay from './PartsDisplay.js'
@@ -56,7 +57,12 @@ export default class Exhibition {
       onLayout: () => this.notifyLayout(),
     })
     this.plant = new ExhibitPlant({ gltf: plantGltf, debug: this.debug, onLayout: () => this.notifyLayout() })
-    this.group.add(this.props.group, this.plant.group)
+    this.airpods = new ExhibitAirPods({
+      gltf: experience.resources.items.airpodsModel,
+      debug: this.debug,
+      onLayout: () => this.notifyLayout(),
+    })
+    this.group.add(this.props.group, this.plant.group, this.airpods.group)
     this.scene.add(this.group)
     this.applyLayout()
     this.debugInit()
@@ -91,6 +97,7 @@ export default class Exhibition {
     this.dock.scale.setScalar(w * p.dockScale)
     this.props.setLayout({ width: w, depth: d, centerX, centerZ, floorY })
     this.plant.setLayout({ width: w, depth: d, centerX, centerZ, floorY })
+    this.airpods.setLayout({ width: w, depth: d, centerX, centerZ, floorY })
     this.resize()
   }
 
@@ -115,6 +122,7 @@ export default class Exhibition {
     this.dock.visible = p.showDock && showSides
     this.props.setCompact(!showSides)
     this.plant.setCompact(!showSides)
+    this.airpods.setCompact(!showSides)
     this.compactBinding?.refresh()
   }
 
@@ -158,6 +166,7 @@ export default class Exhibition {
     this.colorDock.destroy()
     this.props.destroy()
     this.plant.destroy()
+    this.airpods.destroy()
     this.onLayout = null
     this.group.removeFromParent()
   }
