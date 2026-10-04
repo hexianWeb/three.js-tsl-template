@@ -707,6 +707,8 @@ NDSScreenBridge
 
 当前 Playing 映射固定为上屏 `1.4:1`、下屏 `1:1`。NDS 的 4:3 主画面保持等比清晰显示；剩余区域不使用纯黑硬切，而是由同一帧按整数倍最近邻 cover 成离散像素并略微压暗。该延展只承担视觉填充，触控仍限定在清晰主画面范围。
 
+2026-10-04 补充，按用户修正：`NDSStylus` 是常驻的鼠标伴随模型，外形参考迷你 Apple Pencil，程序化生成连续白色笔杆、锥形笔尖与圆润尾盖。它不绑定下屏 UV 或产品模式，Intro、展区、游戏与操作栏中均跟随鼠标。笔尖保持 CSS 像素对齐，笔杆由速度驱动阻尼弹簧，模拟惯性倾斜和急停回摆；点击保留轻微落笔及蓝色波纹。透明小画布与主渲染器共享 WebGPU Device 和 Experience 更新循环。NDS 下屏射线与触控映射使用既有 InputRouter，不增加触控笔专用映射，也不改变游戏输入。
+
 ### 21.4 开源游戏选择原则
 
 优先使用：
@@ -731,6 +733,12 @@ NDSScreenBridge
 模拟器开源不代表游戏 ROM 可以分发。最终上线前必须分别确认模拟器许可证、游戏源码许可证、游戏资源许可证和预编译 ROM 的再分发权限。
 
 ---
+
+### 21.5 展示游戏的试玩范围（2026-10-04）
+
+- 六张封面中仅 `game0` 开放试玩；其他封面仍可浏览，点击后显示“暂不可玩，目前仅开放第一款游戏。”，不打开文件选择器或启动转场与模拟器。
+- ControllerDisplay 统一检查封面点击、收藏库选择、下屏确认、键盘/手柄确认和底栏试玩请求，避免非开放封面从另一入口启动。
+- game0 沿用当前 NDS 配置、取消、暂停与继续机制；生产环境仍不打包本地 ROM。
 
 ## 22. 动画技术选择
 
@@ -761,6 +769,8 @@ Input Target
 ## 23. 推荐代码模块
 
 2026-10-04 实现补充：`World` 另行装配 `ProductToolbar`（DOM 展示操作与模态说明）和 `ControllerThemes`（主机配色过渡）。UI 通过 EventBus 表达试玩、重播、跳过、声音及主题意图；主机颜色写入经 ModelAdapter 的公开接口，保留既有 TSL、EXR Lightmap 和按键反馈。右侧配色样品在 Game Home 可点击，底栏保留窄屏替代入口；Playing 收起展示控件。详细实现见 `PROJECT_PROGRESS.md` 第 9 节。
+
+配色选择保存在当前站点的 localStorage（`iphone-duo.controller-theme`），在 Intro 首帧前恢复主机、展台选中态与底栏。仅接受 Classic / Retro / Midnight；无效值或存储不可用时回退 Classic，当前会话仍可正常切换。
 
 同日视觉精修：入口由 `LoadingScreen` 展示品牌、真实进度与首帧准备状态；`ScreenManager` 持有 `GameEntryTransition` / `GameEntrySound`，NDS 首次启动与恢复在 Game Home 中先收拢上屏，首帧就绪后展开，再进入 Playing。`ModelAdapter` 持有 `ButtonPrint` 共享点阵字形，主机和展品各自在键帽材质上投影 ABXY 印花。取消/Replay/失焦/销毁均收束转场；见 `PROJECT_PROGRESS.md` 第 10 节。
 
@@ -1147,6 +1157,14 @@ Renderer 保持 ACES 与用户校准曝光 0.84。主光投 2048² 阴影，固�
 ### 29.5 产品铭牌与原创卡带
 
 - `ExhibitProps` 由 Exhibition 持有，在底座前左/前右侧地面分别放置实体铭牌和原创卡带，布局相对产品 W / D，支撑高度跟随 Stage。
-- 铭牌标注 `iPhone Duo / 3D Printed Controller / GAME CHANGER`；卡带使用 `DUO / 01 / GAME CARD` 与原创双屏图形。几何和标签均程序生成，不依赖 ROM 内容或额外模型。
-- 两张 CanvasTexture 仅内容变化时上传，不加入屏幕输入、产品折叠、装配和模拟器更新。窄屏默认隐藏卡带，保留铭牌。
+- 铭牌标注 `iPhone Duo / 3D Printed Controller / GAME CHANGER`；2026-10-04 按用户要求，卡带封面直接使用 `/img/cover.png`，通过 `sources.js` 与 Resources 加载，保持图片比例并完整展示。卡壳与触点仍为程序化几何，已删除卡带封面的程序绘图模块。
+- 铭牌使用静态 CanvasTexture，卡带使用静态图片纹理；两者不加入屏幕输入、产品折叠、装配和模拟器更新。贴图由道具组件回收，窄屏默认隐藏卡带，保留铭牌。
 - 场景总开关、调参和销毁由直接父级协调；初始布局必须通过装配扫掠、Hero 立起和屏幕遮挡检查。
+
+### 29.6 AirPods 附件陈列（2026-10-04）
+
+- 用户提供的 `/glb/airpods_pro.glb` 通过 sources / Resources 加载，由 Exhibition 持有的 ExhibitAirPods 适配，保留原始资产文件；已替换旧 AirPods 模型的加载路径与混乱节点映射。
+- 新模型根节点为 `air_pods`，四个部件为 `case / cover / left_earphones / right_earphones`。最新 GLB 已在 Y=0 上方闭合平躺，左侧保留导出姿态；右侧整机立起 90°，盖子直接绕用户设置好的原点沿局部 X 轴向后打开，默认 115°。不再生成盖子 Pivot 或按包围盒重定位盖子，盒内耳机保留用户安装位置。
+- 参考图中的左侧为闭合平放充电盒，右前侧为开盒、盒内耳机与盒旁耳机。两组共享原模型几何、纹理和转换后的 Node Material；节点映射集中在附件组件内。
+- 保留用户导出的尺寸基准，不做盒宽归一化；按用户最终要求，两组共用 2.5 倍缩放。按箭头参考移到光圈外左下与右下：闭盒中心 `(-1.23W, +0.86D)`、Yaw -14°，开盒组中心 `(+1.32W, +0.907D)`、Yaw -18°。W / D 仅用于相对底座中心的摆放坐标；按可见几何最低点接地，盒旁耳机放在前右方。
+- 附件不参与产品 Rig、屏幕或输入命中；窄屏随左右展组隐藏，阴影范围随 Exhibition 更新。Tweakpane 的 Exhibit AirPods 提供开关、统一 Scale、Lid angle 与两组 X / Z / Yaw；共享资源统一回收一次。
