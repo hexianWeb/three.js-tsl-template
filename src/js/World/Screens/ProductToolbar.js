@@ -43,6 +43,12 @@ export default class ProductToolbar {
     this.note = this.element.querySelector('.product-toolbar__note')
     this.primaryIcon = this.element.querySelector('[data-field="primary-icon"]')
     this.primaryLabel = this.element.querySelector('[data-field="primary-label"]')
+    this.notice = document.createElement('p')
+    this.notice.className = 'product-toolbar__notice'
+    this.notice.setAttribute('role', 'status')
+    this.notice.setAttribute('aria-live', 'polite')
+    this.notice.hidden = true
+    this.element.append(this.notice)
     const swatches = this.element.querySelector('.product-toolbar__swatches')
     this.themeButtons = themes.map((theme) => {
       const button = document.createElement('button')
@@ -63,6 +69,7 @@ export default class ProductToolbar {
     this.removeListeners = [
       ...['intro:state', 'product:mode', 'controller:theme', 'controller:themes-updated'].map(event => events.on(event, () => this.render())),
       events.on('nds:state', info => { this.nds = info; this.render() }),
+      events.on('game:unavailable', ({ message }) => this.showNotice(message)),
     ]
     document.body.append(this.element, this.help)
     this.render()
@@ -116,6 +123,13 @@ export default class ProductToolbar {
     if (action === 'replay-intro') this.canvas.focus({ preventScroll: true })
   }
 
+  showNotice(message) {
+    clearTimeout(this.noticeTimer)
+    this.notice.textContent = message
+    this.notice.hidden = false
+    this.noticeTimer = setTimeout(() => { this.notice.hidden = true }, 3600)
+  }
+
   render() {
     const playing = this.state.productMode === 'playing'
     const intro = this.state.introState !== 'ready' && !playing
@@ -149,6 +163,7 @@ export default class ProductToolbar {
   }
 
   destroy() {
+    clearTimeout(this.noticeTimer)
     this.listeners.abort()
     this.removeListeners.forEach(remove => remove())
     this.events.emit('product:help', { open: false })

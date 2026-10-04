@@ -24,7 +24,9 @@ const COLORS = {
 
 export default class ControllerDisplay {
   constructor({ screen, gameHomeReference, gameCovers }) {
-    this.debug = new Experience().debug
+    const experience = new Experience()
+    this.debug = experience.debug
+    this.events = experience.events
     this.screen = screen
     this.gameHomeReference = gameHomeReference.image
     this.gameCovers = gameCovers.map(texture => texture.image)
@@ -275,6 +277,7 @@ export default class ControllerDisplay {
         this.coverOffset = 0
         this.coverMotion = null
         this.setView('home')
+        if (index !== 0) this.showUnavailableGame(index)
       }
       return null
     }
@@ -306,11 +309,23 @@ export default class ControllerDisplay {
       this.drawGameHome()
       return null
     }
+    if (action.startsWith('ui:game:play:')) {
+      const index = Number(action.slice('ui:game:play:'.length))
+      if (!Number.isInteger(index) || index < 0 || index >= this.gameCovers.length) return null
+      if (index !== 0) return this.showUnavailableGame(index)
+      return this.ndsStatus === 'loading' ? null : 'continue'
+    }
     if (action === 'continue' || action === 'choose-file') {
+      if (this.coverIndex !== 0) return this.showUnavailableGame(this.coverIndex)
       return this.ndsStatus === 'loading' ? null : action
     }
     if (action === 'replay-intro') return action
     return undefined
+  }
+
+  showUnavailableGame(index) {
+    this.events.emit('game:unavailable', { index, message: '暂不可玩，目前仅开放第一款游戏。' })
+    return null
   }
 
   drawGameHome() {
@@ -798,15 +813,8 @@ export default class ControllerDisplay {
   }
 
   getCoverAction(index = this.coverIndex) {
-    // 与 NDSPlayer 相同的标题裁剪：第一张封面对应当前 testRom，换游戏只改 sources。
-    const demoTitle = decodeURIComponent((ndsSources.testRom || '').split('/').pop() || '')
-      .replace(/\.(nds|srl)$/i, '')
-      .replace(/\s*\([^)]*\)/g, '')
-      .trim()
-    const demoLoaded = this.hasLoadedGame && demoTitle
-      && this.gameInfo.title.toLowerCase() === demoTitle.toLowerCase()
-    return index === 0 && (demoLoaded || (!this.hasLoadedGame && this.hasTestGame))
-      ? 'continue' : 'choose-file'
+    // 封面携带自己的索引，滑动过程中点击也不会误启动相邻游戏；仅 game0 开放试玩。
+    return `ui:game:play:${index}`
   }
 
   drawTopCarousel(context) {
@@ -1000,7 +1008,7 @@ export default class ControllerDisplay {
       this.label(c, this.short(c, this.displayStatus, 525, 23, 500),
         383, 444, 23, 500, this.colors.muted)
       this.button(c, 383, 492, 307, 81, this.primaryLabel, 'continue', 'blue')
-      this.tile(c, 60, 640, 904, 141, '+', '选择本地游戏', '支持 .nds 与 .srl 文件', 'choose-file')
+      this.tile(c, 60, 640, 904, 141, '▷', '游戏试玩', '目前仅开放第一款游戏', 'continue')
       this.tile(c, 60, 800, 904, 124, '⌂', '返回主菜单', '', 'ui:tab:home')
     }
     if (this.view === 'map') {

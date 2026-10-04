@@ -15,6 +15,24 @@
   display: none;
 }
 
+.product-toolbar__notice {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 12px);
+  max-width: 100%;
+  margin: 0;
+  padding: 12px 18px;
+  border: 1px solid rgb(0 0 0 / 6%);
+  border-radius: 16px;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 8%);
+  color: #1d1d1f;
+  font-size: 13px;
+  line-height: 1.5;
+  backdrop-filter: blur(20px);
+  pointer-events: none;
+}
+
 .product-toolbar__surface {
   display: flex;
   align-items: center;
