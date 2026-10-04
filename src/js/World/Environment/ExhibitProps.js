@@ -4,8 +4,11 @@ import { createPlinthGeometry } from './exhibitionGeometry.js'
 
 // 道具以产品宽 W 为局部单位，挂在展区而非产品 Rig；标签不参与屏幕命中或模拟器更新。
 export default class ExhibitProps {
-  constructor({ debug, onLayout }) {
+  constructor({ coverTexture, debug, onLayout }) {
     this.onLayout = onLayout
+    this.cardCoverTexture = coverTexture
+    this.cardCoverTexture.colorSpace = THREE.SRGBColorSpace
+    this.cardCoverTexture.anisotropy = 8
     this.params = {
       showPlaque: true, showCard: true,
       plaqueX: -0.96, plaqueZ: 0.66, plaqueYaw: 8,
@@ -99,34 +102,16 @@ export default class ExhibitProps {
     for (let i = 0; i < 8; i++) {
       this.mesh(group, `CardContact${i + 1}`, new THREE.BoxGeometry(0.01, 0.0007, 0.02), contact, [(i - 3.5) * 0.018, 0.0275, 0.083])
     }
-    this.cardLabel = new ExhibitLabel({ width: 0.165, height: 0.156, name: 'OriginalGameCardLabel' })
-    this.cardLabel.mesh.rotation.x = -Math.PI / 2
+    const coverMaterial = this.material('#ffffff', 0.65)
+    coverMaterial.map = this.cardCoverTexture
+    // 在原标签区域内等比放置完整图片，避免拉伸或裁掉封面标题。
+    const aspect = this.cardCoverTexture.image.width / this.cardCoverTexture.image.height
+    const height = Math.min(0.156, 0.165 / aspect)
+    const width = height * aspect
     // 壳体顶面 Y=0.026，标签沿朝上的法线偏移 0.002W，与铭牌使用相同间距。
-    this.cardLabel.mesh.position.set(0, 0.026 + 0.002, -0.017)
-    group.add(this.cardLabel.mesh)
-    this.cardLabel.redraw('#e5e5d9', (ctx, h) => {
-      ctx.fillStyle = '#355b73'
-      ctx.fillRect(0, 0, 1000, 640)
-      ctx.fillStyle = '#a7c1c9'
-      // 原创双屏线稿呼应主机，不使用 ROM 画面或外部游戏美术。
-      for (const y of [110, 298]) {
-        ctx.beginPath()
-        ctx.roundRect(580, y, 310, 156, 26)
-        ctx.fill()
-      }
-      ctx.fillStyle = '#f3efe2'
-      ctx.font = '600 145px sans-serif'
-      ctx.fillText('DUO', 65, 217)
-      ctx.font = '400 205px sans-serif'
-      ctx.fillText('01', 60, 467)
-      ctx.font = '500 34px sans-serif'
-      ctx.fillText('TWO SCREENS. ONE WORLD.', 66, 577)
-      ctx.fillStyle = '#283e4b'
-      ctx.font = '600 73px sans-serif'
-      ctx.fillText('GAME CARD', 65, 770)
-      ctx.font = '400 31px sans-serif'
-      ctx.fillText('DUO / ORIGINAL SERIES', 68, h - 59)
-    })
+    const cover = this.mesh(group, 'OriginalGameCardLabel', new THREE.PlaneGeometry(width, height), coverMaterial, [0, 0.026 + 0.002, -0.017])
+    cover.rotation.x = -Math.PI / 2
+    cover.castShadow = false
     return group
   }
 
@@ -173,9 +158,10 @@ export default class ExhibitProps {
   destroy() {
     this.folder.dispose()
     this.plaqueLabel.destroy()
-    this.cardLabel.destroy()
     for (const geometry of this.geometries) geometry.dispose()
     for (const material of this.materials) material.dispose()
+    // 此贴图仅供卡带使用，跟随道具销毁；资源加载器不重复回收纹理。
+    this.cardCoverTexture.dispose()
     this.group.removeFromParent()
     this.onLayout = null
   }

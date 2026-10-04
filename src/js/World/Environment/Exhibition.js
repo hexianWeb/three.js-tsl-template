@@ -50,7 +50,11 @@ export default class Exhibition {
     this.parts = this.partsDisplay.group
     this.dock = this.colorDock.group
     this.group.add(this.parts, this.dock)
-    this.props = new ExhibitProps({ debug: this.debug, onLayout: () => this.notifyLayout() })
+    this.props = new ExhibitProps({
+      coverTexture: experience.resources.items.gameCardCover,
+      debug: this.debug,
+      onLayout: () => this.notifyLayout(),
+    })
     this.plant = new ExhibitPlant({ gltf: plantGltf, debug: this.debug, onLayout: () => this.notifyLayout() })
     this.group.add(this.props.group, this.plant.group)
     this.scene.add(this.group)
