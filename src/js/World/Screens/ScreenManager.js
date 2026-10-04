@@ -5,6 +5,7 @@ import NDSScreenBridge from '../../NDS/NDSScreenBridge.js'
 import ControllerDisplay from './ControllerDisplay.js'
 import NDSGameSurface from './NDSGameSurface.js'
 import PhoneScreenSurface from './PhoneScreenSurface.js'
+import GameEntryTransition from './GameEntryTransition.js'
 
 export default class ScreenManager {
   constructor({
@@ -33,6 +34,7 @@ export default class ScreenManager {
     this.validateScreens()
     this.captureOriginalState()
     this.createOffMaterials()
+    this.gameEntry = new GameEntryTransition(topScreen, this.debug)
     this.controllerDisplay = new ControllerDisplay({
       screen: bottomDisplay,
       gameHomeReference,
@@ -43,12 +45,13 @@ export default class ScreenManager {
       bottomScreen,
       phoneHomeTexture,
       gameHomeTexture: this.controllerDisplay.topTexture,
+      entryUniforms: this.gameEntry.uniforms,
       onPreviewAngle,
       onDebugModeChange,
     })
     this.ndsBridge = new NDSScreenBridge(document.createElement('canvas'), document.createElement('canvas'))
     this.ndsSurfaces = [
-      new NDSGameSurface(topScreen, { flipY: false, mirrorX: false, aspect: 1.4 }),
+      new NDSGameSurface(topScreen, { flipY: false, mirrorX: false, aspect: 1.4, entryUniforms: this.gameEntry.uniforms }),
       new NDSGameSurface(bottomDisplay, { flipY: true, mirrorX: true, aspect: 1 }),
     ]
     this.applyMode()
@@ -141,6 +144,26 @@ export default class ScreenManager {
 
   setPhoneWakeProgress(progress) {
     this.phoneSurface.setWakeProgress(progress)
+  }
+
+  beginGameEntry(options) {
+    return this.gameEntry.close(options)
+  }
+
+  async revealGameEntry() {
+    // 遮罩完全合拢且 Runtime 已呈现首帧后才替换材质；产品模式仍保持 Home，禁止提前接收游戏输入。
+    this.setScreenMaterial(this.screens.topScreen, this.ndsSurfaces[0].material, true)
+    this.setScreenMaterial(this.screens.bottomDisplay, this.ndsSurfaces[1].material, true)
+    const generation = this.gameEntry.generation
+    await this.experience.renderer.instance.compileAsync(this.experience.scene, this.experience.camera.instance)
+    // 编译期间取消或 Replay 后，不得重新打开旧启动请求的遮罩。
+    if (this.gameEntry.destroyed || generation !== this.gameEntry.generation) return false
+    return this.gameEntry.open()
+  }
+
+  cancelGameEntry() {
+    this.gameEntry.cancel()
+    this.applyMode()
   }
 
   playGameChangerTransition({ onComplete } = {}) {
@@ -291,6 +314,7 @@ export default class ScreenManager {
 
   destroy() {
     this.killGameChangerTransition()
+    this.gameEntry.destroy()
     Object.values(this.screens).forEach((screen) => {
       const original = this.originalState.get(screen)
       screen.material = original.material

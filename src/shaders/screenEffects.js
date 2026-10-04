@@ -1,4 +1,10 @@
-import { float, mix, texture, uv, vec2 } from 'three/tsl'
+import { float, mix, smoothstep, texture, uv, vec2 } from 'three/tsl'
+
+export function screenIrisMask({ radius, aspect }) {
+  // 使用原始 Mesh UV，纹理自身的旋转与镜像不改变遮罩的物理圆形。
+  const distance = uv().sub(0.5).mul(vec2(aspect, 1)).length()
+  return float(1).sub(smoothstep(radius.sub(0.004), radius.add(0.004), distance))
+}
 
 const BLUR_TAPS = [
   [-4, 0.03],

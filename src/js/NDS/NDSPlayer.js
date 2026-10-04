@@ -4,13 +4,16 @@ import NDSControls from './NDSControls.js'
 import NDSRuntime from './NDSRuntime.js'
 
 export default class NDSPlayer {
-  constructor({ state, events, onFrame, onEnter, onExit, onGameInfo, onFocus }) {
+  constructor({ state, events, onFrame, onEnter, onExit, onGameInfo, onFocus, onLaunchStart, onLaunchReady, onLaunchCancel }) {
     this.state = state
     this.events = events
     this.onEnter = onEnter
     this.onExit = onExit
     this.onGameInfo = onGameInfo
     this.onFocus = onFocus
+    this.onLaunchStart = onLaunchStart
+    this.onLaunchReady = onLaunchReady
+    this.onLaunchCancel = onLaunchCancel
     this.requestId = 0
     this.loading = false
     this.audioWanted = true
@@ -80,6 +83,7 @@ export default class NDSPlayer {
     // 模式变化、Replay、取消和销毁都会使异步载入失效，旧 Promise 不得再次切入 Playing。
     this.requestId++
     this.loadAbort?.abort()
+    this.onLaunchCancel?.()
   }
 
   back() {
@@ -100,37 +104,42 @@ export default class NDSPlayer {
     // 在真实点击/按键栈中启动 WebAudio，不等待 WASM 或 ROM 下载。
     // 文件选择器停留较久时 change 事件可能已失去激活权限，不能让 resume 永久挂起并锁死按钮。
     if (userGesture && this.audioWanted && navigator.userActivation?.isActive) this.enableAudio()
-    if (!file && this.runtime.loaded) {
-      this.onEnter()
-      return
-    }
     const request = ++this.requestId
     this.activeRequest = request
     this.loadAbort = new AbortController()
     this.loading = true
-    this.setStatus('loading', '正在准备 NDS…')
+    this.setStatus('loading', '正在进入游戏…')
     const isCurrent = () => !this.destroyed && request === this.requestId && this.mode === 'game-home'
     try {
-      await this.runtime.init(ndsSources)
-      if (!isCurrent()) return
-      let name
-      if (file) {
-        const bytes = new Uint8Array(await file.arrayBuffer())
+      if (await this.onLaunchStart?.({ userGesture, enabled: this.audioWanted }) === false || !isCurrent()) return
+      if (file || !this.runtime.loaded) {
+        await this.runtime.init(ndsSources)
         if (!isCurrent()) return
-        this.runtime.loadBytes(bytes, file.name)
-        name = file.name
+        let name
+        if (file) {
+          const bytes = new Uint8Array(await file.arrayBuffer())
+          if (!isCurrent()) return
+          this.runtime.loadBytes(bytes, file.name)
+          name = file.name
+        }
+        else {
+          await this.runtime.loadUrl(ndsSources.testRom, { signal: this.loadAbort.signal })
+          name = decodeURIComponent(ndsSources.testRom.split('/').pop())
+        }
+        if (!isCurrent()) return
+        this.state.ndsRomName = name.replace(/\.(nds|srl)$/i, '')
+        this.onGameInfo({ title: this.state.ndsRomName.replace(/\s*\([^)]*\)/g, ''), detail: 'NDS · Continue session' })
+        this.runtime.runFrame()
       }
-      else {
-        await this.runtime.loadUrl(ndsSources.testRom, { signal: this.loadAbort.signal })
-        name = decodeURIComponent(ndsSources.testRom.split('/').pop())
-      }
-      if (!isCurrent()) return
-      this.state.ndsRomName = name.replace(/\.(nds|srl)$/i, '')
-      this.onGameInfo({ title: this.state.ndsRomName.replace(/\s*\([^)]*\)/g, ''), detail: 'NDS · Continue session' })
-      this.runtime.runFrame()
       this.runtime.present()
       if (document.hidden || !document.hasFocus()) {
         this.setStatus('paused', '载入完成 · 点击 Continue 开始')
+        return
+      }
+      this.setStatus('loading', '准备就绪，开始游戏。')
+      if (await this.onLaunchReady?.() === false || !isCurrent()) return
+      if (document.hidden || !document.hasFocus()) {
+        this.setStatus('paused', '游戏已暂停 · 点击 Continue 开始')
         return
       }
       this.onEnter()
@@ -139,6 +148,7 @@ export default class NDSPlayer {
       if (isCurrent()) this.fail(error)
     }
     finally {
+      if (!this.destroyed && this.mode !== 'playing') this.onLaunchCancel?.()
       this.loading = false
       this.loadAbort = null
       this.render()

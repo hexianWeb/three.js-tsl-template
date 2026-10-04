@@ -46,6 +46,7 @@ export default class World {
     this.removeToolbarListeners = [
       this.events.on('product:action', ({ action, options }) => this.handleAction(action, options)),
       this.events.on('product:help', ({ open }) => this.inputRouter.setUIBlocked(open)),
+      this.events.on('nds:state', ({ loading }) => this.inputRouter.setLaunching(loading)),
     ]
     this.ndsPlayer.render()
   }
@@ -144,6 +145,9 @@ export default class World {
       events: this.events,
       onFrame: pixels => this.screenManager.drawNDSFrame(pixels),
       onGameInfo: info => this.screenManager.setGameInfo(info),
+      onLaunchStart: options => this.screenManager.beginGameEntry(options),
+      onLaunchReady: () => this.screenManager.revealGameEntry(),
+      onLaunchCancel: () => this.screenManager.cancelGameEntry(),
       onEnter: () => {
         this.intro.complete()
         this.setProductMode('playing')

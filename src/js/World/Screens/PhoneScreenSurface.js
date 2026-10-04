@@ -4,6 +4,7 @@ import Experience from '../../Experience.js'
 import {
   foldedPhoneColor,
   gameChangerTopColor,
+  screenIrisMask,
 } from '../../../shaders/screenEffects.js'
 
 export default class PhoneScreenSurface {
@@ -12,6 +13,7 @@ export default class PhoneScreenSurface {
     bottomScreen,
     phoneHomeTexture,
     gameHomeTexture,
+    entryUniforms,
     onPreviewAngle,
     onDebugModeChange,
   }) {
@@ -21,6 +23,7 @@ export default class PhoneScreenSurface {
     this.bottomScreen = bottomScreen
     this.phoneHomeTexture = phoneHomeTexture
     this.gameHomeSourceTexture = gameHomeTexture
+    this.entryUniforms = entryUniforms
     this.onPreviewAngle = onPreviewAngle
     this.onDebugModeChange = onDebugModeChange
     this.params = {
@@ -205,12 +208,13 @@ export default class PhoneScreenSurface {
     const panelIndices = this.params.swapPhonePanels ? [1, 0] : [0, 1]
     const topTexture = this.phonePanelTextures[panelIndices[0]]
     const bottomTexture = this.phonePanelTextures[panelIndices[1]]
-    const topColor = gameChangerTopColor(
+    let topColor = gameChangerTopColor(
       topTexture,
       this.gameHomeTexture,
       this.phoneUniforms.top,
       this.transitionUniforms,
     )
+    if (this.entryUniforms) topColor = topColor.mul(screenIrisMask(this.entryUniforms))
     const bottomColor = foldedPhoneColor(bottomTexture, this.phoneUniforms.bottom)
 
     this.topMaterial.colorNode = topColor.mul(this.phoneUniforms.top.diffuse)

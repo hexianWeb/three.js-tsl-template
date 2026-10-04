@@ -1,5 +1,7 @@
 import * as THREE from 'three/webgpu'
+import { materialColor } from 'three/tsl'
 import { canvasUvToTouch, getContainRect, getPixelCoverRect } from '../../NDS/screenMapping.js'
+import { screenIrisMask } from '../../../shaders/screenEffects.js'
 
 const FILL_BRIGHTNESS = 0.4
 
@@ -28,7 +30,7 @@ export function getScreenUvAspect(screen) {
 }
 
 export default class NDSGameSurface {
-  constructor(screen, { flipY, mirrorX, aspect }) {
+  constructor(screen, { flipY, mirrorX, aspect, entryUniforms }) {
     // 显示比例是产品 UI 的明确映射约束；模型物理比例只用于未配置时的诊断回退。
     this.aspect = aspect ?? 1 / getScreenUvAspect(screen)
     this.canvas = document.createElement('canvas')
@@ -58,6 +60,7 @@ export default class NDSGameSurface {
       toneMapped: true,
     })
     this.material.name = `${screen.name}_NDS_Material`
+    if (entryUniforms) this.material.colorNode = materialColor.rgb.mul(screenIrisMask(entryUniforms))
     this.interactionUv = new THREE.Vector2()
   }
 

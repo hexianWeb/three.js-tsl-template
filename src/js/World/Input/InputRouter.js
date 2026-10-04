@@ -111,7 +111,7 @@ export default class InputRouter {
   }
 
   handlePointerDown(event) {
-    if (this.uiBlocked || event.button !== 0 || this.pointerId != null || this.homePointerId != null) return
+    if (this.uiBlocked || this.launching || event.button !== 0 || this.pointerId != null || this.homePointerId != null) return
     if (this.mode === 'game-home') {
       const action = this.hitAction(event)
       if (!action) return
@@ -135,7 +135,7 @@ export default class InputRouter {
   }
 
   handlePointerMove(event) {
-    if (this.uiBlocked) return
+    if (this.uiBlocked || this.launching) return
     if (this.mode === 'game-home') {
       if (event.pointerId === this.homePointerId) {
         this.homeDragged ||= Math.hypot(event.clientX - this.homePressPoint.x, event.clientY - this.homePressPoint.y) > 8
@@ -171,10 +171,12 @@ export default class InputRouter {
   handleKeyDown(event) {
     if (this.uiBlocked || event.defaultPrevented) return
     if (event.code === 'Escape' && !event.repeat) {
-      if (this.mode === 'game-home') this.dispatch('ui:back')
+      if (this.launching) this.dispatch('back')
+      else if (this.mode === 'game-home') this.dispatch('ui:back')
       else this.dispatch('back')
       return
     }
+    if (this.launching) return
     if (this.isEditableTarget(event.target)) return
     if (this.mode === 'game-home') {
       const direction = NAVIGATION_KEYS[event.code]
@@ -230,6 +232,12 @@ export default class InputRouter {
     if (blocked) this.clearInputs()
   }
 
+  setLaunching(blocked) {
+    if (this.launching === blocked) return
+    this.launching = blocked
+    if (blocked) this.clearInputs()
+  }
+
   clearPointer() {
     const pointerId = this.pointerId
     const homePointerId = this.homePointerId
@@ -274,7 +282,7 @@ export default class InputRouter {
   }
 
   update() {
-    if (this.uiBlocked || !this.focused || document.hidden) return
+    if (this.uiBlocked || this.launching || !this.focused || document.hidden) return
     const gamepads = navigator.getGamepads?.() ?? []
     const connectedIndices = new Set()
     const actions = new Set()
