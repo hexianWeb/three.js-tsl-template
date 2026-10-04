@@ -5,8 +5,9 @@ export const ndsSources = {
   core: '/vendor/pilas-melonds/pilas-melonds-core.js',
   wasm: '/vendor/pilas-melonds/pilas-melonds-core.wasm',
   audioWorklet: '/vendor/pilas-melonds/audio-worklet.js',
+  // 临时演示：开发模式默认载入本地马里奥赛车。生产构建仍为 null，不打包 ROM。
   testRom: import.meta.env.DEV
-    ? '/nds/Pokemon%20-%20Platinum%20Version%20(USA)%20(Rev%201).nds'
+    ? '/nds/Mario%20Kart%20DS%20(USA)%20(En,Fr,De,Es,It).nds'
     : null,
 }
 

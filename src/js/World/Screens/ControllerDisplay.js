@@ -798,8 +798,14 @@ export default class ControllerDisplay {
   }
 
   getCoverAction(index = this.coverIndex) {
-    const platinumLoaded = this.hasLoadedGame && /platinum|白金/i.test(this.gameInfo.title)
-    return index === 0 && (platinumLoaded || (!this.hasLoadedGame && this.hasTestGame))
+    // 与 NDSPlayer 相同的标题裁剪：第一张封面对应当前 testRom，换游戏只改 sources。
+    const demoTitle = decodeURIComponent((ndsSources.testRom || '').split('/').pop() || '')
+      .replace(/\.(nds|srl)$/i, '')
+      .replace(/\s*\([^)]*\)/g, '')
+      .trim()
+    const demoLoaded = this.hasLoadedGame && demoTitle
+      && this.gameInfo.title.toLowerCase() === demoTitle.toLowerCase()
+    return index === 0 && (demoLoaded || (!this.hasLoadedGame && this.hasTestGame))
       ? 'continue' : 'choose-file'
   }
 
