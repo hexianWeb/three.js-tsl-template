@@ -86,7 +86,7 @@ export default class ProductToolbar {
           <div><dt>Start / Select</dt><dd><kbd>Enter</kbd> / <kbd>Shift</kbd></dd></div>
           <div><dt>暂停 / 返回展区</dt><dd><kbd>Esc</kbd></dd></div>
         </dl>
-        <p class="product-help__detail">下屏支持点击和拖动触控，也可连接标准手柄。首次试玩按当前配置载入游戏，或选择本地 .nds 文件。</p>
+        <p class="product-help__detail">迷你触控笔会跟随鼠标；下屏支持左键点击和拖动触控，也可直接触屏或连接标准手柄。首次试玩按当前配置载入游戏，或选择本地 .nds 文件。</p>
         <p class="product-help__footnote">切换窗口会自动暂停；再次试玩可继续当前会话，刷新页面后会话不会保留。</p>
       </div>`
     const options = { signal: this.listeners.signal }
@@ -144,7 +144,7 @@ export default class ProductToolbar {
       colors[1].style.background = theme.buttons
     })
     this.note.textContent = this.nds.loading || this.state.ndsStatus === 'error' ? this.nds.message
-      : playing ? '点击下屏触控 · Esc 暂停返回' : intro ? '展开 · 装配 · 双屏唤醒'
+      : playing ? '触控笔跟随鼠标 · 下屏点击或拖动 · Esc 暂停返回' : intro ? '展开 · 装配 · 双屏唤醒'
         : '点击样品切换配色 · 拖动空白区域旋转 · 点击屏幕操作'
   }
 

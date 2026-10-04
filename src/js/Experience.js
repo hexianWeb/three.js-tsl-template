@@ -52,6 +52,8 @@ export default class Experience {
 
     this.events.emit('experience:phase', { phase: 'scene' })
     this.world = new World()
+    await this.renderer.initPointerOverlay(this.world.stylus)
+    if (this.destroyed) return this
     // Loading 覆盖 GPU 管线准备和首帧渲染，避免资源完成后先露出空白画布或跳过 Intro 开场。
     await this.renderer.instance.compileAsync(this.scene, this.camera.instance)
     if (this.destroyed) return this

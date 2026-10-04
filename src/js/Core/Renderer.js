@@ -33,10 +33,41 @@ export default class Renderer {
     this.instance.toneMappingExposure = value
   }
 
+  async initPointerOverlay({ canvas, scene, camera, surfaceWidth, surfaceHeight }) {
+    // 小型透明画布和主渲染器共享 GPUDevice，独立灯光让白色笔身不受展区镜头/后处理影响。
+    const instance = new THREE.WebGPURenderer({
+      canvas, alpha: true, antialias: true, forceWebGL: false, device: this.instance.backend.device,
+    })
+    const overlay = { instance, scene, camera, canvas, ready: false, surfaceWidth, surfaceHeight }
+    this.pointerOverlay = overlay
+    instance.toneMapping = THREE.ACESFilmicToneMapping
+    instance.toneMappingExposure = 0.95
+    instance.setClearColor(0x000000, 0)
+    instance.setPixelRatio(this.sizes.pixelRatio)
+    instance.setSize(surfaceWidth, surfaceHeight, false)
+    await instance.init()
+    if (this.destroyed) {
+      instance.dispose()
+      return
+    }
+    await instance.compileAsync(scene, camera)
+    if (this.destroyed) {
+      instance.dispose()
+      return
+    }
+    overlay.ready = true
+    instance.render(scene, camera)
+  }
+
   update() {
     // Camera.update 已在 Experience 中完成；每帧仅在最终镜头下捕获一次玻璃背景。
     if (!this.pipeline.params.enabled || this.pipeline.params.view === 'scene') this.transmissionBackdrop.capture()
     this.pipeline.update()
+    // 与主场景共用 Experience 循环，不另起 rAF；透明小画布只绘制鼠标伴随模型。
+    if (this.pointerOverlay?.ready && !this.pointerOverlay.canvas.hidden) {
+      const { instance, scene, camera } = this.pointerOverlay
+      instance.render(scene, camera)
+    }
   }
 
   resize() {
@@ -44,9 +75,17 @@ export default class Renderer {
     this.instance.setSize(this.sizes.width, this.sizes.height)
     this.pipeline?.resize()
     this.transmissionBackdrop?.resize()
+    if (this.pointerOverlay?.ready) {
+      const { instance, surfaceWidth, surfaceHeight } = this.pointerOverlay
+      instance.setPixelRatio(this.sizes.pixelRatio)
+      instance.setSize(surfaceWidth, surfaceHeight, false)
+    }
   }
 
   destroy() {
+    this.destroyed = true
+    // 共享 Device 的次级渲染器先释放；只有主渲染器负责最终销毁 Device。
+    if (this.pointerOverlay?.ready) this.pointerOverlay.instance.dispose()
     if (!this.instance) return
 
     this.instance.setAnimationLoop(null)

@@ -9,6 +9,7 @@ import InputRouter from './Input/InputRouter.js'
 import ControllerFeedback from './Product/ControllerFeedback.js'
 import ControllerThemes from './Product/ControllerThemes.js'
 import ModelAdapter from './Product/ModelAdapter.js'
+import NDSStylus from './Product/NDSStylus.js'
 import ScreenManager from './Screens/ScreenManager.js'
 import ProductToolbar from './Screens/ProductToolbar.js'
 
@@ -39,6 +40,7 @@ export default class World {
     this.controllerThemes = new ControllerThemes({
       product: this.product, colorDock: this.exhibition.colorDock, state: this.state, events: this.events,
     })
+    this.stylus = new NDSStylus({ debug: this.debug })
     this.setInputRouter()
     this.toolbar = new ProductToolbar({
       state: this.state, events: this.events, themes: this.exhibition.colorDock.themes, canvas: this.experience.canvas,
@@ -203,6 +205,7 @@ export default class World {
   }
 
   resize() {
+    this.stylus?.resize()
     this.exhibition?.resize()
     this.cameraDirector?.resize()
   }
@@ -210,6 +213,7 @@ export default class World {
   update() {
     this.product.update()
     this.inputRouter.update()
+    this.stylus.update(this.experience.time.delta)
     this.controllerFeedback.update(this.experience.time.delta)
     // Time.delta 是秒，模拟器使用毫秒；由 Experience 唯一循环驱动，不能另起 rAF。
     this.ndsPlayer.update(this.experience.time.delta * 1000)
@@ -225,6 +229,7 @@ export default class World {
     this.controllerThemes?.destroy()
     this.unsubscribeNDSStatus?.()
     this.inputRouter?.destroy()
+    this.stylus?.destroy()
     this.ndsPlayer?.destroy()
     this.intro?.destroy()
     this.cameraDirector?.destroy()
