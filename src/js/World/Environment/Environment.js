@@ -1,9 +1,10 @@
 import * as THREE from 'three/webgpu'
+import { RectAreaLightTexturesLib } from 'three/addons/lights/RectAreaLightTexturesLib.js'
 import Experience from '../../Experience.js'
 
 // 经实测放弃 HDR 环境贴图：studio HDR 与外壳 EXR Lightmap 重复计光，整体反而更平。
-// 因此场景不设置 scene.environment，间接漫反射由 HemisphereLight 承担，间接镜面为零，
-// 清漆高光只来自两盏 DirectionalLight。改变这个结论前先读 docs/Scene_Lighting_Stage_Plan.md。
+// 场景仍不设置 scene.environment；柔光箱通过面光源提供直接镜面与清漆高光，
+// 不增加 IBL 或替换外壳烘焙。面光源不投影，主 DirectionalLight 继续承担阴影。
 export default class Environment {
   constructor() {
     this.experience = new Experience()
@@ -12,14 +13,40 @@ export default class Environment {
     this.renderer = this.experience.renderer
 
     this.params = {
-      background: '#e2dfd8',
-      exposure: 0.84,
-      hemisphereIntensity: 3.05,
+      background: '#f3f5f7',
+      exposure: 1.03,
+      hemisphereIntensity: 1.9,
       keyIntensity: 2.4,
       keyX: 2.9,
       keyY: 6,
       keyZ: 6.8,
-      fillIntensity: 1.05,
+      fillIntensity: 0.3,
+      warmSoftbox: {
+        enabled: true,
+        color: '#ffffff',
+        intensity: 5,
+        width: 5,
+        height: 3,
+        x: -3.8,
+        y: 4.8,
+        z: 3.8,
+        targetX: 0,
+        targetY: 0.55,
+        targetZ: -0.2,
+      },
+      neutralSoftbox: {
+        enabled: true,
+        color: '#f7f9fc',
+        intensity: 1.4,
+        width: 4,
+        height: 2.5,
+        x: 4.6,
+        y: 2.8,
+        z: 1.5,
+        targetX: 0,
+        targetY: 0.4,
+        targetZ: -0.25,
+      },
       shadowExtent: 4.0,
       shadowDepth: 6,
       shadowRadius: 10.0,
@@ -37,7 +64,7 @@ export default class Environment {
   setLights() {
     this.scene.background = new THREE.Color(this.params.background)
 
-    this.hemisphereLight = new THREE.HemisphereLight('#f7fbff', '#101827', this.params.hemisphereIntensity)
+    this.hemisphereLight = new THREE.HemisphereLight('#f7f9fc', '#25282e', this.params.hemisphereIntensity)
     this.scene.add(this.hemisphereLight)
 
     this.keyLight = new THREE.DirectionalLight('#ffffff', this.params.keyIntensity)
@@ -49,11 +76,49 @@ export default class Environment {
     this.keyLightHelper.visible = this.params.showKeyLightHelper
     this.scene.add(this.keyLightHelper)
 
-    this.fillLight = new THREE.DirectionalLight('#7dd3fc', this.params.fillIntensity)
+    this.fillLight = new THREE.DirectionalLight('#dbe6ee', this.params.fillIntensity)
     this.fillLight.position.set(-4, 1.5, 3)
     this.scene.add(this.fillLight)
 
+    this.setSoftboxes()
     this.applyKeyLight()
+  }
+
+  setSoftboxes() {
+    // WebGPU 的面光源需要 LTC 纹理，不能使用 WebGL 的 UniformsLib 初始化路径。
+    // 保存本实例的纹理引用，HMR 销毁时释放 GPU 资源，下一次初始化会创建新纹理。
+    const library = RectAreaLightTexturesLib.init()
+    this.ltcTextures = Object.fromEntries(
+      ['LTC_FLOAT_1', 'LTC_FLOAT_2', 'LTC_HALF_1', 'LTC_HALF_2'].map(key => [key, library[key]]),
+    )
+    THREE.RectAreaLightNode.setLTC(this.ltcTextures)
+    this.softboxes = [
+      { name: 'Key softbox', params: this.params.warmSoftbox },
+      { name: 'Neutral softbox', params: this.params.neutralSoftbox },
+    ]
+    for (const softbox of this.softboxes) {
+      softbox.light = new THREE.RectAreaLight()
+      softbox.light.name = softbox.name
+      softbox.target = new THREE.Object3D()
+      softbox.target.name = `${softbox.name} target`
+      this.scene.add(softbox.light, softbox.target)
+    }
+    this.applySoftboxes()
+  }
+
+  applySoftboxes() {
+    for (const { light, target, params } of this.softboxes) {
+      // 灯与目标直接挂 Scene，参数均为场景世界坐标；RectAreaLight 向局部 -Z 发光。
+      // 尺寸决定高光轮廓，降低半球填光后由它们补回有方向的照明，不靠曝光抬平。
+      light.visible = params.enabled
+      light.color.set(params.color)
+      light.intensity = params.intensity
+      light.width = params.width
+      light.height = params.height
+      light.position.set(params.x, params.y, params.z)
+      target.position.set(params.targetX, params.targetY, params.targetZ)
+      light.lookAt(target.position)
+    }
   }
 
   applyKeyLight() {
@@ -156,6 +221,22 @@ export default class Environment {
       label: 'Key light helper',
     }).on('change', ({ value }) => { this.keyLightHelper.visible = value })
 
+    for (const { name, params } of this.softboxes) {
+      const softbox = lights.addFolder({ title: name, expanded: false })
+      softbox.addBinding(params, 'enabled', { label: 'Enabled' }).on('change', () => this.applySoftboxes())
+      softbox.addBinding(params, 'color', { label: 'Color' }).on('change', () => this.applySoftboxes())
+      softbox.addBinding(params, 'intensity', { label: 'Intensity', min: 0, max: 12, step: 0.1 })
+        .on('change', () => this.applySoftboxes())
+      for (const key of ['width', 'height']) {
+        softbox.addBinding(params, key, { min: 0.25, max: 10, step: 0.1 })
+          .on('change', () => this.applySoftboxes())
+      }
+      for (const key of ['x', 'y', 'z', 'targetX', 'targetY', 'targetZ']) {
+        softbox.addBinding(params, key, { min: -12, max: 12, step: 0.1 })
+          .on('change', () => this.applySoftboxes())
+      }
+    }
+
     const shadows = this.folder.addFolder({ title: 'Key shadow' })
     shadows.addBinding(this.params, 'fitExhibitionShadow', { label: 'Fit exhibition' })
       .on('change', () => this.applyShadowSettings())
@@ -203,6 +284,18 @@ export default class Environment {
     this.hemisphereLight.dispose()
     this.keyLight.dispose()
     this.fillLight.dispose()
+    for (const { light, target } of this.softboxes) {
+      this.scene.remove(light, target)
+      light.dispose()
+    }
+    // LTC 是 Three 模块级输入；旧实例不得清掉新实例已替换的全局纹理。
+    const ownsCurrentLTC = Object.entries(this.ltcTextures)
+      .every(([key, texture]) => RectAreaLightTexturesLib[key] === texture)
+    if (ownsCurrentLTC) THREE.RectAreaLightNode.setLTC(null)
+    for (const [key, texture] of Object.entries(this.ltcTextures)) {
+      texture.dispose()
+      if (RectAreaLightTexturesLib[key] === texture) RectAreaLightTexturesLib[key] = null
+    }
     this.scene.background = null
   }
 }

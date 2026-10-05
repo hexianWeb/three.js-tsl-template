@@ -10,19 +10,20 @@ export default class PartsDisplay {
     this.group = new THREE.Group()
     this.group.name = 'PartsDisplay'
     this.params = {
-      boardColor: '#e5eeeb',
-      glassTransmission: 0.88,
-      glassRoughness: 0.12,
-      glassIor: 1.45,
+      boardColor: '#ffffff',
+      // 亚克力保留实体厚度与现有折射通道；降低雾化和色散，边缘轮廓交给面光源塑形。
+      glassTransmission: 0.96,
+      glassRoughness: 0.06,
+      glassIor: 1.49,
       glassThickness: 0.025,
-      glassDispersion: 0.5,
-      glassBlur: 0.12,
+      glassDispersion: 0.06,
+      glassBlur: 0.035,
       glassSamples: 4,
       shellColor: sources.plasticParams.color,
       roughness: sources.plasticParams.roughness,
       bumpStrength: sources.plasticParams.bumpStrength,
     }
-    this.baseMaterial = new THREE.MeshStandardNodeMaterial({ color: '#e3e0d9', roughness: 0.65 })
+    this.baseMaterial = new THREE.MeshStandardNodeMaterial({ color: '#e8eaec', roughness: 0.65 })
     this.boardMaterial = new GlassPhysicalNodeMaterial(transmissionBackdrop.getTextureNode(), this.params)
     this.base = new THREE.Mesh(new RoundedBoxGeometry(0.72, 0.07, 0.26, 3, 0.012), this.baseMaterial)
     this.base.position.y = 0.035

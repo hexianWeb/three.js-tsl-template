@@ -30,7 +30,7 @@ export default class Exhibition {
       bevelRatio: 0.002,
       offsetX: 0,
       offsetZ: 0.02,
-      color: '#e8e3da',
+      color: '#f0f1f2',
       roughness: 0.42,
       edgeGlow: 1.7,
       partsX: -1.26,
@@ -44,7 +44,7 @@ export default class Exhibition {
     }
     this.group = new THREE.Group()
     this.group.name = 'Exhibition'
-    this.plinth = new ProductPlinth()
+    this.plinth = new ProductPlinth({ debug: this.debug })
     this.group.add(this.plinth.group)
     this.partsDisplay = new PartsDisplay({ sources, debug: this.debug, transmissionBackdrop: experience.renderer.transmissionBackdrop })
     this.colorDock = new ColorDock({ sources, debug: this.debug, events: experience.events })

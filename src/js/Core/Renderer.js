@@ -19,7 +19,7 @@ export default class Renderer {
       forceWebGL: false,
     })
     this.instance.toneMapping = THREE.ACESFilmicToneMapping
-    this.instance.toneMappingExposure = 0.84
+    this.instance.toneMappingExposure = 1.03
     this.instance.shadowMap.enabled = true
     // r186 起 WebGPURenderer 已移除 PCFSoftShadowMap，PCFShadowMap 现在就是软阴影
     this.instance.shadowMap.type = THREE.PCFShadowMap

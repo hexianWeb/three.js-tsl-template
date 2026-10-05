@@ -28,7 +28,7 @@ export default class ColorDock {
       swayYaw: 6,
       swayRoll: 2.5,
     }
-    this.material = new THREE.MeshStandardNodeMaterial({ color: '#dedbd4', roughness: 0.6, metalness: 0 })
+    this.material = new THREE.MeshStandardNodeMaterial({ color: '#e8eaec', roughness: 0.6, metalness: 0 })
     this.base = new THREE.Mesh(new RoundedBoxGeometry(0.68, 0.11, 0.33, 3, 0.012), this.material)
     this.base.position.y = 0.055
     this.base.castShadow = true
