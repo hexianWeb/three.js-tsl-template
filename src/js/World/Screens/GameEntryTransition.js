@@ -12,6 +12,7 @@ export default class GameEntryTransition {
     this.params = { closeDuration: 0.48, openDuration: 0.62 }
     this.generation = 0
     this.sound = new GameEntrySound()
+    if (!debug?.ui) return
     this.folder = debug.ui.addFolder({ title: 'NDS Entry Transition', expanded: false })
     for (const key of ['closeDuration', 'openDuration']) {
       this.folder.addBinding(this.params, key, { min: 0.15, max: 1.5, step: 0.01 })
@@ -62,6 +63,6 @@ export default class GameEntryTransition {
     this.destroyed = true
     this.cancel()
     this.sound.destroy()
-    this.folder.dispose()
+    this.folder?.dispose()
   }
 }

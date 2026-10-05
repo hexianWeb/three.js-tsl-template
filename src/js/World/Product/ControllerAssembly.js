@@ -254,6 +254,7 @@ export default class ControllerAssembly {
   }
 
   debugInit() {
+    if (!this.debug.ui) return
     const folder = this.debug.ui.addFolder({ title: 'Controller Assembly', expanded: false })
     this.stateBinding = folder.addBinding(this.params, 'state', {
       label: 'State',

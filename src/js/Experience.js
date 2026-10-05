@@ -39,6 +39,8 @@ export default class Experience {
   async init() {
     if (this.initialized) return this
 
+    await this.debug.init()
+    if (this.destroyed) return this
     this.camera = new Camera()
     this.renderer = new Renderer()
     this.events.emit('experience:phase', { phase: 'renderer' })

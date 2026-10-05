@@ -143,6 +143,7 @@ export default class ExhibitProps {
   }
 
   debugInit(debug) {
+    if (!debug?.ui) return
     this.folder = debug.ui.addFolder({ title: 'Exhibit Props / S3', expanded: false })
     for (const key of ['showPlaque', 'showCard']) {
       this.folder.addBinding(this.params, key).on('change', () => this.setCompact(this.compact))
@@ -156,7 +157,7 @@ export default class ExhibitProps {
   }
 
   destroy() {
-    this.folder.dispose()
+    this.folder?.dispose()
     this.plaqueLabel.destroy()
     for (const geometry of this.geometries) geometry.dispose()
     for (const material of this.materials) material.dispose()

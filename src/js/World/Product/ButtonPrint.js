@@ -53,6 +53,7 @@ export default class ButtonPrint {
     this.params = { size: 0.85, opacity: 1 }
     this.size = uniform(this.params.size)
     this.opacity = uniform(this.params.opacity)
+    if (!debug?.ui) return
     this.folder = debug.ui.addFolder({ title: 'Controller Button Print', expanded: false })
     this.folder.addBinding(this.params, 'size', { min: 0.45, max: 0.95, step: 0.01 })
       .on('change', ({ value }) => { this.size.value = value })
@@ -109,7 +110,7 @@ export default class ButtonPrint {
   }
 
   destroy() {
-    this.folder.dispose()
+    this.folder?.dispose()
     this.texture.dispose()
   }
 }

@@ -48,7 +48,7 @@ export default class ModelAdapter {
     this.productRig.applyInitialPose()
     this.scene.add(this.presentationRoot)
     this.debugInit()
-    this.inspector = new ModelInspector({
+    if (this.debug.enabled) this.inspector = new ModelInspector({
       presentationRoot: this.presentationRoot,
       nodes: {
         ...this.nodes,
@@ -289,6 +289,7 @@ export default class ModelAdapter {
   }
 
   debugInit() {
+    if (!this.debug.ui) return
     const folder = this.debug.ui.addFolder({ title: 'Product Model', expanded: false })
     folder.addBinding(this.params, 'nodeStatus', {
       label: 'Required nodes',
@@ -339,7 +340,7 @@ export default class ModelAdapter {
   }
 
   update() {
-    this.inspector.update()
+    this.inspector?.update()
   }
 
   destroy() {

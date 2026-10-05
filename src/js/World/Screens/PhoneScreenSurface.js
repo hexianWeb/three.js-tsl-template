@@ -319,6 +319,7 @@ export default class PhoneScreenSurface {
   }
 
   debugInit() {
+    if (!this.debug.ui) return
     const phoneFolder = this.debug.ui.addFolder({
       title: 'Phone Screens',
       expanded: true,

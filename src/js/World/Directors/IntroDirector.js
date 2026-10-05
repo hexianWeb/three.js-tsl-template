@@ -211,6 +211,7 @@ export default class IntroDirector {
   }
 
   debugInit() {
+    if (!this.debug.ui) return
     const folder = this.debug.ui.addFolder({ title: 'Intro Director' })
     this.stateBinding = folder.addBinding(this.params, 'state', {
       label: 'State',

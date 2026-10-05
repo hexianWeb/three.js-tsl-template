@@ -202,6 +202,7 @@ export default class ControllerFeedback {
   }
 
   debugInit(debug) {
+    if (!debug?.ui) return
     this.folder = debug.ui.addFolder({ title: 'Controller Feedback', expanded: false })
     const ranges = {
       pressDepth: ['Press depth (× thickness)', 0, 0.6, 0.01],

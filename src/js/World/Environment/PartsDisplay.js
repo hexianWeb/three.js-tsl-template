@@ -85,6 +85,7 @@ export default class PartsDisplay {
   }
 
   debugInit(debug) {
+    if (!debug?.ui) return
     this.folder = debug.ui.addFolder({ title: 'Parts Display / S2', expanded: false })
     this.folder.addBinding(this.params, 'boardColor').on('change', ({ value }) => {
       this.boardMaterial.color.set(value)
@@ -109,7 +110,7 @@ export default class PartsDisplay {
 
   destroy() {
     this.unregisterGlass()
-    this.folder.dispose()
+    this.folder?.dispose()
     for (const sample of [this.shell, this.dpad, this.buttons]) sample.destroy()
     this.label.destroy()
     this.base.geometry.dispose()

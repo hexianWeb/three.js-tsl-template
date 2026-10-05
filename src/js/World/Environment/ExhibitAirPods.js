@@ -156,6 +156,7 @@ export default class ExhibitAirPods {
   }
 
   debugInit(debug) {
+    if (!debug?.ui) return
     this.folder = debug.ui.addFolder({ title: 'Exhibit AirPods', expanded: false })
     this.folder.addBinding(this.params, 'visible', { label: 'Visible' }).on('change', () => this.applyLayout())
     this.folder.addBinding(this.params, 'scale', { label: 'Shared scale', min: 1, max: 4, step: 0.1 }).on('change', () => this.applyLayout())
@@ -172,7 +173,7 @@ export default class ExhibitAirPods {
   }
 
   destroy() {
-    this.folder.dispose()
+    this.folder?.dispose()
     this.group.removeFromParent()
     // 两组副本共享 GLB 几何与贴图，只由此组件统一回收一次。
     for (const geometry of this.geometries) geometry.dispose()

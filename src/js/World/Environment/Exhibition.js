@@ -137,6 +137,7 @@ export default class Exhibition {
   }
 
   debugInit() {
+    if (!this.debug?.ui) return
     this.folder = this.debug.ui.addFolder({ title: 'Exhibition', expanded: false })
     this.folder.addBinding(this.params, 'enabled', { label: 'Enabled' }).on('change', () => this.applyLayout())
     for (const key of ['showParts', 'showDock', 'hideOnNarrow']) {
@@ -170,7 +171,7 @@ export default class Exhibition {
   }
 
   destroy() {
-    this.folder.dispose()
+    this.folder?.dispose()
     this.plinth.destroy()
     this.partsDisplay.destroy()
     this.colorDock.destroy()

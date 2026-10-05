@@ -149,6 +149,7 @@ export default class ColorDock {
   }
 
   debugInit(debug) {
+    if (!debug?.ui) return
     this.folder = debug.ui.addFolder({ title: 'Controller Themes / S2', expanded: false })
     for (const theme of this.themes) {
       const folder = this.folder.addFolder({ title: theme.label, expanded: false })
@@ -172,7 +173,7 @@ export default class ColorDock {
   }
 
   destroy() {
-    this.folder.dispose()
+    this.folder?.dispose()
     this.samples.forEach(sample => sample.destroy())
     this.seats.forEach(seat => seat.material.dispose())
     this.themeMeshes.clear()

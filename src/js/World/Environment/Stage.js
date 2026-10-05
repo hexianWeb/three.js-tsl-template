@@ -117,6 +117,7 @@ export default class Stage {
   }
 
   debugInit() {
+    if (!this.debug.ui) return
     this.folder = this.debug.ui.addFolder({ title: 'Stage / Cyclorama', expanded: false })
     this.folder.addBinding(this.params, 'visible', { label: 'Visible' })
       .on('change', ({ value }) => { this.mesh.visible = value })
@@ -145,7 +146,7 @@ export default class Stage {
   }
 
   destroy() {
-    this.folder.dispose()
+    this.folder?.dispose()
     this.scene.remove(this.mesh)
     this.mesh.geometry.dispose()
     this.material.dispose()

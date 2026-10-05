@@ -80,6 +80,7 @@ export default class ControllerButtonMaterial {
   }
 
   debugInit(debug) {
+    if (!debug?.ui) return
     this.folder = debug.ui.addFolder({ title: 'Controller Button Plastic', expanded: false })
     const ranges = {
       roughness: [0.08, 0.6, 0.01],
@@ -107,7 +108,7 @@ export default class ControllerButtonMaterial {
   }
 
   destroy() {
-    this.folder.dispose()
+    this.folder?.dispose()
     this.originalMaterials.forEach((material, button) => { button.material = material })
     this.materials.forEach(material => material.dispose())
     this.originalMaterials.clear()

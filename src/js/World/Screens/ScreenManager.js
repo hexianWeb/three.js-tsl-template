@@ -280,6 +280,7 @@ export default class ScreenManager {
   }
 
   debugInit() {
+    if (!this.debug.ui) return
     const folder = this.debug.ui.addFolder({ title: 'Game Changer Transition' })
     this.transitionProgressBinding = folder.addBinding(this.params, 'transitionProgress', {
       label: 'Progress', min: 0, max: 1, step: 0.01,

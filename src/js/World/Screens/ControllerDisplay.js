@@ -1076,6 +1076,7 @@ export default class ControllerDisplay {
   }
 
   debugInit() {
+    if (!this.debug.ui) return
     const folder = this.debug.ui.addFolder({ title: 'Controller Display' })
     const ranges = { brightness: [0, 2, 0.01], blurPixels: [0, 30, 1], scale: [1, 1.12, 0.005] }
     Object.entries(ranges).forEach(([key, [min, max, step]]) => {

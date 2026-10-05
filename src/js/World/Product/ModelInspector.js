@@ -169,28 +169,34 @@ export default class ModelInspector {
     this.worldAxes.visible = this.params.showWorldAxes
     this.grid.visible = this.params.showGrid
 
-    this.selectedNode.getWorldPosition(this.tempPosition)
-    this.selectedNode.getWorldQuaternion(this.tempQuaternion)
-    this.selectedAxes.position.copy(this.tempPosition)
-    this.selectedAxes.quaternion.copy(this.tempQuaternion)
-    this.selectedAxes.scale.setScalar(this.params.axisSize)
     this.selectedAxes.visible = this.params.showSelectedAxes
-
-    this.selectedBounds.setFromObject(this.selectedNode)
-    this.boundsHelper.visible = this.params.showSelectedBounds && !this.selectedBounds.isEmpty()
+    if (this.params.showSelectedAxes) {
+      this.selectedNode.getWorldPosition(this.tempPosition)
+      this.selectedNode.getWorldQuaternion(this.tempQuaternion)
+      this.selectedAxes.position.copy(this.tempPosition)
+      this.selectedAxes.quaternion.copy(this.tempQuaternion)
+      this.selectedAxes.scale.setScalar(this.params.axisSize)
+    }
+    this.boundsHelper.visible = this.params.showSelectedBounds
+    if (this.params.showSelectedBounds) {
+      this.selectedBounds.setFromObject(this.selectedNode)
+      this.boundsHelper.visible = !this.selectedBounds.isEmpty()
+    }
 
     this.partAxes.forEach((helper) => {
+      helper.visible = this.params.showAllPartAxes
+      if (!helper.visible) return
       const targetNode = helper.userData.targetNode
       targetNode.getWorldPosition(this.tempPosition)
       targetNode.getWorldQuaternion(this.tempQuaternion)
       helper.position.copy(this.tempPosition)
       helper.quaternion.copy(this.tempQuaternion)
       helper.scale.setScalar(this.params.axisSize * 0.7)
-      helper.visible = this.params.showAllPartAxes
     })
   }
 
   updateReadout(force = false) {
+    if (!force && !this.debug.ui.expanded) return
     const now = performance.now()
     if (!force && now - this.lastPanelRefresh < 100)
       return

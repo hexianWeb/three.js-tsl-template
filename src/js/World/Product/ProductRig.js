@@ -258,6 +258,7 @@ export default class ProductRig {
   }
 
   debugInit() {
+    if (!this.debug.ui) return
     const folder = this.debug.ui.addFolder({ title: 'Product Rig', expanded: false })
     folder.addBinding(this.params, 'hingeAxis', {
       label: 'Hinge axis',
@@ -306,7 +307,7 @@ export default class ProductRig {
 
   setDebugAngle(angle) {
     this.setProductAngle(angle)
-    this.productAngleBinding.refresh()
+    this.productAngleBinding?.refresh()
   }
 
   getInspectableNodes() {

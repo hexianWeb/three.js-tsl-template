@@ -61,6 +61,7 @@ export default class ExhibitPlant {
   }
 
   debugInit(debug) {
+    if (!debug?.ui) return
     this.folder = debug.ui.addFolder({ title: 'Exhibit Plant', expanded: false })
     this.folder.addBinding(this.params, 'showPlant', { label: 'Visible' }).on('change', () => this.applyLayout())
     for (const [suffix, min, max, step, label] of [

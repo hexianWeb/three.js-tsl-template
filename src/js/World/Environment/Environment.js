@@ -72,9 +72,11 @@ export default class Environment {
     this.keyLight.shadow.mapSize.set(2048, 2048)
     this.scene.add(this.keyLight)
 
-    this.keyLightHelper = new THREE.DirectionalLightHelper(this.keyLight, 0.5, '#fbbf24')
-    this.keyLightHelper.visible = this.params.showKeyLightHelper
-    this.scene.add(this.keyLightHelper)
+    if (this.debug.enabled) {
+      this.keyLightHelper = new THREE.DirectionalLightHelper(this.keyLight, 0.5, '#fbbf24')
+      this.keyLightHelper.visible = this.params.showKeyLightHelper
+      this.scene.add(this.keyLightHelper)
+    }
 
     this.fillLight = new THREE.DirectionalLight('#dbe6ee', this.params.fillIntensity)
     this.fillLight.position.set(-4, 1.5, 3)
@@ -179,6 +181,7 @@ export default class Environment {
   }
 
   debugInit() {
+    if (!this.debug.ui) return
     this.folder = this.debug.ui.addFolder({ title: 'Environment', expanded: false })
 
     this.folder.addBinding(this.params, 'background', { label: 'Background' })
@@ -273,13 +276,14 @@ export default class Environment {
   }
 
   update() {
-    this.keyLightHelper.update()
+    if (this.keyLightHelper?.visible) this.keyLightHelper.update()
   }
 
   destroy() {
-    this.folder.dispose()
-    this.scene.remove(this.hemisphereLight, this.keyLight, this.keyLightHelper, this.fillLight)
-    this.keyLightHelper.dispose()
+    this.folder?.dispose()
+    this.scene.remove(this.hemisphereLight, this.keyLight, this.fillLight)
+    this.keyLightHelper?.removeFromParent()
+    this.keyLightHelper?.dispose()
     this.keyLight.shadow.map?.dispose()
     this.hemisphereLight.dispose()
     this.keyLight.dispose()

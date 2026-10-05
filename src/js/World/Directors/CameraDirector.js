@@ -285,6 +285,7 @@ export default class CameraDirector {
   }
 
   debugInit() {
+    if (!this.debug.ui) return
     const folder = this.debug.ui.addFolder({
       title: 'Camera Director',
       expanded: true,
@@ -354,7 +355,7 @@ export default class CameraDirector {
   }
 
   destroy() {
-    this.folder.dispose()
+    this.folder?.dispose()
     this.killTransition()
     this.unsubscribeState?.()
     this.unsubscribeProductMode?.()

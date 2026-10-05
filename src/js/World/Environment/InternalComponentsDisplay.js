@@ -196,6 +196,7 @@ export default class InternalComponentsDisplay {
   }
 
   debugInit(debug) {
+    if (!debug?.ui) return
     this.folder = debug.ui.addFolder({ title: 'Internal Components', expanded: false })
     this.folder.addBinding(this.params, 'visible', { label: 'Visible' }).on('change', () => this.setCompact(this.compact))
     for (const [key, min, max, step] of [['x', -3, -0.8, 0.01], ['z', -1, 1, 0.01], ['yaw', -90, 90, 1], ['scale', 0.5, 1.5, 0.01]]) {
@@ -206,7 +207,7 @@ export default class InternalComponentsDisplay {
   }
 
   destroy() {
-    this.folder.dispose()
+    this.folder?.dispose()
     this.group.removeFromParent()
     for (const label of this.labels) label.destroy()
     // 三件展品保留原几何/贴图并共享转换材质；模型和程序化支座资源在直接父级销毁时去重回收。
