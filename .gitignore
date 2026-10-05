@@ -9,4 +9,4 @@ static/
 *.blend
 *.blend1
 # Local NDS validation files; not application assets.
-public/nds/
+
