@@ -1,10 +1,11 @@
 import * as THREE from 'three/webgpu'
 
 export default class ExhibitLabel {
-  constructor({ width, height, name, cutout = false }) {
+  constructor({ width, height, name, cutout = false, resolution = 2048 }) {
     this.canvas = document.createElement('canvas')
-    this.canvas.width = 1024
-    this.canvas.height = Math.max(128, Math.round(1024 * height / width))
+    this.canvas.width = resolution
+    // 短标签的最低高度也随分辨率增长，字体和几何尺寸继续使用原来的逻辑坐标。
+    this.canvas.height = Math.max(Math.round(resolution / 8), Math.round(resolution * height / width))
     this.context = this.canvas.getContext('2d')
     if (!this.context) throw new Error('无法创建展品标签画布')
     this.logicalHeight = 1000 * height / width
