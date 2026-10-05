@@ -230,12 +230,15 @@ export default class PhoneScreenSurface {
   }
 
   setProductAngle(angle) {
+    if (this.productAngle === angle) return
     this.productAngle = angle
     this.applyFoldEffect()
   }
 
   setWakeProgress(progress) {
-    this.phoneWakeProgress = THREE.MathUtils.clamp(progress, 0, 1)
+    const value = THREE.MathUtils.clamp(progress, 0, 1)
+    if (this.phoneWakeProgress === value) return
+    this.phoneWakeProgress = value
     this.applyFoldEffect()
   }
 

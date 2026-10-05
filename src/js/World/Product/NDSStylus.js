@@ -13,6 +13,9 @@ export default class NDSStylus {
     this.pointer = new THREE.Vector2(window.innerWidth * 0.72, window.innerHeight * 0.62)
     this.previousPointer = this.pointer.clone()
     this.velocity = new THREE.Vector2()
+    this.movement = new THREE.Vector2()
+    this.renderedPose = new Float64Array(8).fill(NaN)
+    this.renderRequested = true
     this.swing = { value: 0, velocity: 0 }
     this.tilt = { value: 0, velocity: 0 }
     this.press = 0
@@ -139,6 +142,10 @@ export default class NDSStylus {
   }
 
   syncVisibility() {
+    if (this.visibilityEnabled === this.params.enabled && this.visibilityInside === Boolean(this.mouseInside)) return
+    if (this.visibilityEnabled !== this.params.enabled) this.renderRequested = true
+    this.visibilityEnabled = this.params.enabled
+    this.visibilityInside = Boolean(this.mouseInside)
     this.canvas.hidden = !this.params.enabled
     if (this.popover) {
       const open = this.canvas.matches(':popover-open')
@@ -169,7 +176,7 @@ export default class NDSStylus {
       return
     }
     const reducedMotion = this.reducedMotion ??= window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const movement = this.pointer.clone().sub(this.previousPointer)
+    const movement = this.movement.subVectors(this.pointer, this.previousPointer)
     this.previousPointer.copy(this.pointer)
     const blend = 1 - Math.exp(-24 * dt)
     const speed = dt > 0 ? movement.divideScalar(dt).clampLength(0, 2400) : movement.set(0, 0)
@@ -198,9 +205,23 @@ export default class NDSStylus {
   }
 
   resize() {
+    this.renderRequested = true
     this.pointer.x = THREE.MathUtils.clamp(this.pointer.x, 0, window.innerWidth)
     this.pointer.y = THREE.MathUtils.clamp(this.pointer.y, 0, window.innerHeight)
     this.previousPointer.copy(this.pointer)
+  }
+
+  consumeRenderRequest() {
+    if (!this.params.enabled) return false
+    const pose = [this.pen.rotation.x, this.pen.rotation.y, this.pen.rotation.z,
+      this.pen.scale.x, this.pen.scale.y, this.pen.scale.z, this.pulse.scale.x, this.pulse.material.opacity]
+    // CSS 平移无需重绘 GPU 画布；弹簧、落笔和波纹停稳后复用最后一帧，微小误差低于可见像素。
+    const changed = this.renderRequested || pose.some((value, index) => !Number.isFinite(this.renderedPose[index])
+      || Math.abs(value - this.renderedPose[index]) > 0.000001)
+    if (!changed) return false
+    this.renderedPose.set(pose)
+    this.renderRequested = false
+    return true
   }
 
   debugInit(debug) {

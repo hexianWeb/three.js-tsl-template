@@ -84,7 +84,8 @@ export default class Renderer {
     // 与主场景共用 Experience 循环，不另起 rAF；透明小画布只绘制鼠标伴随模型。
     if (this.pointerOverlay?.ready && !this.pointerOverlay.canvas.hidden) {
       const { instance, scene, camera } = this.pointerOverlay
-      instance.render(scene, camera)
+      const stylus = this.experience.world?.stylus
+      if (!stylus?.consumeRenderRequest || stylus.consumeRenderRequest()) instance.render(scene, camera)
     }
   }
 
@@ -175,6 +176,7 @@ export default class Renderer {
       const { instance, surfaceWidth, surfaceHeight } = this.pointerOverlay
       instance.setPixelRatio(this.sizes.pixelRatio)
       instance.setSize(surfaceWidth, surfaceHeight, false)
+      if (this.experience.world?.stylus) this.experience.world.stylus.renderRequested = true
     }
   }
 
