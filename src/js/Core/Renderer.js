@@ -72,7 +72,8 @@ export default class Renderer {
 
   resize() {
     this.instance.setPixelRatio(this.sizes.pixelRatio)
-    this.instance.setSize(this.sizes.width, this.sizes.height)
+    // CSS 决定页头下方的可用区域，渲染器仅更新像素缓冲，避免反过来撑大 Flex 画布。
+    this.instance.setSize(this.sizes.width, this.sizes.height, false)
     this.pipeline?.resize()
     this.transmissionBackdrop?.resize()
     if (this.pointerOverlay?.ready) {

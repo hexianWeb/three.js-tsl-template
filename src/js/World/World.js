@@ -11,6 +11,7 @@ import ControllerThemes from './Product/ControllerThemes.js'
 import ModelAdapter from './Product/ModelAdapter.js'
 import NDSStylus from './Product/NDSStylus.js'
 import ScreenManager from './Screens/ScreenManager.js'
+import ProductHeader from './Screens/ProductHeader.js'
 import ProductToolbar from './Screens/ProductToolbar.js'
 
 export default class World {
@@ -45,6 +46,7 @@ export default class World {
     this.toolbar = new ProductToolbar({
       state: this.state, events: this.events, themes: this.exhibition.colorDock.themes, canvas: this.experience.canvas,
     })
+    this.header = new ProductHeader({ state: this.state, events: this.events, canvas: this.experience.canvas })
     this.removeToolbarListeners = [
       this.events.on('product:action', ({ action, options }) => this.handleAction(action, options)),
       this.events.on('product:help', ({ open }) => this.inputRouter.setUIBlocked(open)),
@@ -224,6 +226,7 @@ export default class World {
   }
 
   destroy() {
+    this.header?.destroy()
     this.toolbar?.destroy()
     this.removeToolbarListeners?.forEach(remove => remove())
     this.controllerThemes?.destroy()

@@ -70,6 +70,7 @@ export default class ProductToolbar {
       ...['intro:state', 'product:mode', 'controller:theme', 'controller:themes-updated'].map(event => events.on(event, () => this.render())),
       events.on('nds:state', info => { this.nds = info; this.render() }),
       events.on('game:unavailable', ({ message }) => this.showNotice(message)),
+      events.on('product:help-request', ({ trigger }) => this.openHelp(trigger)),
     ]
     document.body.append(this.element, this.help)
     this.render()
@@ -103,16 +104,16 @@ export default class ProductToolbar {
     }, options)
     this.help.addEventListener('close', () => {
       this.events.emit('product:help', { open: false })
-      this.buttons.help.focus({ preventScroll: true })
+      // 页头与底栏共享同一说明弹窗，关闭后回到本次实际触发按钮。
+      const target = this.helpTrigger?.isConnected ? this.helpTrigger : this.buttons.help
+      target.focus({ preventScroll: true })
+      this.helpTrigger = null
     }, options)
   }
 
   handleAction(action) {
     if (action === 'help') {
-      // 模态说明打开前暂停游戏，并释放键盘、手柄与触控；关闭后由访客显式继续。
-      if (this.state.productMode === 'playing' || this.nds.loading) this.events.emit('product:action', { action: 'back' })
-      this.events.emit('product:help', { open: true })
-      this.help.showModal()
+      this.openHelp()
       return
     }
     if (action === 'primary') {
@@ -121,6 +122,15 @@ export default class ProductToolbar {
     }
     this.events.emit('product:action', { action, options: { userGesture: true } })
     if (action === 'replay-intro') this.canvas.focus({ preventScroll: true })
+  }
+
+  openHelp(trigger = this.buttons.help) {
+    if (this.help.open) return
+    this.helpTrigger = trigger
+    // 模态说明打开前暂停游戏，并释放键盘、手柄与触控；关闭后由访客显式继续。
+    if (this.state.productMode === 'playing' || this.nds.loading) this.events.emit('product:action', { action: 'back' })
+    this.events.emit('product:help', { open: true })
+    this.help.showModal()
   }
 
   showNotice(message) {

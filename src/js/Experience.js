@@ -25,7 +25,7 @@ export default class Experience {
     this.debugPanel = options.debugPanel
     this.events = new EventBus()
     this.state = new State()
-    this.sizes = new Sizes()
+    this.sizes = new Sizes(this.canvas)
     this.time = new Time()
     this.scene = new THREE.Scene()
     this.debug = new Debug(this.debugPanel)
