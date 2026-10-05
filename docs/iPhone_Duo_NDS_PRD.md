@@ -770,7 +770,11 @@ Input Target
 
 2026-10-04 实现补充：`World` 另行装配 `ProductToolbar`（DOM 展示操作与模态说明）和 `ControllerThemes`（主机配色过渡）。UI 通过 EventBus 表达试玩、重播、跳过、声音及主题意图；主机颜色写入经 ModelAdapter 的公开接口，保留既有 TSL、EXR Lightmap 和按键反馈。右侧配色样品在 Game Home 可点击，底栏保留窄屏替代入口；Playing 收起展示控件。详细实现见 `PROJECT_PROGRESS.md` 第 9 节。
 
+2026-10-05 增加 `ProductHeader`：采用轻薄半透明的 HTML 产品页头，包含品牌、产品展区、装配演示、操作指南和随 Intro / 加载 / Playing 切换的试玩入口。页头位于 DOM 和键盘顺序首部，动作继续经 EventBus 路由；操作指南使用 `product:help-request` 共用 Toolbar 的同一弹窗，关闭后恢复实际触发按钮。小屏保留品牌、指南和主按钮，重播在 Intro / 加载 / Playing 禁用。按用户后续反馈，页头内容行压缩为桌面 48px / 小屏 44px（另含安全区和分隔线），横向容器随视窗铺开、两侧保留流式边距。页头在文档流中占位，Canvas 填满其下方剩余高度；`Sizes` 观察实际 Canvas 边界，Renderer 仅调整像素缓冲，保持原镜头参数和 3D 布局。调试面板移至页头下方，所有 DOM / 监听由 World 销毁。
+
 配色选择保存在当前站点的 localStorage（`iphone-duo.controller-theme`），在 Intro 首帧前恢复主机、展台选中态与底栏。仅接受 Classic / Retro / Midnight；无效值或存储不可用时回退 Classic，当前会话仍可正常切换。
+
+宽屏左侧另由 `ProductIntroCopy` 提供简短产品标题和说明，只在 Intro Ready、Game Home 且未启动游戏时显示；为避开固定 Hero 镜头下的左展板，限制视窗至少 1600×650、宽高比至少 2:1。小屏和较窄画幅隐藏文案，文案不拦截画布交互，监听与 DOM 随 World 销毁。
 
 同日视觉精修：入口由 `LoadingScreen` 展示品牌、真实进度与首帧准备状态；`ScreenManager` 持有 `GameEntryTransition` / `GameEntrySound`，NDS 首次启动与恢复在 Game Home 中先收拢上屏，首帧就绪后展开，再进入 Playing。`ModelAdapter` 持有 `ButtonPrint` 共享点阵字形，主机和展品各自在键帽材质上投影 ABXY 印花。取消/Replay/失焦/销毁均收束转场；见 `PROJECT_PROGRESS.md` 第 10 节。
 
@@ -1114,15 +1118,19 @@ value += velocity * dt
 
 ### 29.1 照明方案
 
-场景采用三盏实时灯，**不使用 HDR 环境贴图**：
+场景保留三盏基础灯，并增加两盏面光源塑形，**不使用 HDR 环境贴图**：
 
 | 光源 | 参数 | 职责 |
 |---|---|---|
-| `HemisphereLight` | `#f7fbff` / `#101827`，强度 3.05 | 唯一的场景级间接漫反射 |
+| `HemisphereLight` | `#f7f9fc` / `#25282e`，强度 1.9 | 场景级间接漫反射填光 |
 | 主 `DirectionalLight` | `#ffffff`，强度 2.4，位置 `(2.9, 6, 6.8)` | 主要投影与高光 |
-| 补 `DirectionalLight` | `#7dd3fc`，强度 1.05，位置 `(-4, 1.5, 3)` | 冷色补光 |
+| 补 `DirectionalLight` | `#dbe6ee`，强度 0.3，位置 `(-4, 1.5, 3)` | 弱中性补光 |
+| 主 `RectAreaLight` | `#ffffff`，强度 5，尺寸 5 × 3 | 宽幅直接高光与中性塑形 |
+| 补 `RectAreaLight` | `#f7f9fc`，强度 1.4，尺寸 4 × 2.5 | 较弱的侧面塑形 |
 
-Renderer 保持 ACES 与用户校准曝光 0.84。主光投 2048² 阴影，固定范围以光源到原点的距离为中心推导；S3 默认再按展区与落地投影扩展边界，保持灯位与方向。面板可关闭 `Fit exhibition` 对比固定范围。
+2026-10-05 材质与灯光首轮：底座另有四条窄面光源沿原底缘向下/外照明，与灯带亮度联动。所有面光源均不投影，也不代表实时 GI；LTC 纹理由 Environment 初始化并按实例释放。首轮不改构图、展区布局或任何几何尺寸。
+
+Renderer 保持 ACES；2026-10-05 按用户“偏暗、泛黄”反馈，将背景改为 `#f3f5f7`、曝光改为 1.03，主面光与展台底色回到中性白，只在底缘灯带保留局部暖色。主光投 2048² 阴影，固定范围以光源到原点的距离为中心推导；S3 默认再按展区与落地投影扩展边界，保持灯位与方向。面板可关闭 `Fit exhibition` 对比固定范围。
 
 ### 29.2 HDR 环境贴图已否决
 
@@ -1130,8 +1138,8 @@ Renderer 保持 ACES 与用户校准曝光 0.84。主光投 2048² 阴影，固�
 
 三条连带约束：
 
-- **间接镜面为零。** `HemisphereLight` 在 three 中只贡献 irradiance。没有 `scene.environment` 就没有 IBL specular，按键清漆只能从两盏 `DirectionalLight` 得到点状高光，拿不到柔光箱轮廓。任何"清漆应读出面光源轮廓"的验收描述都已作废。
-- **间接漫反射完全无方向。** 凹缝与开阔面收到的间接光几乎相同，这是当前画面最主要的层次损失来源。屏幕空间 AO 是唯一能对它做空间调制的手段，因此 GTAO 的优先级因取消 HDR 而**上升**。
+- **没有 IBL 镜面反射。** `HemisphereLight` 在 three 中只贡献 irradiance；面光源提供直接镜面与清漆高光轮廓，不需要重新启用 `scene.environment`，也不会自动产生地面物体倒影。
+- **半球光只有朝向渐变。** 天空/地面色随法线朝向变化，但不包含局部遮挡或物体间反弹；现有 GTAO 继续调制间接光遮蔽，不通过提高填光或曝光掩盖结构。
 - **Controller Shell Lightmap 保留。** 原先"HDR 到位后重估这张图去留"的决策点前提已消失，`lightMapIntensity` 保持 1。
 
 ### 29.3 展台
@@ -1139,6 +1147,7 @@ Renderer 保持 ACES 与用户校准曝光 0.84。主光投 2048² 阴影，固�
 展台为程序化 S1 实现，用户已完成布局调整并确认可提交：
 
 - `Stage` 是宽 40、深 20、转角半径 3、墙高 16 的连续地面/弧墙。使用 Plastic010 1K JPG、非金属 Node Material 与 TSL 网格/Halo，不设置额外透明地面叠层。
+- 2026-10-05 表面调整：保留原 PBR 贴图，地面粗糙度乘数 0.55、法线强度 0.07；用户确认亮度合适后将网格不透明度设为 0.21，Halo/细环保持首轮强度，不改位置和形状。ProductPlinth 用独立 TSL 微法线和粗糙度变化生成细磨砂，颗粒以世界长度计量并进行导数过滤，不增加贴图。
 - `Exhibition` 独立挂 Scene，持有 `ProductPlinth`、`PartsDisplay` 和 `ColorDock`。产品在 110° 安装态测量宽 W、深 D；底座默认 1.5W × 1.61D × 0.06W，Z 偏移 +0.02D，平面圆角 0.05W 与竖向倒角 0.002W 独立。
 - 小底座顶面对应 Blender `Z = -0.035` 的原支撑基准。世界高度必须经 `ModelAdapter.getStageSurfaceWorldY()` 换算，**不能写死**；地面高度等于该值减去底座总厚度。
 - 增加底座不移动产品或改变 Controller 安装终点。S1 的装配路径采样中，Controller 最低点高于底座顶面约 `+0.00658`。Bind Pose 180° 是调试姿态，原有穿支撑面问题不属于 Intro / Hero 范围。
@@ -1168,3 +1177,11 @@ Renderer 保持 ACES 与用户校准曝光 0.84。主光投 2048² 阴影，固�
 - 参考图中的左侧为闭合平放充电盒，右前侧为开盒、盒内耳机与盒旁耳机。两组共享原模型几何、纹理和转换后的 Node Material；节点映射集中在附件组件内。
 - 保留用户导出的尺寸基准，不做盒宽归一化；按用户最终要求，两组共用 2.5 倍缩放。按箭头参考移到光圈外左下与右下：闭盒中心 `(-1.23W, +0.86D)`、Yaw -14°，开盒组中心 `(+1.32W, +0.907D)`、Yaw -18°。W / D 仅用于相对底座中心的摆放坐标；按可见几何的精确顶点接地，盒旁耳机放在前右方，按盒身前表面与耳机后表面留出 0.45 个盒宽，避免相交与 Hero 斜视下的遮挡。
 - 附件不参与产品 Rig、屏幕或输入命中；窄屏随左右展组隐藏，阴影范围随 Exhibition 更新。Tweakpane 的 Exhibit AirPods 提供开关、统一 Scale、Lid angle 与两组 X / Z / Yaw；共享资源统一回收一次。
+
+### 29.7 手柄内部元件展台（2026-10-05）
+
+- 用户提供的 `/glb/detail.glb` 通过 sources / Resources 加载，由 Exhibition 持有的 `InternalComponentsDisplay` 陈列；原始 GLB 不修改。
+- 三个根节点 `memory / bash / cpu` 在导出时重叠于原点，正面朝 +Y、平面为 XZ。运行时分别按包围盒等比适配，依参考图从左到右展示 Memory、Mainboard、Processor，保留原纹理与各自形状比例，不添加未经核实的硬件规格。
+- 展台放在左侧 Parts 竖板前方、闭合 AirPods 后方，按用户最新截图校准为默认中心 `(-1.5W, +0.24D)`、Yaw 16°、整体 Scale 1.21；白色矮台在整体倍率应用前的顶板为 `0.91W × 0.32W`，前缘高 `0.06W`、倾角 30°，楔形支座随顶板角度变化。展台及元件不参与产品 Rig、屏幕输入或模拟器更新。
+- 原材质转为对应 Standard / Physical Node 材质，保留贴图、法线及 Memory 的清漆；CPU 正面完全金属化的导出材质在没有 IBL 的现有环境中偏黑，仅将其展示副本金属度设为 0.45，以保留银色顶盖与丝印的可读性。
+- 展区全部五张静态标签统一使用 2048 像素宽画布，薄标签最小高度同步提升至 256 像素；内部元件标签恢复原字号、两行铭牌排版与原元件名标签高度，两张内部标签各向异性保持 16，元件名称继续使用透明混合而非硬阈值裁切以改善文字边缘。静态标签、阴影布局、窄屏隐藏和销毁由 Exhibition 协调；Tweakpane 的 `Internal Components` 提供开关、X / Z / Yaw、整体 Scale 与 Deck angle。模型原始资源、共享纹理、材质副本与程序化几何去重回收。
