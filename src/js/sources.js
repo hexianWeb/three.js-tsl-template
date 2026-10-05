@@ -67,6 +67,11 @@ export default [
     type: 'texture',
     path: '/img/cover.png',
   },
+  ...[2, 3, 4, 5].map(index => ({
+    name: `gameCardCover${index}`,
+    type: 'texture',
+    path: `/img/cover${index}.png`,
+  })),
   ...Array.from({ length: 6 }, (_, index) => ({
     name: `gameCover${index}`,
     type: 'texture',

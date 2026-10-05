@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu'
 import ExhibitLabel from './ExhibitLabel.js'
 import { createPlinthGeometry } from './exhibitionGeometry.js'
+import { createGameCard } from './gameCard.js'
 
 // 道具以产品宽 W 为局部单位，挂在展区而非产品 Rig；标签不参与屏幕命中或模拟器更新。
 export default class ExhibitProps {
@@ -90,29 +91,7 @@ export default class ExhibitProps {
   }
 
   createCard() {
-    const group = new THREE.Group()
-    group.name = 'OriginalGameCard'
-    const shell = this.material('#303c48', 0.52)
-    const edge = this.material('#1e2831', 0.72)
-    const contact = this.material('#b99a58', 0.36, 0.35)
-    this.mesh(group, 'CardLowerShell', createPlinthGeometry(0.2, 0.218, 0.01, 0.012, 0.0015), edge, [0, 0.005, 0])
-    this.mesh(group, 'CardUpperShell', createPlinthGeometry(0.198, 0.214, 0.016, 0.011, 0.002), shell, [0, 0.018, -0.001])
-    // 顶部凹槽与触点使用浅实心几何；无透明叠层，避免 GTAO 预通道和排序不一致。
-    this.mesh(group, 'CardContactRecess', createPlinthGeometry(0.155, 0.028, 0.001, 0.002, 0.0002), edge, [0, 0.0266, 0.083])
-    for (let i = 0; i < 8; i++) {
-      this.mesh(group, `CardContact${i + 1}`, new THREE.BoxGeometry(0.01, 0.0007, 0.02), contact, [(i - 3.5) * 0.018, 0.0275, 0.083])
-    }
-    const coverMaterial = this.material('#ffffff', 0.65)
-    coverMaterial.map = this.cardCoverTexture
-    // 在原标签区域内等比放置完整图片，避免拉伸或裁掉封面标题。
-    const aspect = this.cardCoverTexture.image.width / this.cardCoverTexture.image.height
-    const height = Math.min(0.156, 0.165 / aspect)
-    const width = height * aspect
-    // 壳体顶面 Y=0.026，标签沿朝上的法线偏移 0.002W，与铭牌使用相同间距。
-    const cover = this.mesh(group, 'OriginalGameCardLabel', new THREE.PlaneGeometry(width, height), coverMaterial, [0, 0.026 + 0.002, -0.017])
-    cover.rotation.x = -Math.PI / 2
-    cover.castShadow = false
-    return group
+    return createGameCard({ coverTexture: this.cardCoverTexture, geometries: this.geometries, materials: this.materials })
   }
 
   ground(group) {
