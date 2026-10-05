@@ -4,6 +4,7 @@ import ColorDock from './ColorDock.js'
 import ExhibitAirPods from './ExhibitAirPods.js'
 import ExhibitPlant from './ExhibitPlant.js'
 import ExhibitProps from './ExhibitProps.js'
+import InternalComponentsDisplay from './InternalComponentsDisplay.js'
 import PartsDisplay from './PartsDisplay.js'
 import ProductPlinth from './ProductPlinth.js'
 
@@ -62,7 +63,12 @@ export default class Exhibition {
       debug: this.debug,
       onLayout: () => this.notifyLayout(),
     })
-    this.group.add(this.props.group, this.plant.group, this.airpods.group)
+    this.internalComponents = new InternalComponentsDisplay({
+      gltf: experience.resources.items.controllerDetailModel,
+      debug: this.debug,
+      onLayout: () => this.notifyLayout(),
+    })
+    this.group.add(this.props.group, this.plant.group, this.airpods.group, this.internalComponents.group)
     this.scene.add(this.group)
     this.applyLayout()
     this.debugInit()
@@ -98,11 +104,14 @@ export default class Exhibition {
     this.props.setLayout({ width: w, depth: d, centerX, centerZ, floorY })
     this.plant.setLayout({ width: w, depth: d, centerX, centerZ, floorY })
     this.airpods.setLayout({ width: w, depth: d, centerX, centerZ, floorY })
+    this.internalComponents.setLayout({ width: w, depth: d, centerX, centerZ, floorY })
     this.resize()
   }
 
   notifyLayout() {
     // 包含隐藏展组，避免 resize 让阴影投影跳变；为 Dock 小幅悬浮预留世界空间余量。
+    // 元件保留 GLB 的固定局部矩阵；调布局后强制更新整棵树，阴影包围盒不能等待下一次渲染。
+    this.group.updateMatrixWorld(true)
     const bounds = new THREE.Box3().setFromObject(this.group, true)
     bounds.union(this.metrics.bounds).expandByScalar(this.metrics.width * 0.15)
     this.onLayout?.(bounds)
@@ -123,6 +132,7 @@ export default class Exhibition {
     this.props.setCompact(!showSides)
     this.plant.setCompact(!showSides)
     this.airpods.setCompact(!showSides)
+    this.internalComponents.setCompact(!showSides)
     this.compactBinding?.refresh()
   }
 
@@ -167,6 +177,7 @@ export default class Exhibition {
     this.props.destroy()
     this.plant.destroy()
     this.airpods.destroy()
+    this.internalComponents.destroy()
     this.onLayout = null
     this.group.removeFromParent()
   }

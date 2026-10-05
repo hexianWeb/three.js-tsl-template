@@ -28,6 +28,11 @@ export default [
     path: '/glb/airpods_pro.glb',
   },
   {
+    name: 'controllerDetailModel',
+    type: 'gltfModel',
+    path: '/glb/detail.glb',
+  },
+  {
     name: 'controllerShellLightmap',
     type: 'exrTexture',
     path: '/lightmaps/Controller_Shell_lightmap.exr',
