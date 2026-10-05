@@ -116,7 +116,7 @@ export default class Exhibition {
   }
 
   notifyLayout() {
-    // 包含隐藏展组，避免 resize 让阴影投影跳变；为 Dock 小幅悬浮预留世界空间余量。
+    // 包含隐藏展组，避免 resize 让阴影投影跳变；为 Dock 与内部元件悬浮预留世界空间余量。
     // 元件保留 GLB 的固定局部矩阵；调布局后强制更新整棵树，阴影包围盒不能等待下一次渲染。
     this.group.updateMatrixWorld(true)
     const bounds = new THREE.Box3().setFromObject(this.group, true)
@@ -127,6 +127,8 @@ export default class Exhibition {
   update(elapsed) {
     if (this.group.visible && this.dock.visible)
       this.colorDock.update(elapsed)
+    if (this.group.visible && this.internalComponents.group.visible)
+      this.internalComponents.update(elapsed)
   }
 
   resize() {

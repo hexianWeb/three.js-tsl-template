@@ -1,43 +1,135 @@
 .product-intro-copy {
   display: none;
   position: fixed;
-  /* 放大后的正文在低矮宽屏上适当抬高，保持位于前景元件展台上方。 */
-  top: calc(var(--product-header-height, 48px) + env(safe-area-inset-top) + clamp(24px, calc(40dvh - 240px), 100px));
+  /* 功能介绍增加高度；随画幅抬高文案，给下方元件展台保留空间。 */
+  top: calc(var(--product-header-height, 48px) + env(safe-area-inset-top) + clamp(20px, calc(30dvh - 220px), 55px));
   left: max(clamp(24px, 3vw, 64px), env(safe-area-inset-left));
   z-index: 2;
   width: 330px;
   margin: 0;
-  color: #1d1d1f;
+  color: #101218;
   pointer-events: none;
 }
 
 .product-intro-copy__eyebrow {
-  margin: 0 0 27px;
-  color: #6e6e73;
-  font-size: 15px;
+  margin: 0 0 16px;
+  color: #323233;
+  font-size: 16px;
   font-weight: 600;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.1em;
   line-height: 1.5;
 }
 
 .product-intro-copy__title {
-  margin: 0 0 27px;
+  margin: 0 0 20px;
   font-size: 51px;
-  font-weight: 600;
-  letter-spacing: -0.045em;
-  line-height: 1.24;
+  font-weight: 750;
+  letter-spacing: 0.025em;
+  line-height: 1.14;
+}
+
+.product-intro-copy__title > span {
+  display: block;
+  width: fit-content;
+}
+
+.product-intro-copy__accent {
+  color: #1265df;
+  background: linear-gradient(100deg, #0b1428 8%, #0b3b97 53%, #0877ff 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .product-intro-copy__description {
   margin: 0;
   color: #6e6e73;
-  font-size: 19.5px;
+  font-size: 17.5px;
   font-weight: 400;
   letter-spacing: -0.015em;
-  line-height: 1.75;
+  line-height: 1.55;
+}
+
+.product-intro-copy__features {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.product-intro-copy__feature {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0 10px 0 0;
+  text-align: left;
+}
+
+.product-intro-copy__feature + .product-intro-copy__feature {
+  padding: 0 0 0 14px;
+}
+
+.product-intro-copy__feature + .product-intro-copy__feature::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 2px;
+  left: 0;
+  width: 1px;
+  background: linear-gradient(transparent, #b5becb66 25%, #b5becb66 75%, transparent);
+}
+
+.product-intro-copy__icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 10px;
+  border-radius: 50%;
+  color: #0877ff;
+  background: #0877ff12;
+}
+
+.product-intro-copy__icon svg {
+  width: 30px;
+  height: 30px;
+}
+
+.product-intro-copy__feature-title {
+  color: #252b37;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.product-intro-copy__feature-description {
+  margin-top: 2px;
+  color: #777f8c;
+  font-size: 11.5px;
+  line-height: 16px;
+  white-space: nowrap;
 }
 
 /* Hero 保持固定竖向视角；较窄画幅左展板会靠近边缘，只在足够宽的空区放置文案。 */
 @media (min-width: 1600px) and (min-height: 650px) and (min-aspect-ratio: 2 / 1) {
   .product-intro-copy:not([hidden]) { display: block; }
+}
+
+/* 低矮宽屏压缩排版，三列文案仍完整显示并停在元件展台上方。 */
+@media (max-height: 720px) {
+  .product-intro-copy {
+    top: calc(var(--product-header-height, 48px) + env(safe-area-inset-top) + 10px);
+    width: 282px;
+  }
+  .product-intro-copy__eyebrow { margin-bottom: 10px; font-size: 12px; }
+  .product-intro-copy__title { margin-bottom: 14px; font-size: 42px; line-height: 1.1; }
+  .product-intro-copy__description { font-size: 15.5px; line-height: 1.5; }
+  .product-intro-copy__features { margin-top: 10px; }
+  .product-intro-copy__icon { width: 42px; height: 42px; margin-bottom: 8px; }
+  .product-intro-copy__icon svg { width: 26px; height: 26px; }
+  .product-intro-copy__feature-title { font-size: 12px; line-height: 18px; }
+  .product-intro-copy__feature-description { font-size: 10.5px; line-height: 14px; }
 }

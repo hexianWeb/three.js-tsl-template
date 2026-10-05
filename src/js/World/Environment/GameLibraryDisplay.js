@@ -8,7 +8,7 @@ export default class GameLibraryDisplay {
     if (coverTextures.length !== 4 || coverTextures.some(texture => !texture?.image)) throw new Error('Game Library 缺少四张卡带封面')
     this.onLayout = onLayout
     // 原整体比例 1.1 缩至 75%；从 +Y 俯视，绕 Y 的负角度表示顺时针，再转 15°。
-    this.params = { visible: true, x: 1.48, z: 0.05, yaw: -27, scale: 0.825, inclination: 68, looseX: -0.1, looseZ: 0.38, looseYaw: 17 }
+    this.params = { visible: true, x: 1.48, z: -0.1, yaw: -27, scale: 0.825, inclination: 68, looseX: -0.1, looseZ: 0.38, looseYaw: 17 }
     this.group = new THREE.Group()
     this.group.name = 'GameLibraryDisplay'
     this.geometries = new Set()

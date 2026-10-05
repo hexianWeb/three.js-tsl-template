@@ -16,7 +16,17 @@ export default class InternalComponentsDisplay {
       if (!gltf.scene.getObjectByName(node)) throw new Error(`内部元件模型缺少节点：${node}`)
     }
     this.onLayout = onLayout
-    this.params = { visible: true, x: -1.5, z: 0.24, yaw: 16, scale: 1.21, inclination: 30 }
+    this.params = {
+      visible: true,
+      x: -1.5,
+      z: 0.24,
+      yaw: 16,
+      scale: 1.21,
+      inclination: 30,
+      floatHeight: 0.028,
+      bobAmplitude: 0.0045,
+      bobSpeed: 0.9,
+    }
     this.group = new THREE.Group()
     this.group.name = 'InternalComponentsDisplay'
     this.geometries = new Set()
@@ -24,6 +34,7 @@ export default class InternalComponentsDisplay {
     this.textures = new Set()
     this.materialCopies = new Map()
     this.labels = []
+    this.components = []
     gltf.scene.traverse(mesh => {
       if (!mesh.isMesh) return
       this.geometries.add(mesh.geometry)
@@ -50,12 +61,14 @@ export default class InternalComponentsDisplay {
       const display = this.createComponent(gltf.scene.getObjectByName(component.node), component)
       const depth = Math.max(0.24, display.size.z + 0.016)
       const width = Math.max(0.17, display.size.x + 0.022)
-      // 承托面与元件共用倾斜父级，底面沿局部 +Y 接触，调角度时不会悬浮或穿入顶板。
+      // 承托面固定在倾斜展板上，元件只沿父级局部 +Y 法线悬浮，保留与展板平行的姿态。
       this.addMesh(this.deck, `${component.node}_Seat`, createPlinthGeometry(width, depth, 0.004, 0.009, 0.0007), seat, [component.x, 0.008, -0.026])
       display.group.position.set(component.x, 0.011, -0.026)
       this.deck.add(display.group)
+      this.components.push(display.group)
     }
     this.createLabels()
+    this.update(0)
     this.applyInclination()
     this.debugInit(debug)
   }
@@ -195,6 +208,16 @@ export default class InternalComponentsDisplay {
     this.group.visible = this.params.visible && !compact
   }
 
+  update(elapsed) {
+    const { floatHeight, bobAmplitude, bobSpeed } = this.params
+    // 用绝对秒数计算约 7 秒一次的轻微起伏；错开相位，帧率变化或隐藏后恢复都不会积累漂移。
+    // 0.011 是原承托高度，最低点仍留出法向间隙；只动外层组，不改 GLB 的固定导出矩阵。
+    for (let index = 0; index < this.components.length; index++) {
+      const phase = elapsed * bobSpeed + index * 1.7
+      this.components[index].position.y = 0.011 + floatHeight + Math.sin(phase) * bobAmplitude
+    }
+  }
+
   debugInit(debug) {
     if (!debug?.ui) return
     this.folder = debug.ui.addFolder({ title: 'Internal Components', expanded: false })
@@ -215,6 +238,7 @@ export default class InternalComponentsDisplay {
     for (const material of this.materials) material.dispose()
     for (const texture of this.textures) texture.dispose()
     this.materialCopies.clear()
+    this.components.length = 0
     this.onLayout = null
   }
 }

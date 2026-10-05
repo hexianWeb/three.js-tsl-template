@@ -7,6 +7,8 @@ const projectRoot = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineConfig({
   root: 'src',
+  // 源码根目录为 src，但部署与本地 ROM 地址配置统一从仓库根目录的 .env 文件读取。
+  envDir: projectRoot,
   publicDir: '../public',
   plugins: [{
     name: 'public-assets-without-local-roms',

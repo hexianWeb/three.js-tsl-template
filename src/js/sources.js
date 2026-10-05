@@ -1,5 +1,3 @@
-import phoneHomeUrl from '../../docs/img/主页面.png?url'
-
 // Spike 资源按需加载，不进入产品首屏的 Resources.load()。
 export const ndsSources = {
   core: '/vendor/pilas-melonds/pilas-melonds-core.js',
@@ -55,7 +53,7 @@ export default [
   {
     name: 'phoneHomeTexture',
     type: 'texture',
-    path: phoneHomeUrl,
+    path: '/img/主页面.png',
   },
   {
     name: 'gameHomeReference',
