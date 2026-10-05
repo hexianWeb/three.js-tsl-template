@@ -774,7 +774,7 @@ Input Target
 
 配色选择保存在当前站点的 localStorage（`iphone-duo.controller-theme`），在 Intro 首帧前恢复主机、展台选中态与底栏。仅接受 Classic / Retro / Midnight；无效值或存储不可用时回退 Classic，当前会话仍可正常切换。
 
-宽屏左侧另由 `ProductIntroCopy` 提供简短产品标题和说明，只在 Intro Ready、Game Home 且未启动游戏时显示；为避开固定 Hero 镜头下的左展板，限制视窗至少 1600×650、宽高比至少 2:1。小屏和较窄画幅隐藏文案，文案不拦截画布交互，监听与 DOM 随 World 销毁。
+宽屏左侧另由 `ProductIntroCopy` 提供简短产品标题和说明，只在 Intro Ready、Game Home 且未启动游戏时显示；为避开固定 Hero 镜头下的左展板，限制视窗至少 1600×650、宽高比至少 2:1。2026-10-05 按用户要求整体放大 1.5 倍：容器宽 330px，品牌小字 / 标题 / 正文字号分别为 15 / 51 / 19.5px，段间距 27px，保留原文案；低矮宽屏随视口高度上移，避开前景内部元件展台。小屏和较窄画幅隐藏文案，文案不拦截画布交互，监听与 DOM 随 World 销毁。
 
 同日视觉精修：入口由 `LoadingScreen` 展示品牌、真实进度与首帧准备状态；`ScreenManager` 持有 `GameEntryTransition` / `GameEntrySound`，NDS 首次启动与恢复在 Game Home 中先收拢上屏，首帧就绪后展开，再进入 Playing。`ModelAdapter` 持有 `ButtonPrint` 共享点阵字形，主机和展品各自在键帽材质上投影 ABXY 印花。取消/Replay/失焦/销毁均收束转场；见 `PROJECT_PROGRESS.md` 第 10 节。
 
@@ -930,6 +930,8 @@ App
 完成条件：画面响应和 3D 按键反馈在主观上同步。
 
 ### Phase 7 — 产品化收尾
+
+2026-10-05 已开始性能收尾：默认关闭开发 GUI 和辅助几何，开发时仅显式 `?debug` 按需载入 Tweakpane；`?performance` 独立开启开发采样，不进入正常展示。Loading 预热真实 Phone / Controller / NDS 材质与透射、GTAO、阴影通道，临时覆盖视锥剔除以准备 Hero 才露出的配件，随后恢复近闭合态与 Folded 镜头。每帧仅统一更新一次场景矩阵，玻璃背景捕获复用阴影，阴影按投影物/灯光变化更新；鼠标伴随笔停稳后复用画布。保留现有 DPR、GTAO、投影分辨率、材质和动画节奏。
 
 - Loading 与错误提示。
 - 移动端降级策略。
@@ -1185,3 +1187,9 @@ Renderer 保持 ACES；2026-10-05 按用户“偏暗、泛黄”反馈，将背�
 - 展台放在左侧 Parts 竖板前方、闭合 AirPods 后方，按用户最新截图校准为默认中心 `(-1.5W, +0.24D)`、Yaw 16°、整体 Scale 1.21；白色矮台在整体倍率应用前的顶板为 `0.91W × 0.32W`，前缘高 `0.06W`、倾角 30°，楔形支座随顶板角度变化。展台及元件不参与产品 Rig、屏幕输入或模拟器更新。
 - 原材质转为对应 Standard / Physical Node 材质，保留贴图、法线及 Memory 的清漆；CPU 正面完全金属化的导出材质在没有 IBL 的现有环境中偏黑，仅将其展示副本金属度设为 0.45，以保留银色顶盖与丝印的可读性。
 - 展区全部五张静态标签统一使用 2048 像素宽画布，薄标签最小高度同步提升至 256 像素；内部元件标签恢复原字号、两行铭牌排版与原元件名标签高度，两张内部标签各向异性保持 16，元件名称继续使用透明混合而非硬阈值裁切以改善文字边缘。静态标签、阴影布局、窄屏隐藏和销毁由 Exhibition 协调；Tweakpane 的 `Internal Components` 提供开关、X / Z / Yaw、整体 Scale 与 Deck angle。模型原始资源、共享纹理、材质副本与程序化几何去重回收。
+
+### 29.8 卡带 Game Library 展台（2026-10-05）
+
+- `GameLibraryDisplay` 在 ColorDock 前方、开盒 AirPods 后方放置白色斜板展台，默认中心 `(+1.48W, +0.05D)`、Yaw -27°、整体 Scale 0.825、板角 68°；按用户后续调整，整体缩为原 1.1 比例的 0.75 倍，并从 +Y 俯视顺时针转 15°。三张竖卡使用用户实际文件 `/img/cover2.png`–`cover4.png`，前签标注 `Game Library / DUO COMPATIBLE`。不以参考图上的游戏名替换用户封面。
+- `/img/cover5.png` 用于展台前方散放卡，局部位置 `(-0.1, 0, +0.38)`、Yaw 17°；原 `/img/cover.png` 地面卡保留尺寸、姿态与布局。卡壳和触点使用共享 `gameCard.js` 工厂，图片等比完整展示；每张卡的八个相同触点用一次实例绘制。
+- 新展台不加入产品 Rig、输入命中或模拟器更新；窄屏随左右展组隐藏，阴影边界由 Exhibition 协调，自有标签、几何、材质、封面纹理和实例对象进入直接父级销毁路径。新标签沿用 2048 像素宽画布；开发调参仅显式开启 Debug 时构造。
