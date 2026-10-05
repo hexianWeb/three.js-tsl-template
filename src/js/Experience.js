@@ -41,6 +41,11 @@ export default class Experience {
 
     await this.debug.init()
     if (this.destroyed) return this
+    if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('performance')) {
+      const { default: PerformanceMonitor } = await import('./Core/PerformanceMonitor.js')
+      if (this.destroyed) return this
+      this.performanceMonitor = new PerformanceMonitor({ canvas: this.canvas, events: this.events, state: this.state })
+    }
     this.camera = new Camera()
     this.renderer = new Renderer()
     this.events.emit('experience:phase', { phase: 'renderer' })
@@ -56,10 +61,10 @@ export default class Experience {
     this.world = new World()
     await this.renderer.initPointerOverlay(this.world.stylus)
     if (this.destroyed) return this
-    // Loading 覆盖 GPU 管线准备和首帧渲染，避免资源完成后先露出空白画布或跳过 Intro 开场。
-    await this.renderer.instance.compileAsync(this.scene, this.camera.instance)
+    // 在 Loading 内预热真实 Phone / Controller / NDS 与离屏通道，不把首次管线编译留到动画切换。
+    await this.world.preparePresentation()
     if (this.destroyed) return this
-    this.renderer.update()
+    this.performanceMonitor?.loaded()
     this.renderer.instance.setAnimationLoop(this.update)
     this.world.start()
     this.initialized = true
@@ -67,10 +72,14 @@ export default class Experience {
   }
 
   update() {
+    if (document.hidden || this.destroyed) return
+    this.performanceMonitor?.beginFrame()
     this.time.update()
     this.world.update()
     this.camera.update()
+    this.performanceMonitor?.updated()
     this.renderer.update()
+    this.performanceMonitor?.endFrame(this.renderer)
   }
 
   resize() {
@@ -86,6 +95,7 @@ export default class Experience {
     this.removeResizeListener?.()
     this.renderer?.instance?.setAnimationLoop(null)
     this.world?.destroy()
+    this.performanceMonitor?.destroy()
     this.camera?.destroy()
     this.renderer?.destroy()
     this.debug?.destroy()

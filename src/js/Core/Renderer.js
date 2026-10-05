@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu'
 import Experience from '../Experience.js'
 import ScenePipeline from './ScenePipeline.js'
+import ShadowUpdateTracker from './ShadowUpdateTracker.js'
 import TransmissionBackdrop from './TransmissionBackdrop.js'
 
 export default class Renderer {
@@ -25,8 +26,14 @@ export default class Renderer {
     this.instance.shadowMap.type = THREE.PCFShadowMap
     this.resize()
     await this.instance.init()
+    if (this.destroyed || this.experience.destroyed) {
+      this.instance.dispose()
+      return
+    }
+    this.instance.info.autoReset = false
     this.pipeline = new ScenePipeline(this.instance, this.scene, this.camera.instance, this.experience.debug)
     this.transmissionBackdrop = new TransmissionBackdrop(this.instance, this.scene, this.camera.instance)
+    this.shadowTracker = new ShadowUpdateTracker({ renderer: this.instance, scene: this.scene, camera: this.camera.instance, debug: this.experience.debug })
   }
 
   setExposure(value) {
@@ -60,14 +67,102 @@ export default class Renderer {
   }
 
   update() {
-    // Camera.update 已在 Experience 中完成；每帧仅在最终镜头下捕获一次玻璃背景。
-    if (!this.pipeline.params.enabled || this.pipeline.params.view === 'scene') this.transmissionBackdrop.capture()
-    this.pipeline.update()
+    this.instance.info.reset()
+    this.shadowTracker.beginFrame()
+    const matrixWorldAutoUpdate = this.scene.matrixWorldAutoUpdate
+    // 阴影、透射和 GTAO 共用上方已更新的世界矩阵，避免每个 pass 再遍历整棵展区层级。
+    this.scene.matrixWorldAutoUpdate = false
+    try {
+      if (!this.pipeline.params.enabled || this.pipeline.params.view === 'scene') {
+        this.shadowTracker.withoutShadowUpdates(() => this.transmissionBackdrop.capture())
+      }
+      this.pipeline.update()
+    }
+    finally {
+      this.scene.matrixWorldAutoUpdate = matrixWorldAutoUpdate
+    }
     // 与主场景共用 Experience 循环，不另起 rAF；透明小画布只绘制鼠标伴随模型。
     if (this.pointerOverlay?.ready && !this.pointerOverlay.canvas.hidden) {
       const { instance, scene, camera } = this.pointerOverlay
       instance.render(scene, camera)
     }
+  }
+
+  async warmup() {
+    const stopped = () => this.destroyed || this.experience.destroyed
+    if (stopped()) return false
+    const monitor = this.experience.performanceMonitor
+    const now = () => monitor ? performance.now() : 0
+    const startedAt = now()
+    const timings = { phase: monitor?.phase, compileMs: 0, stabilizationCompileMs: 0 }
+    try {
+      let needsShadowSeed = false
+      this.scene.traverseVisible((object) => {
+        if (object.isLight && object.castShadow && object.shadow && !object.shadow.map) needsShadowSeed = true
+      })
+      let seed = null
+      if (needsShadowSeed) {
+        this.scene.traverseVisible((object) => {
+          if (seed || !object.isMesh || !object.receiveShadow || !object.layers.test(this.camera.instance.layers)) return
+          const materials = Array.isArray(object.material) ? object.material : [object.material]
+          if (materials.some(material => material.visible && (material.lights === true || material.isMeshStandardMaterial || material.isMeshPhysicalMaterial || material.isMeshLambertMaterial || material.isMeshPhongMaterial || material.isMeshToonMaterial))) seed = object
+        })
+      }
+      const frustumCulled = seed?.frustumCulled
+      if (seed) seed.frustumCulled = false
+      try {
+        if (seed) {
+          // 仅借一个有光照的接收物创建 ShadowNode；其余材质直接预热实际 MRT/AO/透射管线，
+          // 避免先编译整场不会使用的默认 ACES 主画面变体及每个物体的异步阶段等待。
+          await this.instance.compileAsync(seed, this.camera.instance, this.scene)
+          if (stopped()) return false
+          timings.compileMs = now() - startedAt
+        }
+        const shadowBindingsChanged = this.initShadowRenderTargets()
+        if (seed && shadowBindingsChanged) {
+          const stabilizeStartedAt = now()
+          await this.instance.compileAsync(seed, this.camera.instance, this.scene)
+          if (stopped()) return false
+          timings.stabilizationCompileMs = now() - stabilizeStartedAt
+        }
+      }
+      finally {
+        if (seed) seed.frustumCulled = frustumCulled
+      }
+      // Three 的 ShadowNode 同一 camera/frameId 只绘一次；Loading 下不同姿态也必须跨到下一帧。
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      if (stopped()) return false
+      // 实际渲染覆盖 MRT、AO context、透射目标及阴影的管线变体；普通 scene compile 不含这些 pass。
+      const renderStartedAt = now()
+      this.update()
+      timings.renderSubmitMs = now() - renderStartedAt
+      const queueStartedAt = now()
+      await this.instance.backend.device.queue.onSubmittedWorkDone()
+      if (stopped()) return false
+      timings.queueWaitMs = now() - queueStartedAt
+      timings.totalMs = now() - startedAt
+      monitor?.recordWarmup?.(timings)
+      return true
+    }
+    catch (error) {
+      if (stopped()) return false
+      throw error
+    }
+  }
+
+  initShadowRenderTargets() {
+    let bindingsChanged = false
+    this.scene.traverseVisible((object) => {
+      if (!object.isLight || !object.castShadow || !object.shadow?.map) return
+      const target = object.shadow.map
+      const version = target.depthTexture?.version
+      // compileAsync 只上传采样纹理；首次作为附件初始化会改变 depth generation。
+      // 必须在透射捕获编码之前完成，防止 binding 继续引用被重建的 ShadowDepthTexture。
+      target.setSize(object.shadow.mapSize.x, object.shadow.mapSize.y, target.depth)
+      this.instance.initRenderTarget(target)
+      if (target.depthTexture?.version !== version) bindingsChanged = true
+    })
+    return bindingsChanged
   }
 
   resize() {
@@ -91,6 +186,7 @@ export default class Renderer {
 
     this.instance.setAnimationLoop(null)
     this.pipeline?.destroy()
+    this.shadowTracker?.destroy()
     this.transmissionBackdrop?.destroy()
     this.instance.dispose()
   }

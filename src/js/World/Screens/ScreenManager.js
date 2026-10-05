@@ -155,10 +155,18 @@ export default class ScreenManager {
     this.setScreenMaterial(this.screens.topScreen, this.ndsSurfaces[0].material, true)
     this.setScreenMaterial(this.screens.bottomDisplay, this.ndsSurfaces[1].material, true)
     const generation = this.gameEntry.generation
-    await this.experience.renderer.instance.compileAsync(this.experience.scene, this.experience.camera.instance)
+    // 主产品初始化已预热 NDS 两屏；按需重编译时也覆盖实际 GTAO/透射渲染通道。
+    if (!this.gameMaterialsPrepared) {
+      await this.experience.renderer.warmup()
+      if (!this.gameEntry.destroyed) this.gameMaterialsPrepared = true
+    }
     // 编译期间取消或 Replay 后，不得重新打开旧启动请求的遮罩。
     if (this.gameEntry.destroyed || generation !== this.gameEntry.generation) return false
     return this.gameEntry.open()
+  }
+
+  markGameMaterialsPrepared() {
+    this.gameMaterialsPrepared = true
   }
 
   cancelGameEntry() {

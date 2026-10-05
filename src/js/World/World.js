@@ -208,6 +208,44 @@ export default class World {
     this.intro.play()
   }
 
+  async preparePresentation() {
+    const rig = this.product.productRig
+    const renderer = this.experience.renderer
+    const culling = new Map()
+    // 编译也会做视锥剔除；Loading 内临时覆盖，避免 Hero 才露出的配件留到动画中首次编译。
+    this.scene.traverse(object => {
+      if (!object.isMesh) return
+      culling.set(object, object.frustumCulled)
+      object.frustumCulled = false
+    })
+    try {
+      // 全部屏幕材质只在 Loading 下临时绑定；不发产品模式事件，也不启动音频或模拟器。
+      rig.setHeroPose()
+      rig.controllerAssembly.setInstalledPose()
+      this.cameraDirector.transitionTo('hero', { immediate: true })
+      for (const mode of ['phone', 'game-home', 'playing']) {
+        this.experience.performanceMonitor?.setPhase(`warmup-${mode}`)
+        this.screenManager.setMode(mode)
+        this.screenManager.update()
+        await renderer.warmup()
+        if (this.experience.destroyed) return
+        this.events.emit('experience:scene-progress', { progress: (['phone', 'game-home', 'playing'].indexOf(mode) + 1) / 3 })
+      }
+      this.screenManager.markGameMaterialsPrepared()
+    }
+    finally {
+      for (const [object, value] of culling) object.frustumCulled = value
+      if (!this.experience.destroyed) {
+        this.screenManager.setMode('phone')
+        this.intro.setInitialPose()
+        // 预热结束精确还原近闭合态与 Folded 镜头，避免首帧短暂露出装配终点。
+      }
+    }
+    if (this.experience.destroyed) return
+    this.experience.performanceMonitor?.setPhase('warmup-folded')
+    await renderer.warmup()
+  }
+
   resize() {
     this.stylus?.resize()
     this.exhibition?.resize()

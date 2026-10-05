@@ -22,6 +22,7 @@ async function start() {
   removeLoadingListeners.push(
     experience.events.on('resources:progress', info => loading.setResources(info)),
     experience.events.on('experience:phase', ({ phase }) => loading.setPhase(phase)),
+    experience.events.on('experience:scene-progress', ({ progress }) => loading.setProgress(94 + progress * 5)),
   )
 
   try {
