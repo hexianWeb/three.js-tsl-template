@@ -26,7 +26,7 @@ export default class Environment {
       shadowBias: 0,
       shadowNormalBias: 0.006,
       fitExhibitionShadow: true,
-      showKeyLightHelper: true,
+      showKeyLightHelper: false,
     }
 
     this.setLights()

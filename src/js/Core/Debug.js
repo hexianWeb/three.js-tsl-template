@@ -5,6 +5,7 @@ export default class Debug {
     this.ui = new Pane({
       container,
       title: 'iPhone Duo · WebGPU',
+      expanded: false,
     })
   }
 

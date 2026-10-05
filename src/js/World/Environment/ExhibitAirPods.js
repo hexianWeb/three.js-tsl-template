@@ -75,7 +75,12 @@ export default class ExhibitAirPods {
       loose.rotation.set(Math.PI / 5, 0, -Math.PI * 0.42)
       const bounds = new THREE.Box3().setFromObject(loose, true)
       const looseCenter = bounds.getCenter(new THREE.Vector3())
-      loose.position.set(caseWidth * 0.25 - looseCenter.x, bodyBounds.min.y - bounds.min.y, caseWidth * 0.35 - looseCenter.z)
+      // 按盒身最前表面与耳机最后表面留出 0.45 个盒宽，同时避开 Hero 斜视下的轮廓遮挡。
+      loose.position.set(
+        caseWidth * 0.12 - looseCenter.x,
+        bodyBounds.min.y - bounds.min.y,
+        bodyBounds.max.z + caseWidth * 0.45 - bounds.min.z,
+      )
       // model 已做坐标系适配，attach 保留耳机的世界位姿，避免再叠加一次 90° 旋转。
       model.attach(loose)
     }
@@ -115,10 +120,14 @@ export default class ExhibitAirPods {
   visibleBounds(model) {
     model.updateMatrixWorld(true)
     const bounds = new THREE.Box3()
+    const point = new THREE.Vector3()
     model.traverseVisible(mesh => {
       if (!mesh.isMesh) return
-      mesh.geometry.computeBoundingBox()
-      bounds.union(mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld))
+      // 只在静态摆放时测量精确顶点，避免旋转后的保守 AABB 把最低点算低、让耳机悬空。
+      const positions = mesh.geometry.attributes.position
+      for (let i = 0; i < positions.count; i++) {
+        bounds.expandByPoint(point.fromBufferAttribute(positions, i).applyMatrix4(mesh.matrixWorld))
+      }
     })
     return bounds
   }
